@@ -14,7 +14,8 @@
       "Bash(pnpm typecheck *)",
       "Bash(pnpm --filter @pg/web dev)",
       "Bash(lsof -ti:5173)",
-      "Bash(xargs -r kill)"
+      "Bash(xargs -r kill)",
+      "Bash(pnpm --filter @pg/web add @hello-pangea/dnd)"
     ]
   }
 }

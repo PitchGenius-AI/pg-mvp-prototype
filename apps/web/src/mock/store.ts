@@ -65,6 +65,15 @@ interface MockActions {
   ) => MockDiagnosis;
   recordOutcome: (input: Omit<MockOutcome, 'id' | 'createdAt'>) => MockOutcome;
   setAtRisk: (opportunityId: string, atRisk: boolean) => void;
+
+  updateWorkspace: (
+    workspaceId: string,
+    patch: Partial<Pick<MockWorkspace, 'name' | 'website' | 'industry' | 'crmStageTemplate' | 'customCrmStages'>>,
+  ) => MockWorkspace | null;
+  upsertProductForWorkspace: (
+    workspaceId: string,
+    input: Omit<MockProduct, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
+  ) => MockProduct;
 }
 
 const emptyState: MockState = {
@@ -265,6 +274,41 @@ export const useMockStore = create<MockState & MockActions>()(
           undefined,
           'mock/setAtRisk',
         ),
+
+      updateWorkspace: (workspaceId, patch) => {
+        const existing = get().workspaces[workspaceId];
+        if (!existing) return null;
+        const updated: MockWorkspace = { ...existing, ...patch, updatedAt: nowIso() };
+        set(
+          (state) => ({
+            workspaces: { ...state.workspaces, [workspaceId]: updated },
+          }),
+          undefined,
+          'mock/updateWorkspace',
+        );
+        return updated;
+      },
+
+      upsertProductForWorkspace: (workspaceId, input) => {
+        const existing = Object.values(get().products).find(
+          (p) => p.workspaceId === workspaceId,
+        );
+        const product: MockProduct = existing
+          ? { ...existing, ...input, updatedAt: nowIso() }
+          : {
+              ...input,
+              id: newId('prod'),
+              workspaceId,
+              createdAt: nowIso(),
+              updatedAt: nowIso(),
+            };
+        set(
+          (state) => ({ products: { ...state.products, [product.id]: product } }),
+          undefined,
+          'mock/upsertProductForWorkspace',
+        );
+        return product;
+      },
     }),
     { name: 'pg-mock-store', enabled: import.meta.env.DEV },
   ),
@@ -353,4 +397,12 @@ export const mockActions = {
     useMockStore.getState().recordOutcome(input),
   setAtRisk: (opportunityId: string, atRisk: boolean) =>
     useMockStore.getState().setAtRisk(opportunityId, atRisk),
+  updateWorkspace: (
+    workspaceId: string,
+    patch: Parameters<MockActions['updateWorkspace']>[1],
+  ) => useMockStore.getState().updateWorkspace(workspaceId, patch),
+  upsertProductForWorkspace: (
+    workspaceId: string,
+    input: Parameters<MockActions['upsertProductForWorkspace']>[1],
+  ) => useMockStore.getState().upsertProductForWorkspace(workspaceId, input),
 };

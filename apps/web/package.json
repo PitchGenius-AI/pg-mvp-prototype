@@ -12,6 +12,7 @@
     "clean": "rm -rf .turbo dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@mantine/core": "^7.15.1",
     "@mantine/dates": "^7.15.1",
     "@mantine/form": "^7.15.1",
