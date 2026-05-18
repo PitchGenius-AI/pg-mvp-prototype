@@ -1,121 +1,99 @@
-import { Badge, Button, Container, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Container, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useMemo, useState } from 'react';
 import { AddOpportunityModal } from '../../features/opportunity-intake';
-import { useOpportunities } from '../../mock/hooks';
+import { EmptyStates, Filters, OpportunityList, SearchSort } from '../../features/opportunity-list';
+import {
+  applyFilters,
+  applySort,
+  selectOpportunityRows,
+} from '../../features/opportunity-list/filter-sort';
+import {
+  DEFAULT_SORT,
+  hasActiveFilters,
+  listSearchSchema,
+  type ListSearchParams,
+} from '../../features/opportunity-list/search-schema';
+import { useCurrentSession } from '../../mock/store';
 
 export const Route = createFileRoute('/_authed/opportunities/')({
+  validateSearch: listSearchSchema,
   component: OpportunityListPage,
 });
 
-// M1 prototype: minimal list so the seed is visible. M5 owns the real filterable
-// list view (search, alignment / at-risk filters, full empty state, etc).
 function OpportunityListPage() {
-  const { data: opportunities, isLoading } = useOpportunities();
+  const params = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const session = useCurrentSession();
   const [addOpen, setAddOpen] = useState(false);
+
+  // Read straight from the store. `selectOpportunityRows` joins buyers +
+  // latest interaction once and is recomputed only when params change.
+  const allRows = useMemo(
+    () => (session ? selectOpportunityRows(session.workspaceId) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session?.workspaceId, params],
+  );
+  const filteredRows = useMemo(() => applyFilters(allRows, params), [allRows, params]);
+  const sortedRows = useMemo(
+    () => applySort(filteredRows, params.sort ?? DEFAULT_SORT),
+    [filteredRows, params.sort],
+  );
+
+  const updateParams = (next: ListSearchParams) => {
+    navigate({ search: next, replace: true });
+  };
+
+  const hasOpportunitiesAtAll = allRows.length > 0;
+  const filtered = sortedRows.length > 0;
+  const filtersActive = hasActiveFilters(params);
 
   return (
     <Container size="xl" py="lg">
-      <Stack>
-        <Group justify="space-between">
-          <Title order={2}>Opportunities</Title>
-          <Group gap="sm">
+      <Stack gap="md">
+        <Group justify="space-between" align="center">
+          <Stack gap={0}>
+            <Title order={2}>Opportunities</Title>
             <Text size="sm" c="dimmed">
-              {opportunities?.length ?? 0} deals
+              {countLabel(sortedRows.length, allRows.length, filtersActive)}
             </Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
-              Add opportunity
-            </Button>
-          </Group>
-        </Group>
-        {isLoading && <Text c="dimmed">Loading…</Text>}
-        {opportunities && opportunities.length > 0 && (
-          <Table highlightOnHover withTableBorder verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Opportunity</Table.Th>
-                <Table.Th>CRM stage</Table.Th>
-                <Table.Th>Readiness</Table.Th>
-                <Table.Th>Alignment</Table.Th>
-                <Table.Th>At risk</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {opportunities.map((o) => (
-                <Table.Tr key={o.id}>
-                  <Table.Td>
-                    <Link
-                      to="/opportunities/$opportunityId"
-                      params={{ opportunityId: o.id }}
-                      style={{ textDecoration: 'none', color: 'inherit', fontWeight: 500 }}
-                    >
-                      {o.opportunityName}
-                    </Link>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{o.currentCrmStage}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {o.currentReadinessState ? (
-                      <Badge variant="light">
-                        {o.currentReadinessState.replace(/_/g, ' ')}
-                        {o.currentReadinessScore != null ? ` · ${o.currentReadinessScore}` : ''}
-                      </Badge>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        —
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    {o.currentAlignmentOutcome ? (
-                      <Badge
-                        color={alignmentColor(o.currentAlignmentOutcome, o.currentAlignmentLevel)}
-                        variant="light"
-                      >
-                        {o.currentAlignmentOutcome.replace(/_/g, ' ')}
-                        {o.currentAlignmentLevel && o.currentAlignmentLevel !== 'none'
-                          ? ` · ${o.currentAlignmentLevel}`
-                          : ''}
-                      </Badge>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        —
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    {o.atRisk ? <Badge color="red">At risk</Badge> : <Text c="dimmed">—</Text>}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-        {opportunities && opportunities.length === 0 && (
-          <Stack align="center" gap="sm" py="xl">
-            <Text c="dimmed">No opportunities yet.</Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
-              Add your first opportunity
-            </Button>
           </Stack>
+          <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+            Add opportunity
+          </Button>
+        </Group>
+
+        {hasOpportunitiesAtAll && (
+          <>
+            <Filters params={params} onChange={updateParams} />
+            <Divider />
+            <SearchSort params={params} onChange={updateParams} />
+          </>
         )}
+
+        {!hasOpportunitiesAtAll && (
+          <EmptyStates.NoOpportunitiesEmpty onAdd={() => setAddOpen(true)} />
+        )}
+
+        {hasOpportunitiesAtAll && !filtered && (
+          <EmptyStates.FilteredEmpty
+            onClearFilters={() => updateParams({ sort: params.sort })}
+          />
+        )}
+
+        {filtered && <OpportunityList rows={sortedRows} />}
       </Stack>
+
       <AddOpportunityModal opened={addOpen} onClose={() => setAddOpen(false)} />
     </Container>
   );
 }
 
-function alignmentColor(
-  outcome: string,
-  level: string | null,
-): string {
-  if (outcome === 'over_projecting') {
-    if (level === 'critical' || level === 'high') return 'red';
-    if (level === 'medium') return 'orange';
-    return 'yellow';
+function countLabel(shown: number, total: number, filtersActive: boolean): string {
+  if (total === 0) return 'No deals yet';
+  if (filtersActive && shown !== total) {
+    return `${shown} of ${total} ${total === 1 ? 'deal' : 'deals'}`;
   }
-  if (outcome === 'under_projecting') return 'blue';
-  return 'teal';
+  return `${total} ${total === 1 ? 'deal' : 'deals'}`;
 }
