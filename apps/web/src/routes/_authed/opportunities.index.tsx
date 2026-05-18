@@ -1,5 +1,8 @@
-import { Badge, Container, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { Badge, Button, Container, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { Link, createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { AddOpportunityModal } from '../../features/opportunity-intake';
 import { useOpportunities } from '../../mock/hooks';
 
 export const Route = createFileRoute('/_authed/opportunities/')({
@@ -10,15 +13,21 @@ export const Route = createFileRoute('/_authed/opportunities/')({
 // list view (search, alignment / at-risk filters, full empty state, etc).
 function OpportunityListPage() {
   const { data: opportunities, isLoading } = useOpportunities();
+  const [addOpen, setAddOpen] = useState(false);
 
   return (
     <Container size="xl" py="lg">
       <Stack>
         <Group justify="space-between">
           <Title order={2}>Opportunities</Title>
-          <Text size="sm" c="dimmed">
-            {opportunities?.length ?? 0} deals
-          </Text>
+          <Group gap="sm">
+            <Text size="sm" c="dimmed">
+              {opportunities?.length ?? 0} deals
+            </Text>
+            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+              Add opportunity
+            </Button>
+          </Group>
         </Group>
         {isLoading && <Text c="dimmed">Loading…</Text>}
         {opportunities && opportunities.length > 0 && (
@@ -85,9 +94,15 @@ function OpportunityListPage() {
           </Table>
         )}
         {opportunities && opportunities.length === 0 && (
-          <Text c="dimmed">No opportunities yet.</Text>
+          <Stack align="center" gap="sm" py="xl">
+            <Text c="dimmed">No opportunities yet.</Text>
+            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+              Add your first opportunity
+            </Button>
+          </Stack>
         )}
       </Stack>
+      <AddOpportunityModal opened={addOpen} onClose={() => setAddOpen(false)} />
     </Container>
   );
 }

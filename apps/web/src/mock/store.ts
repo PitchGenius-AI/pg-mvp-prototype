@@ -66,6 +66,10 @@ interface MockActions {
   recordOutcome: (input: Omit<MockOutcome, 'id' | 'createdAt'>) => MockOutcome;
   setAtRisk: (opportunityId: string, atRisk: boolean) => void;
 
+  addWorkspace: (
+    input: Pick<MockWorkspace, 'name' | 'createdByUserId'> &
+      Partial<Pick<MockWorkspace, 'crmStageTemplate' | 'onboardingCompleted'>>,
+  ) => MockWorkspace;
   updateWorkspace: (
     workspaceId: string,
     patch: Partial<Pick<MockWorkspace, 'name' | 'website' | 'industry' | 'crmStageTemplate' | 'customCrmStages'>>,
@@ -275,6 +279,27 @@ export const useMockStore = create<MockState & MockActions>()(
           'mock/setAtRisk',
         ),
 
+      addWorkspace: (input) => {
+        const workspace: MockWorkspace = {
+          id: newId('ws'),
+          name: input.name,
+          website: null,
+          industry: null,
+          crmStageTemplate: input.crmStageTemplate ?? 'simple_b2b_sales',
+          customCrmStages: null,
+          createdByUserId: input.createdByUserId,
+          onboardingCompleted: input.onboardingCompleted ?? false,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        set(
+          (state) => ({ workspaces: { ...state.workspaces, [workspace.id]: workspace } }),
+          undefined,
+          'mock/addWorkspace',
+        );
+        return workspace;
+      },
+
       updateWorkspace: (workspaceId, patch) => {
         const existing = get().workspaces[workspaceId];
         if (!existing) return null;
@@ -397,6 +422,8 @@ export const mockActions = {
     useMockStore.getState().recordOutcome(input),
   setAtRisk: (opportunityId: string, atRisk: boolean) =>
     useMockStore.getState().setAtRisk(opportunityId, atRisk),
+  addWorkspace: (input: Parameters<MockActions['addWorkspace']>[0]) =>
+    useMockStore.getState().addWorkspace(input),
   updateWorkspace: (
     workspaceId: string,
     patch: Parameters<MockActions['updateWorkspace']>[1],
@@ -406,3 +433,35 @@ export const mockActions = {
     input: Parameters<MockActions['upsertProductForWorkspace']>[1],
   ) => useMockStore.getState().upsertProductForWorkspace(workspaceId, input),
 };
+
+// --- Read-only helpers ---
+
+export interface BuyerMatchInput {
+  firstName: string;
+  company: string;
+  email: string | null;
+}
+
+// Match priority: exact email match wins; otherwise case-insensitive
+// (firstName + company) fallback. Returns null if no buyer in the workspace matches.
+export function findMatchingBuyer(
+  workspaceId: string,
+  input: BuyerMatchInput,
+): MockBuyer | null {
+  const buyers = Object.values(useMockStore.getState().buyers).filter(
+    (b) => b.workspaceId === workspaceId,
+  );
+  if (input.email) {
+    const target = input.email.toLowerCase();
+    const byEmail = buyers.find((b) => b.email && b.email.toLowerCase() === target);
+    if (byEmail) return byEmail;
+  }
+  const firstName = input.firstName.toLowerCase();
+  const company = input.company.toLowerCase();
+  return (
+    buyers.find(
+      (b) =>
+        b.firstName.toLowerCase() === firstName && b.company.toLowerCase() === company,
+    ) ?? null
+  );
+}

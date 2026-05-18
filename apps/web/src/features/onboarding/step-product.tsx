@@ -13,8 +13,8 @@ export function StepProduct({ data, onChange }: StepProductProps) {
   return (
     <Stack gap="md">
       <Text size="sm" c="dimmed">
-        These three answers flow into every diagnosis prompt — so be specific. Aim for 1-3
-        sentences each, in the words you'd use with a real buyer.
+        These three answers flow into every diagnosis prompt — so be specific. Each needs at
+        least {MIN_CHARS} characters before you can continue.
       </Text>
       <TextInput
         label="Product name"
@@ -24,45 +24,61 @@ export function StepProduct({ data, onChange }: StepProductProps) {
         required
         data-autofocus
       />
-      <Textarea
+      <FieldWithCount
         label="What do you sell?"
         placeholder="e.g. Pulse is a pipeline-intelligence platform that scores every B2B deal on buyer readiness using meeting evidence."
         value={data.description}
-        onChange={(e) => onChange({ description: e.currentTarget.value })}
-        autosize
-        minRows={3}
-        required
-        description={charHint(data.description)}
+        onChange={(value) => onChange({ description: value })}
       />
-      <Textarea
+      <FieldWithCount
         label="Who do you sell to?"
         placeholder="e.g. VP of Sales, Head of RevOps at 100-1,000 person SaaS companies."
         value={data.targetBuyer}
-        onChange={(e) => onChange({ targetBuyer: e.currentTarget.value })}
-        autosize
-        minRows={3}
-        required
-        description={charHint(data.targetBuyer)}
+        onChange={(value) => onChange({ targetBuyer: value })}
       />
-      <Textarea
+      <FieldWithCount
         label="What problem do you usually solve?"
         placeholder="e.g. Reps over-call deals in CRM stages, inflating the forecast. We surface those mismatches before forecast day."
         value={data.problemSolved}
-        onChange={(e) => onChange({ problemSolved: e.currentTarget.value })}
-        autosize
-        minRows={3}
-        required
-        description={charHint(data.problemSolved)}
+        onChange={(value) => onChange({ problemSolved: value })}
       />
     </Stack>
   );
 }
 
-function charHint(value: string): string {
+interface FieldWithCountProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+// Validation feedback states:
+//   empty       → dimmed counter only (don't shout at untouched fields)
+//   1..MIN-1    → red error (user engaged but hasn't met the bar)
+//   MIN..       → dimmed counter (satisfied)
+function FieldWithCount({ label, placeholder, value, onChange }: FieldWithCountProps) {
   const len = value.trim().length;
-  if (len === 0) return `0 / ~${TARGET_CHARS} chars`;
-  if (len < MIN_CHARS) return `${len} / ~${TARGET_CHARS} chars — a little more detail helps`;
-  return `${len} / ~${TARGET_CHARS} chars`;
+  const tooShort = len > 0 && len < MIN_CHARS;
+  const helperText = `${len} / ~${TARGET_CHARS} chars`;
+
+  return (
+    <Textarea
+      label={label}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value)}
+      autosize
+      minRows={3}
+      required
+      error={
+        tooShort
+          ? `${helperText} — needs at least ${MIN_CHARS} characters before you can continue`
+          : undefined
+      }
+      description={tooShort ? undefined : helperText}
+    />
+  );
 }
 
 export function isProductStepValid(d: WizardData['product']): boolean {

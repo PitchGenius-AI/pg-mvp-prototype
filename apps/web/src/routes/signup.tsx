@@ -2,8 +2,7 @@ import { Anchor, Button, Container, Group, PasswordInput, Stack, Text, TextInput
 import { useForm } from '@mantine/form';
 import { IconTargetArrow } from '@tabler/icons-react';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
-import { mockActions, useMockStore } from '../mock/store';
-import { SEED_USER } from '../mock/seed';
+import { mockActions } from '../mock/store';
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -32,14 +31,22 @@ function SignupPage() {
         Create account
       </Title>
       <Text size="sm" c="dimmed" mb="md">
-        Prototype: signup drops you into the onboarding wizard.
+        Prototype: signup creates a fresh empty workspace. To see a pre-populated demo
+        workspace instead, use the sign-in flow.
       </Text>
       <form
         onSubmit={form.onSubmit((values) => {
-          const workspaceId = pickDemoWorkspaceId();
+          // Fresh user — no relation to the seeded demo user.
+          const userId = `user_${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, '')}`;
+          // Empty workspace; onboarding wizard overwrites name/product/CRM stages on submit.
+          const workspace = mockActions.addWorkspace({
+            name: 'New workspace',
+            createdByUserId: userId,
+            onboardingCompleted: false,
+          });
           mockActions.setSession({
-            user: { ...SEED_USER, name: values.name, email: values.email },
-            workspaceId,
+            user: { id: userId, name: values.name, email: values.email },
+            workspaceId: workspace.id,
             workspaceOnboardingCompleted: false,
           });
           navigate({ to: '/onboarding' });
@@ -57,13 +64,4 @@ function SignupPage() {
       </form>
     </Container>
   );
-}
-
-function pickDemoWorkspaceId(): string {
-  const workspaces = Object.values(useMockStore.getState().workspaces);
-  const first = workspaces[0];
-  if (!first) {
-    throw new Error('Mock store has no workspaces — seed did not run.');
-  }
-  return first.id;
 }

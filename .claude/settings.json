@@ -15,7 +15,10 @@
       "Bash(pnpm --filter @pg/web dev)",
       "Bash(lsof -ti:5173)",
       "Bash(xargs -r kill)",
-      "Bash(pnpm --filter @pg/web add @hello-pangea/dnd)"
+      "Bash(pnpm --filter @pg/web add @hello-pangea/dnd)",
+      "Bash(pnpm --filter @pg/web add papaparse)",
+      "Bash(pnpm --filter @pg/web add -D @types/papaparse)",
+      "Bash(pnpm --filter @pg/web add @mantine/dropzone)"
     ]
   }
 }

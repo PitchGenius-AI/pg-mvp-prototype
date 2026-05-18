@@ -1,0 +1,6 @@
+opportunity_name,first_name,last_name,company,title,email,stage,value,close_date,pain
+Acme – pricing eval,Lin,Yamada,Acme Co,VP Sales,lin.yamada@acme.example,Qualified,42000,2026-08-15,Forecast accuracy
+Nimbus expansion,Ravi,Patel,Nimbus Health,Director RevOps,ravi.patel@nimbus.example,Discovery,68000,2026-09-30,Pipeline visibility
+Orion onboarding tools,Casey,Park,Orion AI,Head of Sales Enablement,casey.park@orion.example,Demo,55000,2026-07-22,Manager coaching gaps
+Helio CRM refresh,Beatriz,Mendes,Helio Software,Sales Operations Lead,b.mendes@helio.example,Proposal,90000,2026-11-15,Stale CRM data
+Vortex deal acceleration,Devon,Hart,Vortex Labs,CRO,devon.hart@vortex.example,Negotiation,135000,2026-06-30,Late-stage forecast misses
