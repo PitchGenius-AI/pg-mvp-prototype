@@ -50,11 +50,6 @@ export function StepCrmStages({ data, onChange }: StepCrmStagesProps) {
 
   return (
     <Stack gap="md">
-      <Text size="sm" c="dimmed">
-        How does your team move deals through the pipeline? This drives the Pipeline Reality
-        Check — comparing your CRM stage to the buyer's evidence-based readiness.
-      </Text>
-
       <Radio.Group
         value={data.template}
         onChange={(value) =>

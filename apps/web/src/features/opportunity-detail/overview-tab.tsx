@@ -8,6 +8,7 @@ import {
   Text,
 } from '@mantine/core';
 import { IconArrowNarrowRight, IconClock } from '@tabler/icons-react';
+import { AlignmentBadge } from '../../components/alignment-badge';
 import { useDiagnosesForOpportunity } from '../../mock/store';
 import type {
   MockBuyer,
@@ -15,7 +16,7 @@ import type {
   MockInteraction,
   MockOpportunity,
 } from '../../mock/types';
-import { alignmentColor, confidenceColor, humanize } from './badges';
+import { confidenceColor, humanize } from './badges';
 
 interface OverviewTabProps {
   opportunity: MockOpportunity;
@@ -82,30 +83,11 @@ function AtAGlance({
         )}
       </StatCard>
       <StatCard label="Alignment">
-        {opportunity.currentAlignmentOutcome ? (
-          <Stack gap={2}>
-            <Badge
-              variant="light"
-              size="md"
-              color={alignmentColor(
-                opportunity.currentAlignmentOutcome,
-                opportunity.currentAlignmentLevel,
-              )}
-            >
-              {humanize(opportunity.currentAlignmentOutcome)}
-            </Badge>
-            {opportunity.currentAlignmentLevel &&
-              opportunity.currentAlignmentLevel !== 'none' && (
-                <Text size="xs" c="dimmed">
-                  Severity {opportunity.currentAlignmentLevel}
-                </Text>
-              )}
-          </Stack>
-        ) : (
-          <Text size="sm" c="dimmed">
-            —
-          </Text>
-        )}
+        <AlignmentBadge
+          outcome={opportunity.currentAlignmentOutcome}
+          level={opportunity.currentAlignmentLevel}
+          size="md"
+        />
       </StatCard>
       <StatCard label="Confidence">
         {latestDiagnosis ? (

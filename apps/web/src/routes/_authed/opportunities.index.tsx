@@ -1,10 +1,24 @@
-import { Button, Container, Divider, Group, Stack, Text, Title } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import {
+  ActionIcon,
+  Button,
+  Container,
+  Divider,
+  Group,
+  Popover,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { OpportunityListSkeleton } from '../../components/skeletons/opportunity-list-skeleton';
 import { AddOpportunityModal } from '../../features/opportunity-intake';
 import { EmptyStates, Filters, OpportunityList, SearchSort } from '../../features/opportunity-list';
+import {
+  OPPORTUNITY_CONCEPT_BODY,
+  OPPORTUNITY_CONCEPT_HEADING,
+} from '../../features/opportunity-list/opportunity-concept-copy';
 import {
   applyFilters,
   applySort,
@@ -63,7 +77,10 @@ function OpportunityListPage() {
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <Stack gap={0}>
-            <Title order={2}>Opportunities</Title>
+            <Group gap={6} align="center">
+              <Title order={2}>Opportunities</Title>
+              <OpportunityConceptPopover />
+            </Group>
             <Text size="sm" c="dimmed">
               {countLabel(sortedRows.length, allRows.length, filtersActive)}
             </Text>
@@ -102,6 +119,30 @@ function OpportunityListPage() {
 
       <AddOpportunityModal opened={addOpen} onClose={() => setAddOpen(false)} />
     </Container>
+  );
+}
+
+function OpportunityConceptPopover() {
+  return (
+    <Popover width={340} position="bottom-start" withArrow shadow="md">
+      <Popover.Target>
+        <ActionIcon variant="subtle" color="gray" aria-label="What's an opportunity?">
+          <IconInfoCircle size={18} />
+        </ActionIcon>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <Stack gap="xs">
+          <Text fw={600} size="sm">
+            {OPPORTUNITY_CONCEPT_HEADING}
+          </Text>
+          {OPPORTUNITY_CONCEPT_BODY.map((paragraph) => (
+            <Text key={paragraph} size="sm">
+              {paragraph}
+            </Text>
+          ))}
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   );
 }
 

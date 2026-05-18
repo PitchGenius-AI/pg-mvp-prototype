@@ -1,7 +1,8 @@
 import { Badge, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import { alignmentColor, relativeTime, type OpportunityRowData } from './filter-sort';
+import { AlignmentBadge } from '../../components/alignment-badge';
+import { relativeTime, type OpportunityRowData } from './filter-sort';
 
 interface OpportunityRowProps {
   row: OpportunityRowData;
@@ -57,25 +58,10 @@ export function OpportunityRow({ row }: OpportunityRowProps) {
         )}
       </Table.Td>
       <Table.Td>
-        {opportunity.currentAlignmentOutcome ? (
-          <Badge
-            variant="light"
-            size="sm"
-            color={alignmentColor(
-              opportunity.currentAlignmentOutcome,
-              opportunity.currentAlignmentLevel,
-            )}
-          >
-            {opportunity.currentAlignmentOutcome.replace(/_/g, ' ')}
-            {opportunity.currentAlignmentLevel && opportunity.currentAlignmentLevel !== 'none'
-              ? ` · ${opportunity.currentAlignmentLevel}`
-              : ''}
-          </Badge>
-        ) : (
-          <Text size="sm" c="dimmed">
-            —
-          </Text>
-        )}
+        <AlignmentBadge
+          outcome={opportunity.currentAlignmentOutcome}
+          level={opportunity.currentAlignmentLevel}
+        />
       </Table.Td>
       <Table.Td>
         <Tooltip label={new Date(latestInteractionDate).toLocaleString()}>

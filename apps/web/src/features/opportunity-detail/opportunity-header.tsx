@@ -1,9 +1,10 @@
 import { Anchor, Badge, Breadcrumbs, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
+import { AlignmentBadge } from '../../components/alignment-badge';
 import { relativeTime } from '../opportunity-list/filter-sort';
 import type { MockBuyer, MockOpportunity } from '../../mock/types';
-import { alignmentColor, humanize } from './badges';
+import { humanize } from './badges';
 
 interface OpportunityHeaderProps {
   opportunity: MockOpportunity;
@@ -53,20 +54,11 @@ export function OpportunityHeader({
               : ''}
           </Badge>
         )}
-        {opportunity.currentAlignmentOutcome && (
-          <Badge
-            variant="light"
-            color={alignmentColor(
-              opportunity.currentAlignmentOutcome,
-              opportunity.currentAlignmentLevel,
-            )}
-          >
-            {humanize(opportunity.currentAlignmentOutcome)}
-            {opportunity.currentAlignmentLevel && opportunity.currentAlignmentLevel !== 'none'
-              ? ` · ${opportunity.currentAlignmentLevel}`
-              : ''}
-          </Badge>
-        )}
+        <AlignmentBadge
+          outcome={opportunity.currentAlignmentOutcome}
+          level={opportunity.currentAlignmentLevel}
+          size="md"
+        />
         {latestInteractionDate && (
           <Text size="xs" c="dimmed">
             Last activity {relativeTime(latestInteractionDate)}

@@ -1,5 +1,9 @@
-import { Button, Center, Paper, Stack, Text, Title } from '@mantine/core';
-import { IconBriefcase, IconFilterOff, IconPlus } from '@tabler/icons-react';
+import { Alert, Button, Center, Paper, Stack, Text, Title } from '@mantine/core';
+import { IconBriefcase, IconFilterOff, IconInfoCircle, IconPlus } from '@tabler/icons-react';
+import {
+  OPPORTUNITY_CONCEPT_BODY,
+  OPPORTUNITY_CONCEPT_HEADING,
+} from './opportunity-concept-copy';
 
 // First-time / truly-empty: no opps and no filters active.
 interface NoOpportunitiesProps {
@@ -9,18 +13,36 @@ interface NoOpportunitiesProps {
 export function NoOpportunitiesEmpty({ onAdd }: NoOpportunitiesProps) {
   return (
     <Center py="xl">
-      <Paper withBorder p="xl" radius="md" maw={520}>
-        <Stack align="center" gap="sm">
-          <IconBriefcase size={36} color="var(--mantine-color-dimmed)" />
-          <Title order={3}>No opportunities yet</Title>
-          <Text size="sm" c="dimmed" ta="center">
-            Add your first opportunity to get a buyer readiness diagnosis.
-          </Text>
-          <Button leftSection={<IconPlus size={16} />} onClick={onAdd} mt="sm">
-            Add opportunity
-          </Button>
-        </Stack>
-      </Paper>
+      <Stack align="center" gap="md" maw={560}>
+        <Paper withBorder p="xl" radius="md" w="100%">
+          <Stack align="center" gap="sm">
+            <IconBriefcase size={36} color="var(--mantine-color-dimmed)" />
+            <Title order={3}>No opportunities yet</Title>
+            <Text size="sm" c="dimmed" ta="center">
+              Add your first opportunity to get a buyer readiness diagnosis.
+            </Text>
+            <Button leftSection={<IconPlus size={16} />} onClick={onAdd} mt="sm">
+              Add opportunity
+            </Button>
+          </Stack>
+        </Paper>
+
+        <Alert
+          icon={<IconInfoCircle size={18} />}
+          title={OPPORTUNITY_CONCEPT_HEADING}
+          color="blue"
+          variant="light"
+          w="100%"
+        >
+          <Stack gap="xs">
+            {OPPORTUNITY_CONCEPT_BODY.map((paragraph) => (
+              <Text key={paragraph} size="sm">
+                {paragraph}
+              </Text>
+            ))}
+          </Stack>
+        </Alert>
+      </Stack>
     </Center>
   );
 }
