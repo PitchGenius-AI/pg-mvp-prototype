@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root';
 import { Route as SignupRouteImport } from './routes/signup';
 import { Route as OnboardingRouteImport } from './routes/onboarding';
 import { Route as LoginRouteImport } from './routes/login';
+import { Route as AuthedRouteImport } from './routes/_authed';
 import { Route as IndexRouteImport } from './routes/index';
-import { Route as OpportunitiesIndexRouteImport } from './routes/opportunities.index';
-import { Route as OpportunitiesOpportunityIdRouteImport } from './routes/opportunities.$opportunityId';
+import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings';
+import { Route as AuthedOpportunitiesIndexRouteImport } from './routes/_authed/opportunities.index';
+import { Route as AuthedOpportunitiesOpportunityIdRouteImport } from './routes/_authed/opportunities.$opportunityId';
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -31,21 +33,31 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any);
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any);
-const OpportunitiesIndexRoute = OpportunitiesIndexRouteImport.update({
-  id: '/opportunities/',
-  path: '/opportunities/',
-  getParentRoute: () => rootRouteImport,
+const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthedRoute,
 } as any);
-const OpportunitiesOpportunityIdRoute =
-  OpportunitiesOpportunityIdRouteImport.update({
+const AuthedOpportunitiesIndexRoute =
+  AuthedOpportunitiesIndexRouteImport.update({
+    id: '/opportunities/',
+    path: '/opportunities/',
+    getParentRoute: () => AuthedRoute,
+  } as any);
+const AuthedOpportunitiesOpportunityIdRoute =
+  AuthedOpportunitiesOpportunityIdRouteImport.update({
     id: '/opportunities/$opportunityId',
     path: '/opportunities/$opportunityId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthedRoute,
   } as any);
 
 export interface FileRoutesByFullPath {
@@ -53,25 +65,29 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/opportunities/$opportunityId': typeof OpportunitiesOpportunityIdRoute;
-  '/opportunities/': typeof OpportunitiesIndexRoute;
+  '/settings': typeof AuthedSettingsRoute;
+  '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/opportunities/': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/opportunities/$opportunityId': typeof OpportunitiesOpportunityIdRoute;
-  '/opportunities': typeof OpportunitiesIndexRoute;
+  '/settings': typeof AuthedSettingsRoute;
+  '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/opportunities': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   '/': typeof IndexRoute;
+  '/_authed': typeof AuthedRouteWithChildren;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/opportunities/$opportunityId': typeof OpportunitiesOpportunityIdRoute;
-  '/opportunities/': typeof OpportunitiesIndexRoute;
+  '/_authed/settings': typeof AuthedSettingsRoute;
+  '/_authed/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/_authed/opportunities/': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -80,6 +96,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/settings'
     | '/opportunities/$opportunityId'
     | '/opportunities/';
   fileRoutesByTo: FileRoutesByTo;
@@ -88,25 +105,27 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/settings'
     | '/opportunities/$opportunityId'
     | '/opportunities';
   id:
     | '__root__'
     | '/'
+    | '/_authed'
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/opportunities/$opportunityId'
-    | '/opportunities/';
+    | '/_authed/settings'
+    | '/_authed/opportunities/$opportunityId'
+    | '/_authed/opportunities/';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  AuthedRoute: typeof AuthedRouteWithChildren;
   LoginRoute: typeof LoginRoute;
   OnboardingRoute: typeof OnboardingRoute;
   SignupRoute: typeof SignupRoute;
-  OpportunitiesOpportunityIdRoute: typeof OpportunitiesOpportunityIdRoute;
-  OpportunitiesIndexRoute: typeof OpportunitiesIndexRoute;
 }
 
 declare module '@tanstack/react-router' {
@@ -132,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    '/_authed': {
+      id: '/_authed';
+      path: '';
+      fullPath: '/';
+      preLoaderRoute: typeof AuthedRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/': {
       id: '/';
       path: '/';
@@ -139,30 +165,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    '/opportunities/': {
-      id: '/opportunities/';
+    '/_authed/settings': {
+      id: '/_authed/settings';
+      path: '/settings';
+      fullPath: '/settings';
+      preLoaderRoute: typeof AuthedSettingsRouteImport;
+      parentRoute: typeof AuthedRoute;
+    };
+    '/_authed/opportunities/': {
+      id: '/_authed/opportunities/';
       path: '/opportunities';
       fullPath: '/opportunities/';
-      preLoaderRoute: typeof OpportunitiesIndexRouteImport;
-      parentRoute: typeof rootRouteImport;
+      preLoaderRoute: typeof AuthedOpportunitiesIndexRouteImport;
+      parentRoute: typeof AuthedRoute;
     };
-    '/opportunities/$opportunityId': {
-      id: '/opportunities/$opportunityId';
+    '/_authed/opportunities/$opportunityId': {
+      id: '/_authed/opportunities/$opportunityId';
       path: '/opportunities/$opportunityId';
       fullPath: '/opportunities/$opportunityId';
-      preLoaderRoute: typeof OpportunitiesOpportunityIdRouteImport;
-      parentRoute: typeof rootRouteImport;
+      preLoaderRoute: typeof AuthedOpportunitiesOpportunityIdRouteImport;
+      parentRoute: typeof AuthedRoute;
     };
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedSettingsRoute: typeof AuthedSettingsRoute;
+  AuthedOpportunitiesOpportunityIdRoute: typeof AuthedOpportunitiesOpportunityIdRoute;
+  AuthedOpportunitiesIndexRoute: typeof AuthedOpportunitiesIndexRoute;
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedSettingsRoute: AuthedSettingsRoute,
+  AuthedOpportunitiesOpportunityIdRoute: AuthedOpportunitiesOpportunityIdRoute,
+  AuthedOpportunitiesIndexRoute: AuthedOpportunitiesIndexRoute,
+};
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren);
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   SignupRoute: SignupRoute,
-  OpportunitiesOpportunityIdRoute: OpportunitiesOpportunityIdRoute,
-  OpportunitiesIndexRoute: OpportunitiesIndexRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

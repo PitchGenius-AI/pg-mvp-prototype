@@ -1,8 +1,9 @@
-import { Anchor, Button, Container, PasswordInput, Stack, TextInput, Title } from '@mantine/core';
+import { Anchor, Button, Container, Group, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
+import { IconTargetArrow } from '@tabler/icons-react';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
-import { signUp } from '../auth-client';
+import { mockActions, useMockStore } from '../mock/store';
+import { SEED_USER } from '../mock/seed';
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -21,20 +22,26 @@ function SignupPage() {
 
   return (
     <Container size={420} py="xl">
+      <Group gap="xs" mb="lg">
+        <IconTargetArrow size={22} />
+        <Text fw={600} size="lg">
+          Pitch Genius
+        </Text>
+      </Group>
       <Title order={2} mb="md">
         Create account
       </Title>
+      <Text size="sm" c="dimmed" mb="md">
+        Prototype: signup drops you into the onboarding wizard.
+      </Text>
       <form
-        onSubmit={form.onSubmit(async (values) => {
-          const { error } = await signUp.email({
-            email: values.email,
-            password: values.password,
-            name: values.name,
+        onSubmit={form.onSubmit((values) => {
+          const workspaceId = pickDemoWorkspaceId();
+          mockActions.setSession({
+            user: { ...SEED_USER, name: values.name, email: values.email },
+            workspaceId,
+            workspaceOnboardingCompleted: false,
           });
-          if (error) {
-            notifications.show({ color: 'red', title: 'Sign up failed', message: error.message ?? '' });
-            return;
-          }
           navigate({ to: '/onboarding' });
         })}
       >
@@ -42,9 +49,7 @@ function SignupPage() {
           <TextInput label="Name" {...form.getInputProps('name')} required />
           <TextInput label="Email" {...form.getInputProps('email')} required />
           <PasswordInput label="Password" {...form.getInputProps('password')} required />
-          <Button type="submit" loading={form.submitting}>
-            Create account
-          </Button>
+          <Button type="submit">Create account</Button>
           <Anchor component={Link} to="/login" size="sm">
             Already have an account? Sign in
           </Anchor>
@@ -52,4 +57,13 @@ function SignupPage() {
       </form>
     </Container>
   );
+}
+
+function pickDemoWorkspaceId(): string {
+  const workspaces = Object.values(useMockStore.getState().workspaces);
+  const first = workspaces[0];
+  if (!first) {
+    throw new Error('Mock store has no workspaces — seed did not run.');
+  }
+  return first.id;
 }
