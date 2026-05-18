@@ -1,0 +1,151 @@
+import { and, desc, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import {
+  extractSignals,
+  generateDiagnosis,
+  type DiagnosisGeneratorInput,
+  type SignalExtractorInput,
+} from '@pg/ai';
+import {
+  interactions,
+  opportunities,
+  products,
+  readinessDiagnoses,
+  workspaces,
+} from '@pg/db/schema';
+import { protectedProcedure, router } from '../trpc';
+import { TRPCError } from '@trpc/server';
+
+export const diagnosisRouter = router({
+  latestForOpportunity: protectedProcedure
+    .input(z.object({ opportunityId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.readinessDiagnoses.findFirst({
+        where: eq(readinessDiagnoses.opportunityId, input.opportunityId),
+        orderBy: [desc(readinessDiagnoses.createdAt)],
+      });
+    }),
+
+  listForOpportunity: protectedProcedure
+    .input(z.object({ opportunityId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.readinessDiagnoses.findMany({
+        where: eq(readinessDiagnoses.opportunityId, input.opportunityId),
+        orderBy: [desc(readinessDiagnoses.createdAt)],
+      });
+    }),
+
+  // The end-to-end AI pipeline for one interaction:
+  //   1. Load product + opportunity + interaction context
+  //   2. Extract signals (Claude call 1)
+  //   3. Generate diagnosis (Claude call 2)
+  //   4. Persist diagnosis row + update opportunity's denormalized current_* fields
+  run: protectedProcedure
+    .input(z.object({ interactionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const interaction = await ctx.db.query.interactions.findFirst({
+        where: eq(interactions.id, input.interactionId),
+      });
+      if (!interaction) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const opp = await ctx.db.query.opportunities.findFirst({
+        where: eq(opportunities.id, interaction.opportunityId),
+      });
+      if (!opp) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const ws = await ctx.db.query.workspaces.findFirst({
+        where: and(
+          eq(workspaces.id, opp.workspaceId),
+          eq(workspaces.createdByUserId, ctx.user.id),
+        ),
+      });
+      if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
+
+      const product = await ctx.db.query.products.findFirst({
+        where: eq(products.id, opp.productId),
+      });
+      if (!product) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const buyer = await ctx.db.query.buyers.findFirst({
+        where: (b, { eq }) => eq(b.id, opp.buyerId),
+      });
+      const buyerCompany = buyer?.company ?? '(unknown)';
+
+      // 1. Extract signals
+      const signalInput: SignalExtractorInput = {
+        productName: product.name,
+        productDescription: product.description,
+        targetBuyer: product.targetBuyer,
+        problemSolved: product.problemSolved,
+        interactionType: interaction.interactionType,
+        transcriptOrNotes: interaction.transcriptOrNotes,
+        repSubjectiveNotes: interaction.repSubjectiveNotes,
+        checklist: {
+          nextStepAgreed: interaction.nextStepAgreed,
+          stakeholderAdded: interaction.stakeholderAdded,
+          pricingDiscussed: interaction.pricingDiscussed,
+          budgetDiscussed: interaction.budgetDiscussed,
+          competitorDiscussed: interaction.competitorDiscussed,
+          implementationDiscussed: interaction.implementationDiscussed,
+          securityDiscussed: interaction.securityDiscussed,
+        },
+      };
+      const signals = await extractSignals(ctx.anthropic, signalInput);
+
+      // 2. Generate diagnosis
+      const diagInput: DiagnosisGeneratorInput = {
+        productName: product.name,
+        productDescription: product.description,
+        targetBuyer: product.targetBuyer,
+        problemSolved: product.problemSolved,
+        opportunityName: opp.opportunityName,
+        buyerCompany,
+        currentCrmStage: opp.currentCrmStage,
+        knownPain: opp.knownPain,
+        knownObjection: opp.knownObjection,
+        signals,
+        priorReadinessState: opp.currentReadinessState ?? null,
+      };
+      const diagnosis = await generateDiagnosis(ctx.anthropic, diagInput);
+
+      // 3. Persist + denormalize
+      return ctx.db.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(readinessDiagnoses)
+          .values({
+            workspaceId: opp.workspaceId,
+            opportunityId: opp.id,
+            interactionId: interaction.id,
+            signalExtraction: signals,
+            diagnosis,
+            readinessState: diagnosis.readiness_state,
+            readinessScore: diagnosis.readiness_score,
+            confidenceLevel: diagnosis.confidence_level,
+            alignmentOutcome: diagnosis.pipeline_reality_check.outcome,
+            alignmentLevel: diagnosis.pipeline_reality_check.level,
+            alignmentReason: diagnosis.pipeline_reality_check.reason,
+            primaryBlocker: diagnosis.primary_blocker,
+            secondaryBlocker: diagnosis.secondary_blocker,
+            // TODO: render crmNoteText from the diagnosis (move to packages/shared as a fmt fn).
+            crmNoteText: '',
+            followUpSubject: diagnosis.follow_up_email.subject,
+            followUpBody: diagnosis.follow_up_email.body,
+            managerCoachingNote: diagnosis.manager_coaching_note,
+          })
+          .returning();
+
+        await tx
+          .update(opportunities)
+          .set({
+            currentReadinessState: diagnosis.readiness_state,
+            currentReadinessScore: diagnosis.readiness_score,
+            currentAlignmentOutcome: diagnosis.pipeline_reality_check.outcome,
+            currentAlignmentLevel: diagnosis.pipeline_reality_check.level,
+            updatedAt: new Date(),
+          })
+          .where(eq(opportunities.id, opp.id));
+
+        return row;
+      });
+    }),
+});

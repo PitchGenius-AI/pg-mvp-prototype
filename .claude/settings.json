@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "mcp__linear-server__list_issue_labels",
+      "mcp__linear-server__save_milestone",
+      "mcp__linear-server__save_issue",
+      "mcp__linear-server__list_projects",
+      "mcp__linear-server__list_milestones",
+      "mcp__linear-server__list_issues",
+      "mcp__linear-server__get_issue",
+      "mcp__linear-server__list_issue_statuses"
+    ]
+  }
+}
