@@ -9,7 +9,12 @@
       "mcp__linear-server__list_milestones",
       "mcp__linear-server__list_issues",
       "mcp__linear-server__get_issue",
-      "mcp__linear-server__list_issue_statuses"
+      "mcp__linear-server__list_issue_statuses",
+      "Bash(python3)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm --filter @pg/web dev)",
+      "Bash(lsof -ti:5173)",
+      "Bash(xargs -r kill)"
     ]
   }
 }

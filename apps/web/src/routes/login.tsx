@@ -1,5 +1,6 @@
 import { Anchor, Button, Container, Group, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import { IconTargetArrow } from '@tabler/icons-react';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { z } from 'zod';
@@ -55,6 +56,21 @@ function LoginPage() {
         <Stack>
           <TextInput label="Email" {...form.getInputProps('email')} required />
           <PasswordInput label="Password" {...form.getInputProps('password')} required />
+          <Group justify="flex-end" mt={-8}>
+            <Anchor
+              component="button"
+              type="button"
+              size="sm"
+              onClick={() =>
+                notifications.show({
+                  title: 'Not implemented in prototype',
+                  message: 'Password reset will land with the real backend.',
+                })
+              }
+            >
+              Forgot password?
+            </Anchor>
+          </Group>
           <Button type="submit">Sign in</Button>
           <Anchor component={Link} to="/signup" size="sm">
             Need an account? Sign up
