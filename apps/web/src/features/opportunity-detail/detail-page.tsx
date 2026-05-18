@@ -1,5 +1,7 @@
-import { Center, Container, Paper, Stack, Tabs, Text } from '@mantine/core';
+import { Box, Center, Container, Paper, Stack, Tabs, Text, Transition } from '@mantine/core';
 import { useMemo } from 'react';
+import { ErrorState } from '../../components/error-boundary';
+import { OpportunityDetailSkeleton } from '../../components/skeletons/opportunity-detail-skeleton';
 import {
   useInteractions,
   useLatestDiagnosis,
@@ -21,7 +23,13 @@ interface DetailPageProps {
 }
 
 export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps) {
-  const { data: opportunity, isLoading } = useOpportunity(opportunityId);
+  const {
+    data: opportunity,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useOpportunity(opportunityId);
   const buyer = useBuyerById(opportunity?.buyerId);
   const { data: interactions = [] } = useInteractions(opportunity?.id);
   const { data: latestDiagnosis = null } = useLatestDiagnosis(opportunity?.id);
@@ -35,9 +43,18 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
   }, [interactions]);
 
   if (isLoading) {
+    return <OpportunityDetailSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <Container size="xl" py="lg">
-        <Text c="dimmed">Loading…</Text>
+      <Container size="md" py="xl">
+        <ErrorState
+          title="Couldn't load this opportunity"
+          description="Something went wrong fetching the deal. Retry, or head back to your list."
+          error={error instanceof Error ? error : null}
+          onRetry={() => refetch()}
+        />
       </Container>
     );
   }
@@ -78,41 +95,63 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
           </Tabs.List>
 
           <Tabs.Panel value="overview" pt="lg">
-            <OverviewTab
-              opportunity={opportunity}
-              buyer={buyer}
-              latestDiagnosis={latestDiagnosis}
-              interactionCount={interactions.length}
-              interactions={interactions}
-            />
+            <TabFade keyName={activeTab === 'overview' ? 'overview' : null}>
+              <OverviewTab
+                opportunity={opportunity}
+                buyer={buyer}
+                latestDiagnosis={latestDiagnosis}
+                interactionCount={interactions.length}
+                interactions={interactions}
+              />
+            </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="evidence" pt="lg">
-            <EvidenceTab
-              opportunity={opportunity}
-              interactions={interactions}
-              onJumpToDiagnosis={() => onTabChange('diagnosis')}
-            />
+            <TabFade keyName={activeTab === 'evidence' ? 'evidence' : null}>
+              <EvidenceTab
+                opportunity={opportunity}
+                interactions={interactions}
+                onJumpToDiagnosis={() => onTabChange('diagnosis')}
+              />
+            </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="diagnosis" pt="lg">
-            <DiagnosisTab opportunity={opportunity} diagnosis={latestDiagnosis} />
+            <TabFade keyName={activeTab === 'diagnosis' ? 'diagnosis' : null}>
+              <DiagnosisTab opportunity={opportunity} diagnosis={latestDiagnosis} />
+            </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="outcome" pt="lg">
-            <OutcomeTab
-              opportunity={opportunity}
-              latestDiagnosis={latestDiagnosis}
-            />
+            <TabFade keyName={activeTab === 'outcome' ? 'outcome' : null}>
+              <OutcomeTab
+                opportunity={opportunity}
+                latestDiagnosis={latestDiagnosis}
+              />
+            </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="export" pt="lg">
-            <ExportTab
-              opportunity={opportunity}
-              buyer={buyer}
-              diagnosis={latestDiagnosis}
-              interactions={interactions}
-            />
+            <TabFade keyName={activeTab === 'export' ? 'export' : null}>
+              <ExportTab
+                opportunity={opportunity}
+                buyer={buyer}
+                diagnosis={latestDiagnosis}
+                interactions={interactions}
+              />
+            </TabFade>
           </Tabs.Panel>
         </Tabs>
       </Stack>
     </Container>
+  );
+}
+
+// `keepMounted={false}` on Tabs unmounts inactive panels. The `mounted` flag is
+// truthy only while the panel is the active tab, so Transition runs its fade
+// each time the user switches. `keyName` doubles as the tab id so React resets
+// the inner subtree when navigating between tabs.
+function TabFade({ keyName, children }: { keyName: string | null; children: React.ReactNode }) {
+  return (
+    <Transition mounted={keyName !== null} transition="fade" duration={160} timingFunction="ease">
+      {(styles) => <Box style={styles}>{children}</Box>}
+    </Transition>
   );
 }
 

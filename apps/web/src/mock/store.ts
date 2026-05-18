@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 import type {
   MockBuyer,
   MockDiagnosis,
@@ -354,12 +355,18 @@ export const useProductForCurrentWorkspace = () =>
     );
   });
 
+// Array-returning selectors below all wrap in `useShallow` — zustand v5 treats
+// a fresh array reference as a state change and will infinite-loop on consumers
+// otherwise. Same pattern as use-workspace-stages.ts.
+
 export const useOpportunities = () =>
-  useMockStore((s) => {
-    if (!s.session) return [];
-    const workspaceId = s.session.workspaceId;
-    return Object.values(s.opportunities).filter((o) => o.workspaceId === workspaceId);
-  });
+  useMockStore(
+    useShallow((s) => {
+      if (!s.session) return [];
+      const workspaceId = s.session.workspaceId;
+      return Object.values(s.opportunities).filter((o) => o.workspaceId === workspaceId);
+    }),
+  );
 
 export const useOpportunityById = (id: string | undefined) =>
   useMockStore((s) => (id ? s.opportunities[id] ?? null : null));
@@ -368,12 +375,14 @@ export const useBuyerById = (id: string | undefined) =>
   useMockStore((s) => (id ? s.buyers[id] ?? null : null));
 
 export const useInteractionsForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore((s) => {
-    if (!opportunityId) return [];
-    return Object.values(s.interactions)
-      .filter((i) => i.opportunityId === opportunityId)
-      .sort((a, b) => b.interactionDate.localeCompare(a.interactionDate));
-  });
+  useMockStore(
+    useShallow((s) => {
+      if (!opportunityId) return [];
+      return Object.values(s.interactions)
+        .filter((i) => i.opportunityId === opportunityId)
+        .sort((a, b) => b.interactionDate.localeCompare(a.interactionDate));
+    }),
+  );
 
 export const useDiagnosisById = (id: string | undefined) =>
   useMockStore((s) => (id ? s.diagnoses[id] ?? null : null));
@@ -387,20 +396,24 @@ export const useLatestDiagnosisForOpportunity = (opportunityId: string | undefin
   });
 
 export const useDiagnosesForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore((s) => {
-    if (!opportunityId) return [];
-    return Object.values(s.diagnoses)
-      .filter((d) => d.opportunityId === opportunityId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  });
+  useMockStore(
+    useShallow((s) => {
+      if (!opportunityId) return [];
+      return Object.values(s.diagnoses)
+        .filter((d) => d.opportunityId === opportunityId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }),
+  );
 
 export const useOutcomesForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore((s) => {
-    if (!opportunityId) return [];
-    return Object.values(s.outcomes)
-      .filter((o) => o.opportunityId === opportunityId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  });
+  useMockStore(
+    useShallow((s) => {
+      if (!opportunityId) return [];
+      return Object.values(s.outcomes)
+        .filter((o) => o.opportunityId === opportunityId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }),
+  );
 
 // --- Action accessors (stable refs; safe to use outside React) ---
 

@@ -25,6 +25,7 @@ interface GenerateInput {
   buyer: MockBuyer | null;
   product: MockProduct | null;
   interaction: MockInteraction;
+  repName?: string;
 }
 
 interface GenerateResult {
@@ -87,7 +88,7 @@ const STAGE_ORDER: ReadinessState[] = [
 ];
 
 export function fakeGenerateDiagnosis(input: GenerateInput): GenerateResult {
-  const { opportunity, buyer, interaction } = input;
+  const { opportunity, buyer, interaction, repName } = input;
   const text = [
     interaction.transcriptOrNotes ?? '',
     interaction.repSubjectiveNotes ? `[Rep note] ${interaction.repSubjectiveNotes}` : '',
@@ -107,9 +108,9 @@ export function fakeGenerateDiagnosis(input: GenerateInput): GenerateResult {
 
   const primaryBlocker = derivePrimaryBlocker(signalExtraction, dimensionScores);
   const secondaryBlocker = deriveSecondaryBlocker(signalExtraction, dimensionScores);
-  const nextAction = deriveRecommendedAction(readinessState, outcome, primaryBlocker);
+  const nextAction = deriveRecommendedAction(readinessState, outcome);
   const whatNotToDoYet = deriveWhatNotToDo(readinessState, outcome);
-  const followUpEmail = deriveFollowUpEmail(buyer, opportunity, readinessState, primaryBlocker);
+  const followUpEmail = deriveFollowUpEmail(buyer, opportunity, readinessState, outcome, repName);
   const coachingNote = deriveCoachingNote(opportunity, readinessState, outcome, level);
 
   const diagnosis: ReadinessDiagnosis = {
@@ -484,10 +485,16 @@ function deriveSecondaryBlocker(
 function deriveRecommendedAction(
   readinessState: ReadinessState,
   outcome: AlignmentOutcome,
-  primaryBlocker: string,
 ): string {
   if (outcome === 'over_projecting') {
-    return `Pause commercial pressure. Re-qualify by addressing: ${primaryBlocker}`;
+    switch (readinessBucket(readinessState)) {
+      case 'early':
+        return 'Pause commercial pressure. Run a proper discovery call before any further sales motion.';
+      case 'mid':
+        return 'Pause commercial pressure. Validate solution fit with the right stakeholders before pushing forward.';
+      case 'late':
+        return 'Pause commercial pressure. Re-confirm decision criteria and economic-buyer alignment before paper.';
+    }
   }
   if (outcome === 'under_projecting') {
     return `This deal is ahead of where you're tracking it. Move the CRM stage forward and align next steps to ${humanize(readinessState)}.`;
@@ -505,6 +512,24 @@ function deriveRecommendedAction(
     case 'commercially_ready':
     case 'commit_ready':
       return 'Move to paper. Confirm signature timeline and kickoff plan.';
+  }
+}
+
+type ReadinessBucket = 'early' | 'mid' | 'late';
+
+function readinessBucket(state: ReadinessState): ReadinessBucket {
+  switch (state) {
+    case 'unaware':
+    case 'problem_aware':
+      return 'early';
+    case 'diagnosis_aligned':
+    case 'solution_curious':
+    case 'solution_confident':
+      return 'mid';
+    case 'stakeholder_validation_needed':
+    case 'commercially_ready':
+    case 'commit_ready':
+      return 'late';
   }
 }
 
@@ -530,19 +555,111 @@ function deriveFollowUpEmail(
   buyer: MockBuyer | null,
   opportunity: MockOpportunity,
   readinessState: ReadinessState,
-  primaryBlocker: string,
+  outcome: AlignmentOutcome,
+  repName: string | undefined,
 ): { subject: string; body: string } {
   const firstName = buyer?.firstName ?? 'there';
-  const subject = `Quick follow-up: ${opportunity.opportunityName}`;
-  const body = `Hi ${firstName},
-
-Thanks for the time today. Based on where we left things, the next step is to address ${primaryBlocker.toLowerCase()}.
-
-I'll send over a short summary you can share internally, and propose a follow-up time later this week.
-
-Best,`;
-  return { subject, body };
+  const repFirst = ((repName ?? '').trim().split(/\s+/)[0] ?? '').trim();
+  const signOff = repFirst || 'Casey';
+  const opp = opportunity.opportunityName;
+  const bucket = readinessBucket(readinessState);
+  return {
+    subject: followUpSubject(opp, outcome),
+    body: followUpBody(bucket, outcome, { firstName, signOff }),
+  };
 }
+
+function followUpSubject(opportunityName: string, outcome: AlignmentOutcome): string {
+  switch (outcome) {
+    case 'over_projecting':
+      return `Quick step back: ${opportunityName}`;
+    case 'under_projecting':
+      return `Next step on ${opportunityName}`;
+    case 'aligned':
+      return `Follow-up: ${opportunityName}`;
+  }
+}
+
+// Templates keyed by (readiness bucket × outcome). Each body is parameterised
+// only on buyer first name + rep sign-off — no string-jamming of blockers.
+function followUpBody(
+  bucket: ReadinessBucket,
+  outcome: AlignmentOutcome,
+  ctx: { firstName: string; signOff: string },
+): string {
+  const { firstName, signOff } = ctx;
+  const key = `${bucket}:${outcome}` as const;
+  const template = FOLLOW_UP_TEMPLATES[key];
+  return template({ firstName, signOff });
+}
+
+type FollowUpKey = `${ReadinessBucket}:${AlignmentOutcome}`;
+
+const FOLLOW_UP_TEMPLATES: Record<FollowUpKey, (ctx: { firstName: string; signOff: string }) => string> = {
+  'early:over_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. Before we go further on commercial pieces, I'd like to step back and re-anchor on whether there's a problem worth solving here — I don't think I asked enough on that front.
+
+Could we grab 20 minutes next week? I'd rather ask the right questions now than send another proposal that misses.
+
+${signOff}`,
+  'early:aligned': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. To make the next conversation more concrete, I'll put together a short brief on the impact pattern we discussed — and a couple of customer stories where the same shape played out.
+
+Could we get 20 minutes on the calendar in the next week or two to walk through it together?
+
+${signOff}`,
+  'early:under_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for today. Sounds like there's more momentum on your side than I had captured — appreciate you being direct about it.
+
+I'll get the next-step materials over by end of week so you and your team can pressure-test them. When's a good window to compare notes after you've had a chance to look?
+
+${signOff}`,
+  'mid:over_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. Before we keep moving on commercial details, I want to make sure we've validated the things that actually decide this internally for you.
+
+Could we get 25 minutes with the people who'd need to be bought in before any next step? Happy to come prepared with the framing rather than the pitch.
+
+${signOff}`,
+  'mid:aligned': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for today — felt like the right shape of conversation. I'll send over the artifact we discussed so you have something to socialize internally.
+
+What would make the next conversation most useful for you? Happy to tailor it around whoever you want to bring in.
+
+${signOff}`,
+  'mid:under_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. Reading the room, the next move is more concrete than I had planned for — that's a good problem to have.
+
+I'll put together the materials your team would want to see before deciding and slot a follow-up. What's the right next step on your side, and who else should be in the conversation?
+
+${signOff}`,
+  'late:over_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. Want to be straight with you — based on where we are, I think it's worth pausing the commercial track and reconfirming the decision criteria before we put paper on the table.
+
+Could we get 20 minutes with whoever signs off, just to make sure we don't surprise each other downstream?
+
+${signOff}`,
+  'late:aligned': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time — ready to move. I'll have paper across this week with the terms we discussed and a kickoff plan attached so your team can see what week one looks like.
+
+Anything you'd want to confirm or change before that goes out?
+
+${signOff}`,
+  'late:under_projecting': ({ firstName, signOff }) => `Hi ${firstName},
+
+Thanks for the time today. Honestly, this is closer to ready than I had it tracked — that's on me, and good news for the timeline.
+
+I'll have paper and an implementation outline over by end of week. Let me know who else should be copied so nothing gets stuck on internal routing.
+
+${signOff}`,
+};
 
 function deriveCoachingNote(
   opportunity: MockOpportunity,

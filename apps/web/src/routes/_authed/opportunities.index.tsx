@@ -1,7 +1,8 @@
 import { Button, Container, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { OpportunityListSkeleton } from '../../components/skeletons/opportunity-list-skeleton';
 import { AddOpportunityModal } from '../../features/opportunity-intake';
 import { EmptyStates, Filters, OpportunityList, SearchSort } from '../../features/opportunity-list';
 import {
@@ -27,6 +28,14 @@ function OpportunityListPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const session = useCurrentSession();
   const [addOpen, setAddOpen] = useState(false);
+  // Simulated initial load — store reads are sync, but a brief skeleton frame
+  // matches the rest of the app's loading polish and is what the eventual real
+  // tRPC fetch will look like.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setHydrated(true), 240);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Read straight from the store. `selectOpportunityRows` joins buyers +
   // latest interaction once and is recomputed only when params change.
@@ -64,25 +73,31 @@ function OpportunityListPage() {
           </Button>
         </Group>
 
-        {hasOpportunitiesAtAll && (
+        {!hydrated ? (
+          <OpportunityListSkeleton />
+        ) : (
           <>
-            <Filters params={params} onChange={updateParams} />
-            <Divider />
-            <SearchSort params={params} onChange={updateParams} />
+            {hasOpportunitiesAtAll && (
+              <>
+                <Filters params={params} onChange={updateParams} />
+                <Divider />
+                <SearchSort params={params} onChange={updateParams} />
+              </>
+            )}
+
+            {!hasOpportunitiesAtAll && (
+              <EmptyStates.NoOpportunitiesEmpty onAdd={() => setAddOpen(true)} />
+            )}
+
+            {hasOpportunitiesAtAll && !filtered && (
+              <EmptyStates.FilteredEmpty
+                onClearFilters={() => updateParams({ sort: params.sort })}
+              />
+            )}
+
+            {filtered && <OpportunityList rows={sortedRows} />}
           </>
         )}
-
-        {!hasOpportunitiesAtAll && (
-          <EmptyStates.NoOpportunitiesEmpty onAdd={() => setAddOpen(true)} />
-        )}
-
-        {hasOpportunitiesAtAll && !filtered && (
-          <EmptyStates.FilteredEmpty
-            onClearFilters={() => updateParams({ sort: params.sort })}
-          />
-        )}
-
-        {filtered && <OpportunityList rows={sortedRows} />}
       </Stack>
 
       <AddOpportunityModal opened={addOpen} onClose={() => setAddOpen(false)} />

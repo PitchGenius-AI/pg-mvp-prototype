@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { RouteErrorComponent } from '../../components/error-boundary';
 import { DetailPage } from '../../features/opportunity-detail/detail-page';
 import {
   detailSearchSchema,
@@ -8,6 +9,7 @@ import {
 export const Route = createFileRoute('/_authed/opportunities/$opportunityId')({
   validateSearch: detailSearchSchema,
   component: OpportunityDetailRoute,
+  errorComponent: RouteErrorComponent,
 });
 
 function OpportunityDetailRoute() {

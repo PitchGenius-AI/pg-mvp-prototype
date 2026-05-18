@@ -5,21 +5,24 @@ import {
   Center,
   Checkbox,
   Group,
-  Loader,
   Modal,
   Paper,
+  Progress,
   SimpleGrid,
   Stack,
   TagsInput,
   Text,
   Textarea,
+  ThemeIcon,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconCalendar,
+  IconCheck,
   IconDeviceDesktop,
+  IconLoader2,
   IconMail,
   IconNotes,
   IconPhone,
@@ -33,7 +36,7 @@ import { interactionTypes, type InteractionType } from '@pg/shared';
 import { useAddInteraction, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
 import { FAKE_DIAGNOSIS_STEPS, fakeGenerateDiagnosis } from '../../mock/fake-diagnosis';
 import { useCurrentProduct } from '../../mock/hooks';
-import { useBuyerById } from '../../mock/store';
+import { useBuyerById, useCurrentSession } from '../../mock/store';
 import { mockAiCall } from '../../mock/mock-api';
 import { relativeTime } from '../opportunity-list/filter-sort';
 import type {
@@ -243,6 +246,7 @@ function AddInteractionModal({
 }: AddInteractionModalProps) {
   const buyer = useBuyerById(opportunity.buyerId);
   const { data: product } = useCurrentProduct();
+  const session = useCurrentSession();
   const { mutateAsync: addInteraction } = useAddInteraction();
   const { mutateAsync: runDiagnosis } = useRunDiagnosis();
 
@@ -308,7 +312,13 @@ function AddInteractionModal({
       });
 
       const { signalExtraction, diagnosis } = await mockAiCall(() =>
-        fakeGenerateDiagnosis({ opportunity, buyer, product: product ?? null, interaction }),
+        fakeGenerateDiagnosis({
+          opportunity,
+          buyer,
+          product: product ?? null,
+          interaction,
+          repName: session?.user.name,
+        }),
       );
 
       await runDiagnosis({
@@ -362,7 +372,7 @@ function AddInteractionModal({
       withCloseButton={!running}
     >
       {running ? (
-        <DiagnosisRunning step={FAKE_DIAGNOSIS_STEPS[stepIndex] ?? FAKE_DIAGNOSIS_STEPS[0]!} />
+        <DiagnosisRunning stepIndex={stepIndex} />
       ) : (
         <Stack gap="md">
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
@@ -507,14 +517,59 @@ function AddInteractionModal({
   );
 }
 
-function DiagnosisRunning({ step }: { step: string }) {
+function DiagnosisRunning({ stepIndex }: { stepIndex: number }) {
+  const total = FAKE_DIAGNOSIS_STEPS.length;
+  const clamped = Math.max(0, Math.min(stepIndex, total - 1));
+  // Pad the bar so it doesn't sit at 100% during the final step's work.
+  const percent = Math.round(((clamped + 0.75) / total) * 100);
   return (
-    <Stack gap="md" align="center" py="xl">
-      <Loader size="lg" />
-      <Text fw={500}>{step}</Text>
-      <Text size="xs" c="dimmed">
+    <Stack gap="lg" py="lg">
+      <Stack gap={4}>
+        <Group justify="space-between">
+          <Text fw={500} size="sm">
+            Running buyer readiness diagnosis
+          </Text>
+          <Text size="xs" c="dimmed" fw={500}>
+            {percent}%
+          </Text>
+        </Group>
+        <Progress value={percent} size="sm" radius="xl" animated />
+      </Stack>
+
+      <Stack gap="xs">
+        {FAKE_DIAGNOSIS_STEPS.map((label, i) => {
+          const status = i < clamped ? 'done' : i === clamped ? 'active' : 'pending';
+          return (
+            <Group key={label} gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={22}
+                radius="xl"
+                variant={status === 'pending' ? 'default' : 'filled'}
+                color={status === 'done' ? 'teal' : status === 'active' ? 'blue' : 'gray'}
+              >
+                {status === 'done' ? (
+                  <IconCheck size={14} />
+                ) : status === 'active' ? (
+                  <IconLoader2 size={14} style={{ animation: 'pg-spin 0.9s linear infinite' }} />
+                ) : (
+                  <Text size="xs" c="dimmed" fw={600}>
+                    {i + 1}
+                  </Text>
+                )}
+              </ThemeIcon>
+              <Text size="sm" c={status === 'pending' ? 'dimmed' : undefined} fw={status === 'active' ? 500 : 400}>
+                {label}
+              </Text>
+            </Group>
+          );
+        })}
+      </Stack>
+
+      <Text size="xs" c="dimmed" ta="center">
         We'll land you on the Diagnosis tab when this completes…
       </Text>
+
+      <style>{`@keyframes pg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </Stack>
   );
 }

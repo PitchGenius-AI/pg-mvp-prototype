@@ -7,7 +7,8 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconClock } from '@tabler/icons-react';
+import { IconArrowNarrowRight, IconClock } from '@tabler/icons-react';
+import { useDiagnosesForOpportunity } from '../../mock/store';
 import type {
   MockBuyer,
   MockDiagnosis,
@@ -31,6 +32,7 @@ export function OverviewTab({
   interactionCount,
   interactions,
 }: OverviewTabProps) {
+  const diagnoses = useDiagnosesForOpportunity(opportunity.id);
   return (
     <Stack gap="lg">
       <AtAGlance
@@ -45,7 +47,7 @@ export function OverviewTab({
       {(opportunity.knownPain || opportunity.knownObjection || opportunity.dealNotes) && (
         <NotesCard opportunity={opportunity} />
       )}
-      <ReadinessTrend interactions={interactions} />
+      <ReadinessTrend interactions={interactions} diagnoses={diagnoses} />
     </Stack>
   );
 }
@@ -211,11 +213,13 @@ function NotesCard({ opportunity }: { opportunity: MockOpportunity }) {
   );
 }
 
-function ReadinessTrend({ interactions }: { interactions: MockInteraction[] }) {
-  // The seed has one diagnosis per interaction; the readiness state is denormalized
-  // on the opportunity. For the prototype trend, show interactions in chronological
-  // order with their dates — M8 can wire diagnosis-per-interaction history if we
-  // start storing it that way (we already do; the visualization is the simple part).
+function ReadinessTrend({
+  interactions,
+  diagnoses,
+}: {
+  interactions: MockInteraction[];
+  diagnoses: MockDiagnosis[];
+}) {
   if (interactions.length === 0) {
     return (
       <Section title="Activity timeline">
@@ -225,22 +229,52 @@ function ReadinessTrend({ interactions }: { interactions: MockInteraction[] }) {
       </Section>
     );
   }
+  const dxByInteraction = new Map(diagnoses.map((d) => [d.interactionId, d]));
   const sorted = [...interactions].sort((a, b) =>
     a.interactionDate.localeCompare(b.interactionDate),
   );
+  const diagnosedSorted = sorted.filter((i) => dxByInteraction.has(i.id));
+  const showTrend = diagnosedSorted.length >= 2;
   return (
     <Section title="Activity timeline">
-      <Stack gap="xs">
-        {sorted.map((i) => (
-          <Group key={i.id} gap="sm">
-            <IconClock size={14} color="var(--mantine-color-dimmed)" />
-            <Text size="sm">{new Date(i.interactionDate).toLocaleDateString()}</Text>
-            <Text size="xs" c="dimmed">
-              {humanize(i.interactionType)} · {i.participants.length} participant
-              {i.participants.length === 1 ? '' : 's'}
-            </Text>
+      <Stack gap="md">
+        {showTrend && (
+          <Group gap="xs" wrap="wrap">
+            {diagnosedSorted.map((i, idx) => {
+              const d = dxByInteraction.get(i.id)!;
+              return (
+                <Group key={i.id} gap={4} wrap="nowrap">
+                  {idx > 0 && (
+                    <IconArrowNarrowRight size={14} color="var(--mantine-color-dimmed)" />
+                  )}
+                  <Badge variant="light" size="sm" radius="sm">
+                    {humanize(d.readinessState)} · {d.readinessScore}
+                  </Badge>
+                </Group>
+              );
+            })}
           </Group>
-        ))}
+        )}
+        <Stack gap="xs">
+          {sorted.map((i) => {
+            const d = dxByInteraction.get(i.id);
+            return (
+              <Group key={i.id} gap="sm">
+                <IconClock size={14} color="var(--mantine-color-dimmed)" />
+                <Text size="sm">{new Date(i.interactionDate).toLocaleDateString()}</Text>
+                <Text size="xs" c="dimmed">
+                  {humanize(i.interactionType)} · {i.participants.length} participant
+                  {i.participants.length === 1 ? '' : 's'}
+                </Text>
+                {d && (
+                  <Badge variant="default" size="xs">
+                    {humanize(d.readinessState)} · {d.readinessScore}
+                  </Badge>
+                )}
+              </Group>
+            );
+          })}
+        </Stack>
       </Stack>
     </Section>
   );

@@ -1189,6 +1189,105 @@ const massiveDynamicInt2 = makeInteraction({
   securityDiscussed: false,
 });
 
+// First-interaction diagnosis: only the champion in the room, pain articulated,
+// but the VP-validation gate hasn't been opened yet. Used by the Overview-tab
+// readiness trend to show advancement int1 → int2 (diagnosis_aligned →
+// stakeholder_validation_needed) on the same deal.
+const massiveDynamicInt1Signals: SignalExtraction = {
+  pain: [
+    {
+      signal: 'Manager-coaching is the named, owned pain point',
+      evidence: "Our managers don't actually do 1:1 coaching consistently",
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'pain',
+    },
+  ],
+  trust: [
+    {
+      signal: 'Champion frames her own ownership of the rollout decision',
+      evidence: 'I have to get the three regional VPs on board',
+      source: 'transcript',
+      strength: 'medium',
+      dimension: 'trust',
+    },
+  ],
+  urgency: [],
+  solution_confidence: [],
+  commitment: [
+    {
+      signal: 'Champion will line up the gating stakeholders',
+      evidence: 'If they say yes, the rest is easy.',
+      source: 'transcript',
+      strength: 'medium',
+      dimension: 'commitment',
+    },
+  ],
+  risk: [
+    {
+      signal: 'Prior failed tool rollout creates organizational skepticism',
+      evidence: "They're skeptical of new tools after a CRM migration that didn't land last year",
+      source: 'transcript',
+      strength: 'medium',
+      dimension: 'risk',
+    },
+  ],
+  missing_evidence: [
+    'No VP-level stakeholders in the conversation yet.',
+    'No commercial framing, no pilot scope.',
+    'No security or implementation discussion.',
+  ],
+};
+
+const massiveDynamicInt1Diagnosis = makeDiagnosis({
+  id: 'dx_seed_massivedynamic_1',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: massiveDynamicOpp.id,
+  interactionId: massiveDynamicInt1.id,
+  signalExtraction: massiveDynamicInt1Signals,
+  createdAt: ISO('2026-04-22T19:00:00Z'),
+  diagnosis: buildDiagnosis({
+    readinessState: 'diagnosis_aligned',
+    readinessScore: 41,
+    confidence: 'medium',
+    dimensionScores: [
+      dim('pain', 65, 'Pain is articulated and owned by the champion.', [
+        "Our managers don't actually do 1:1 coaching consistently",
+      ]),
+      dim('trust', 60, 'Healthy champion relationship; no broader stakeholder trust yet.', [
+        'I have to get the three regional VPs on board',
+      ]),
+      dim('urgency', 20, 'No timeline pressure named on the buyer side.', []),
+      dim('solution_confidence', 25, 'No solution-fit validation from the buyer yet.', []),
+      dim('commitment', 35, 'Champion will set up the VP conversations but no concrete date.', [
+        'If they say yes, the rest is easy.',
+      ]),
+    ],
+    primaryBlocker:
+      'The three regional VPs have not been engaged yet. The champion cannot move the deal alone.',
+    secondaryBlocker:
+      'Prior failed tool rollout means the VPs will arrive skeptical by default.',
+    pipelineRealityCheck: {
+      crmStage: 'Discovery',
+      outcome: 'aligned',
+      level: 'none',
+      reason:
+        'CRM Discovery implies diagnosis-aligned, which is exactly where the buyer sits — pain established, stakeholder validation not yet started.',
+    },
+    recommendedNextAction:
+      'Help Renee set up the first VP conversation with a short framing artifact she can send ahead, so the meeting opens on solution fit rather than introductions.',
+    whatNotToDoYet: [
+      'Do not push for a pilot scope before any VP has weighed in.',
+      'Do not raise pricing — the deal is not commercially ready.',
+    ],
+    followUpSubject: 'A short framing piece for your first VP conversation',
+    followUpBody:
+      "Renee,\n\nThanks for the time today. To make the first VP conversation easier, I'll put together a one-page framing built around the manager-coaching pain — short enough to forward, structured so it surfaces the questions a skeptical VP would ask anyway.\n\nWhich of the three regional VPs do you think is the most likely first 'yes'? Worth starting there.\n\nCasey",
+    managerCoachingNote:
+      'Healthy mid-funnel discovery. Rep should resist any temptation to push pricing or pilot scope until at least one VP has validated; the champion is real but cannot move this on her own.',
+  }),
+});
+
 const massiveDynamicSignals: SignalExtraction = {
   pain: [
     {
@@ -1513,6 +1612,7 @@ export function buildSeed(): HydrateInput {
       starkDiagnosis,
       hooliDiagnosis,
       piedPiperDiagnosis,
+      massiveDynamicInt1Diagnosis,
       massiveDynamicDiagnosis,
       cyberdyneDiagnosis,
     ],
