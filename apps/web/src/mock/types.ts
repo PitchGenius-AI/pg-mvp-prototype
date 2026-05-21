@@ -86,3 +86,75 @@ export interface MockSession {
   workspaceId: string;
   workspaceOnboardingCompleted: boolean;
 }
+
+// --- Onboarding (M10) ---
+
+// Stable-ish id helper for prototype-local draft rows (onboarding products,
+// custom CRM stages) that have no DB id yet.
+export const newDraftId = (prefix: string): string =>
+  `${prefix}_${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(
+    /-/g,
+    '',
+  )}`;
+
+// One in-progress product captured during onboarding step 5. Carries a local
+// draft id; committed to a real `Product` row — with the workspace-level
+// customer/problem fanned in — when onboarding finishes.
+export interface OnboardingDraftProduct {
+  id: string;
+  name: string;
+  description: string;
+  isPrimary: boolean;
+}
+
+// Resolved outcome of the step-3 website scrape. `done` → steps 4–7 run in
+// confirmation mode (pre-filled); `failed`/`skipped` → manual-entry mode.
+export type OnboardingScrapeStatus = 'idle' | 'done' | 'failed' | 'skipped';
+
+// Step-9 CRM selection. `hubspot`/`pipedrive` map to a real `crmType`; `none`
+// and `other` leave it null and degrade export to copy-ready notes.
+export type OnboardingCrmChoice = 'hubspot' | 'pipedrive' | 'none' | 'other';
+
+// The full onboarding wizard state. Lives in the mock store so per-step edits
+// persist across in-app navigation (PG-190). Covers steps 2–10 of the 11-step
+// flow — step 1 is /signup and step 11 (checkout) lands in M11.
+export interface OnboardingDraft {
+  currentStep: number;
+  workspaceName: string;
+  website: string;
+  scrapeStatus: OnboardingScrapeStatus;
+  industry: string;
+  products: OnboardingDraftProduct[];
+  targetCustomer: string;
+  coreProblem: string;
+  scriptContent: string;
+  scriptSkipped: boolean;
+  crmChoice: OnboardingCrmChoice | null;
+  crmOtherText: string;
+  stageTemplate: CrmStageTemplate;
+  customStages: Array<{ id: string; name: string }>;
+}
+
+// Fresh draft — the starting point at signup and after onboarding completes.
+// A function (not a const) so every reset gets its own array references + ids.
+export function createInitialOnboardingDraft(): OnboardingDraft {
+  return {
+    currentStep: 2,
+    workspaceName: '',
+    website: '',
+    scrapeStatus: 'idle',
+    industry: '',
+    products: [{ id: newDraftId('prod'), name: '', description: '', isPrimary: true }],
+    targetCustomer: '',
+    coreProblem: '',
+    scriptContent: '',
+    scriptSkipped: false,
+    crmChoice: null,
+    crmOtherText: '',
+    stageTemplate: 'simple_b2b_sales',
+    customStages: [
+      { id: newDraftId('stage'), name: '' },
+      { id: newDraftId('stage'), name: '' },
+    ],
+  };
+}

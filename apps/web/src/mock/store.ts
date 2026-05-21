@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
+import { createInitialOnboardingDraft } from './types';
 import type {
   MockActivity,
   MockBuyer,
@@ -13,6 +14,7 @@ import type {
   MockScriptTemplate,
   MockSession,
   MockWorkspace,
+  OnboardingDraft,
 } from './types';
 
 interface MockState {
@@ -27,6 +29,9 @@ interface MockState {
   scriptTemplates: Record<string, MockScriptTemplate>;
   precallIntelligence: Record<string, MockPrecallIntelligence>;
   importMappings: Record<string, MockImportMapping>;
+  // In-progress onboarding wizard state (M10). Per-step edits land here so the
+  // flow survives in-app navigation; committed to real entities on finish.
+  onboardingDraft: OnboardingDraft;
 }
 
 export interface HydrateInput {
@@ -49,6 +54,9 @@ interface MockActions {
   setSession: (session: MockSession) => void;
   clearSession: () => void;
   completeOnboarding: () => void;
+
+  updateOnboardingDraft: (patch: Partial<OnboardingDraft>) => void;
+  resetOnboardingDraft: () => void;
 
   addBuyer: (input: Omit<MockBuyer, 'id' | 'createdAt' | 'updatedAt'>) => MockBuyer;
   addOpportunity: (
@@ -133,7 +141,7 @@ interface MockActions {
   ) => MockImportMapping;
 }
 
-const emptyState: MockState = {
+const emptyState: Omit<MockState, 'onboardingDraft'> = {
   session: null,
   workspaces: {},
   products: {},
@@ -147,6 +155,12 @@ const emptyState: MockState = {
   importMappings: {},
 };
 
+// Always produce a fresh draft (own array refs) alongside the empty entity maps.
+const freshState = (): MockState => ({
+  ...emptyState,
+  onboardingDraft: createInitialOnboardingDraft(),
+});
+
 const newId = (prefix: string) =>
   `${prefix}_${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(
     /-/g,
@@ -158,7 +172,7 @@ const nowIso = () => new Date().toISOString();
 export const useMockStore = create<MockState & MockActions>()(
   devtools(
     (set, get) => ({
-      ...emptyState,
+      ...freshState(),
 
       hydrate: (input) =>
         set(
@@ -180,7 +194,7 @@ export const useMockStore = create<MockState & MockActions>()(
           'mock/hydrate',
         ),
 
-      reset: () => set(() => ({ ...emptyState }), undefined, 'mock/reset'),
+      reset: () => set(() => freshState(), undefined, 'mock/reset'),
 
       setSession: (session) => set(() => ({ session }), undefined, 'mock/setSession'),
 
@@ -199,10 +213,26 @@ export const useMockStore = create<MockState & MockActions>()(
                 ...state.workspaces,
                 [workspaceId]: { ...workspace, onboardingCompleted: true, updatedAt: nowIso() },
               },
+              // Wizard is done — drop the draft so a future signup starts clean.
+              onboardingDraft: createInitialOnboardingDraft(),
             };
           },
           undefined,
           'mock/completeOnboarding',
+        ),
+
+      updateOnboardingDraft: (patch) =>
+        set(
+          (state) => ({ onboardingDraft: { ...state.onboardingDraft, ...patch } }),
+          undefined,
+          'mock/updateOnboardingDraft',
+        ),
+
+      resetOnboardingDraft: () =>
+        set(
+          () => ({ onboardingDraft: createInitialOnboardingDraft() }),
+          undefined,
+          'mock/resetOnboardingDraft',
         ),
 
       addBuyer: (input) => {
@@ -587,6 +617,10 @@ export const useCurrentSession = () => useMockStore((s) => s.session);
 export const useWorkspace = () =>
   useMockStore((s) => (s.session ? s.workspaces[s.session.workspaceId] ?? null : null));
 
+// In-progress onboarding wizard state (M10). A single object reference, stable
+// until `updateOnboardingDraft` replaces it — no `useShallow` needed.
+export const useOnboardingDraft = () => useMockStore((s) => s.onboardingDraft);
+
 // Array-returning selectors below all wrap in `useShallow` — zustand v5 treats
 // a fresh array reference as a state change and will infinite-loop on consumers
 // otherwise. Same pattern as use-workspace-stages.ts.
@@ -705,6 +739,9 @@ export const mockActions = {
   setSession: (session: MockSession) => useMockStore.getState().setSession(session),
   clearSession: () => useMockStore.getState().clearSession(),
   completeOnboarding: () => useMockStore.getState().completeOnboarding(),
+  updateOnboardingDraft: (patch: Parameters<MockActions['updateOnboardingDraft']>[0]) =>
+    useMockStore.getState().updateOnboardingDraft(patch),
+  resetOnboardingDraft: () => useMockStore.getState().resetOnboardingDraft(),
   addBuyer: (input: Parameters<MockActions['addBuyer']>[0]) =>
     useMockStore.getState().addBuyer(input),
   addOpportunity: (input: Parameters<MockActions['addOpportunity']>[0]) =>

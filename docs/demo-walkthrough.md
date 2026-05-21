@@ -6,22 +6,28 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 
 ---
 
-## 1. Sign up + onboarding (~2 minutes)
+## 1. Sign up + onboarding (~3 minutes)
 
 **What to say:**
-> "Pitch Genius is buyer-readiness intelligence for individual sales reps. Let me walk you through what a brand-new user experiences."
+> "Pitch Genius is buyer-readiness intelligence for individual sales reps. Let me walk you through what a brand-new user experiences from the very first screen."
 
 **Steps:**
-1. Land on `/login` → click **Sign up** → enter any email + password (the prototype skips real auth and drops you straight in).
-2. The wizard appears. Step through:
-   - **Workspace name:** "Acme Sales Co" (or use the demo company's name)
-   - **Product Q&A:** what you sell / who you sell to / what problem you solve. Talk through the importance of context — every readiness diagnosis is anchored against this product description.
-   - **CRM stages:** pick **Simple B2B Sales** (the prototype's default template).
-3. Submit. You land on `/opportunities` with ten seeded deals.
+1. Land on `/login` → click **Sign up**.
+2. **Create account:** enter a name, a fresh email, and a password (8+ characters with a letter and a number). Inline validation fires on blur — to show it off, try `casey@acmesales.co` (reads as already registered) or a 3-character password.
+3. The 10-step onboarding wizard opens. Step through it:
+   - **Workspace name** — "Acme Sales Co".
+   - **Website** — paste any URL and click **Analyze my website**. Watch the "Reading your website…" animation; it pre-fills the next four steps. (To demo the fallback instead, use a URL containing the word `fail` — the scrape "can't read" the site and steps 4–7 switch to blank manual entry. The **Skip** link does the same.)
+   - **Industry / Products / Customer / Problem** — pre-filled from the scrape. Talk through editing the product list and marking a **primary** product; every readiness diagnosis is anchored to this product context.
+   - **Call script** — paste a script, upload a file, or click **I don't have a script**.
+   - **CRM** — pick HubSpot or Pipedrive (None / Other degrade export to copy-ready notes).
+   - **Pipeline stages** — pick **Simple B2B Sales**.
+4. Click **Finish setup**. You land in the app on a fresh, empty workspace.
 
 **Talking points:**
-- "Under five minutes from sign-up to your first readiness diagnosis — that's the bar."
-- "We support custom CRM stages too, but the simple-B2B template is what 80% of teams need."
+- "Account to a configured workspace in a couple of minutes — and the website scrape means the rep confirms rather than types."
+- "The flow adapts: a thin or missing website just drops the rep into manual entry, no dead ends."
+
+> **For the rest of the demo** you want the pre-loaded pipeline. Sign out, then **Sign in** (any email + password) — that loads the seeded demo workspace with ten deals.
 
 ---
 
@@ -149,7 +155,6 @@ If you're re-running the demo from a fresh state (e.g. the user signed up during
 These are tracked in Linear and intentionally deferred:
 
 - **Mobile layout (< 768px):** the opportunity list is a fixed-min-width table that scrolls horizontally inside its container instead of becoming a stacked-card view. Fix tracked as PG-180. Avoid presenting from a phone.
-- **Onboarding feel:** the current 3-step Stepper works but is heavier than a Typeform-style conversational flow. Redesign tracked as PG-178.
 - **Alignment badge palette:** uses up to five colors based on outcome × severity, which crowds the row visually when stacked next to readiness + at-risk. Simplification tracked as PG-181.
 - **"Opportunity" concept explainer:** no in-app hint about what an opportunity is vs. a deal. Tracked as PG-179.
 
