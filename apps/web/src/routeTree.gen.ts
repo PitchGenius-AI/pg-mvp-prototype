@@ -19,6 +19,7 @@ import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings';
 import { Route as AuthedScriptsRouteImport } from './routes/_authed/scripts';
 import { Route as AuthedProductsRouteImport } from './routes/_authed/products';
 import { Route as AuthedExportRouteImport } from './routes/_authed/export';
+import { Route as AuthedCopilotRouteImport } from './routes/_authed/copilot';
 import { Route as AuthedBuyersIndexRouteImport } from './routes/_authed/buyers.index';
 import { Route as AuthedOpportunitiesOpportunityIdRouteImport } from './routes/_authed/opportunities.$opportunityId';
 import { Route as AuthedBuyersNewRouteImport } from './routes/_authed/buyers.new';
@@ -72,6 +73,11 @@ const AuthedExportRoute = AuthedExportRouteImport.update({
   path: '/export',
   getParentRoute: () => AuthedRoute,
 } as any);
+const AuthedCopilotRoute = AuthedCopilotRouteImport.update({
+  id: '/copilot',
+  path: '/copilot',
+  getParentRoute: () => AuthedRoute,
+} as any);
 const AuthedBuyersIndexRoute = AuthedBuyersIndexRouteImport.update({
   id: '/buyers/',
   path: '/buyers/',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/copilot': typeof AuthedCopilotRoute;
   '/export': typeof AuthedExportRoute;
   '/products': typeof AuthedProductsRoute;
   '/scripts': typeof AuthedScriptsRoute;
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/copilot': typeof AuthedCopilotRoute;
   '/export': typeof AuthedExportRoute;
   '/products': typeof AuthedProductsRoute;
   '/scripts': typeof AuthedScriptsRoute;
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/_authed/copilot': typeof AuthedCopilotRoute;
   '/_authed/export': typeof AuthedExportRoute;
   '/_authed/products': typeof AuthedProductsRoute;
   '/_authed/scripts': typeof AuthedScriptsRoute;
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/copilot'
     | '/export'
     | '/products'
     | '/scripts'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/copilot'
     | '/export'
     | '/products'
     | '/scripts'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/_authed/copilot'
     | '/_authed/export'
     | '/_authed/products'
     | '/_authed/scripts'
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedExportRouteImport;
       parentRoute: typeof AuthedRoute;
     };
+    '/_authed/copilot': {
+      id: '/_authed/copilot';
+      path: '/copilot';
+      fullPath: '/copilot';
+      preLoaderRoute: typeof AuthedCopilotRouteImport;
+      parentRoute: typeof AuthedRoute;
+    };
     '/_authed/buyers/': {
       id: '/_authed/buyers/';
       path: '/buyers';
@@ -284,6 +303,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedCopilotRoute: typeof AuthedCopilotRoute;
   AuthedExportRoute: typeof AuthedExportRoute;
   AuthedProductsRoute: typeof AuthedProductsRoute;
   AuthedScriptsRoute: typeof AuthedScriptsRoute;
@@ -295,6 +315,7 @@ interface AuthedRouteChildren {
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedCopilotRoute: AuthedCopilotRoute,
   AuthedExportRoute: AuthedExportRoute,
   AuthedProductsRoute: AuthedProductsRoute,
   AuthedScriptsRoute: AuthedScriptsRoute,

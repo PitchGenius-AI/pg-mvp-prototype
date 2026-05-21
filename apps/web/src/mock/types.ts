@@ -158,3 +158,35 @@ export function createInitialOnboardingDraft(): OnboardingDraft {
     ],
   };
 }
+
+// --- Live Co-pilot (M19) ---
+
+// The OS a desktop Co-pilot build targets. The download screen always offers
+// both; OS detection just promotes the likely one.
+export type CopilotPlatform = 'macos' | 'windows';
+
+// The desktop Live Co-pilot's install + connection state as the web app sees it.
+// `not_installed` — the rep hasn't downloaded the app.
+// `installed`     — downloaded, but not yet authenticated against the account.
+// `connected`     — installed and signed in; ready to launch a call session.
+export type CopilotInstallState = 'not_installed' | 'installed' | 'connected';
+
+// Prototype-local Live Co-pilot client state (M19). The desktop app is out of
+// scope for this web prototype, so this is a mock stand-in: a real build would
+// derive it from a device-pairing / token handshake ([FLAG] — implementation
+// detail). Client/device state, not server data, so it lives as a plain store
+// slice rather than a hook-layer query. Not seeded and not hydrated — it
+// re-starts at `not_installed` every reload, so a demo can walk the whole
+// download → connect → launch journey on each run.
+export interface CopilotClient {
+  installState: CopilotInstallState;
+  // The mock desktop-app version — set once the app is "installed".
+  version: string | null;
+  // The OS the installed build targets — set when the rep "downloads" a build.
+  platform: CopilotPlatform | null;
+}
+
+// A fresh, never-installed Co-pilot client — the boot + post-reset starting point.
+export function createInitialCopilotClient(): CopilotClient {
+  return { installState: 'not_installed', version: null, platform: null };
+}

@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type { ActivityType } from '@pg/shared';
+import { COPILOT_APP_VERSION } from '../lib/copilot';
 import { computePipelineRealityCheck, fakeGenerateDiagnosis } from './fake-diagnosis';
-import { createInitialOnboardingDraft } from './types';
+import { createInitialCopilotClient, createInitialOnboardingDraft } from './types';
 import type {
+  CopilotClient,
+  CopilotPlatform,
   MockActivity,
   MockBuyer,
   MockDiagnosis,
@@ -89,6 +92,12 @@ interface MockState {
   // In-progress onboarding wizard state (M10). Per-step edits land here so the
   // flow survives in-app navigation; committed to real entities on finish.
   onboardingDraft: OnboardingDraft;
+  // Live Co-pilot desktop-client state (M19). Mock, client/device-local — see
+  // CopilotClient in ./types. Not seeded, not hydrated; resets on reload.
+  copilot: CopilotClient;
+  // Whether the rep has dismissed the contextual Co-pilot download nudge that
+  // appears on Opportunity Detail (M19, PG-237). Once dismissed it stays gone.
+  copilotNudgeDismissed: boolean;
 }
 
 export interface HydrateInput {
@@ -219,6 +228,15 @@ interface MockActions {
     input: Omit<MockImportMapping, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
   ) => MockImportMapping;
 
+  // --- Live Co-pilot (M19) ---
+  // Mock the desktop-client lifecycle: download/install (PG-234), connect to the
+  // account (PG-235), disconnect, and dismiss the contextual download nudge
+  // (PG-237). All mock, all client-local — no server entity is touched.
+  installCopilot: (platform: CopilotPlatform) => void;
+  connectCopilot: () => void;
+  disconnectCopilot: () => void;
+  dismissCopilotNudge: () => void;
+
   // Bulk Daily Workbench import (M14, PG-212). Creates buyers — deduping by
   // email or firstName+company, including against buyers created earlier in the
   // same import — and, when a product is chosen, an opportunity per row. A null
@@ -256,6 +274,8 @@ const emptyState: Omit<MockState, 'onboardingDraft'> = {
   precallIntelligence: {},
   importMappings: {},
   exportTimestamps: {},
+  copilot: createInitialCopilotClient(),
+  copilotNudgeDismissed: false,
 };
 
 // Always produce a fresh draft (own array refs) alongside the empty entity maps.
@@ -837,6 +857,53 @@ export const useMockStore = create<MockState & MockActions>()(
         return mapping;
       },
 
+      // --- Live Co-pilot (M19) ---
+
+      // "Download + install" completed (PG-234). Records the build's OS + version
+      // and moves the client to installed-but-not-yet-connected.
+      installCopilot: (platform) =>
+        set(
+          () => ({
+            copilot: {
+              installState: 'installed',
+              version: COPILOT_APP_VERSION,
+              platform,
+            },
+          }),
+          undefined,
+          'mock/installCopilot',
+        ),
+
+      // "Authenticate against the account" completed (PG-235). Only an installed,
+      // not-yet-connected client can connect.
+      connectCopilot: () =>
+        set(
+          (state) => {
+            if (state.copilot.installState !== 'installed') return state;
+            return { copilot: { ...state.copilot, installState: 'connected' } };
+          },
+          undefined,
+          'mock/connectCopilot',
+        ),
+
+      // Sign the desktop client out of the account — drops back to installed.
+      disconnectCopilot: () =>
+        set(
+          (state) => {
+            if (state.copilot.installState !== 'connected') return state;
+            return { copilot: { ...state.copilot, installState: 'installed' } };
+          },
+          undefined,
+          'mock/disconnectCopilot',
+        ),
+
+      dismissCopilotNudge: () =>
+        set(
+          () => ({ copilotNudgeDismissed: true }),
+          undefined,
+          'mock/dismissCopilotNudge',
+        ),
+
       importBuyerRows: ({ workspaceId, ownerUserId, productId, rows }) => {
         const state = get();
         const product = productId ? state.products[productId] ?? null : null;
@@ -1100,6 +1167,14 @@ export const useWorkspace = () =>
 // until `updateOnboardingDraft` replaces it — no `useShallow` needed.
 export const useOnboardingDraft = () => useMockStore((s) => s.onboardingDraft);
 
+// Live Co-pilot desktop-client state (M19). A single object reference, replaced
+// wholesale by every copilot action — no `useShallow` needed.
+export const useCopilot = () => useMockStore((s) => s.copilot);
+
+// Whether the contextual Co-pilot download nudge has been dismissed (M19, PG-237).
+export const useCopilotNudgeDismissed = () =>
+  useMockStore((s) => s.copilotNudgeDismissed);
+
 // Array-returning selectors below all wrap in `useShallow` — zustand v5 treats
 // a fresh array reference as a state change and will infinite-loop on consumers
 // otherwise. Same pattern as use-workspace-stages.ts.
@@ -1278,6 +1353,11 @@ export const mockActions = {
     workspaceId: string,
     input: Parameters<MockActions['addImportMapping']>[1],
   ) => useMockStore.getState().addImportMapping(workspaceId, input),
+  installCopilot: (platform: CopilotPlatform) =>
+    useMockStore.getState().installCopilot(platform),
+  connectCopilot: () => useMockStore.getState().connectCopilot(),
+  disconnectCopilot: () => useMockStore.getState().disconnectCopilot(),
+  dismissCopilotNudge: () => useMockStore.getState().dismissCopilotNudge(),
   importBuyerRows: (input: Parameters<MockActions['importBuyerRows']>[0]) =>
     useMockStore.getState().importBuyerRows(input),
   importActivities: (input: Parameters<MockActions['importActivities']>[0]) =>

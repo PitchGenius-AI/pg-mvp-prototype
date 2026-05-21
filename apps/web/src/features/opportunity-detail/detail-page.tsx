@@ -9,6 +9,7 @@ import {
   useProducts,
 } from '../../mock/hooks';
 import { useBuyerById } from '../../mock/store';
+import { CopilotDownloadNudge } from '../copilot';
 import { ActivityTab } from './activity-tab';
 import { deriveReadinessVm } from './badges';
 import { DEFAULT_TAB, type DetailTab } from './detail-search';
@@ -79,6 +80,10 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
           productName={productName}
           vm={vm}
         />
+
+        {/* Contextual, one-time Co-pilot download nudge (PG-237). Self-gating:
+            renders only while the desktop app isn't installed + un-dismissed. */}
+        <CopilotDownloadNudge />
 
         <Tabs
           value={activeTab}

@@ -2,6 +2,7 @@ import {
   Anchor,
   Badge,
   Breadcrumbs,
+  Button,
   Group,
   Paper,
   RingProgress,
@@ -10,9 +11,10 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconBox } from '@tabler/icons-react';
+import { IconAlertTriangle, IconBox, IconBroadcast } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { AlignmentBadge } from '../../components/alignment-badge';
+import { useStartCopilot } from '../copilot';
 import type { MockBuyer, MockOpportunity } from '../../mock/types';
 import {
   confidenceColor,
@@ -34,6 +36,7 @@ interface ScoreHeaderProps {
 // hero readiness score dominates; state, alignment, product, CRM stage, and
 // confidence sit alongside it so the rep never loses the deal's headline.
 export function ScoreHeader({ opportunity, buyer, productName, vm }: ScoreHeaderProps) {
+  const startCopilot = useStartCopilot();
   const buyerLine = buyer
     ? [
         [buyer.firstName, buyer.lastName].filter(Boolean).join(' '),
@@ -155,6 +158,18 @@ export function ScoreHeader({ opportunity, buyer, productName, vm }: ScoreHeader
               )}
             </Group>
           </Stack>
+
+          {/* Launch-from-opportunity happy path (PG-236) — one button for both
+              states: deep-link handoff if the desktop app is installed, route
+              to /copilot to get it if not. */}
+          <Button
+            variant="light"
+            leftSection={<IconBroadcast size={16} />}
+            onClick={() => startCopilot(opportunity.id)}
+            style={{ flexShrink: 0 }}
+          >
+            Start live co-pilot
+          </Button>
         </Group>
       </Paper>
     </Stack>

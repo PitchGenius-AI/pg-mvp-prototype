@@ -161,6 +161,27 @@ The Export tab in step 7 handles one deal. The **CRM Update Pack** is the booken
 
 ---
 
+## 9. The Live Co-pilot — get the desktop app (~1.5 minutes)
+
+The Live Co-pilot is real-time, in-call coaching — and it's a **desktop app**, not a web screen. This milestone is the web-app side: how a rep discovers, installs, connects, and launches it. (The in-call overlay itself ships as a separate design mock.)
+
+**Steps:**
+1. On any opportunity (Globex is still fine), point at the **Start live co-pilot** button in the persistent score header. "Every deal can launch a coached call, already bound to that buyer." Click it — because the app isn't installed yet, it routes to `/copilot`.
+2. You're on the **Live Co-pilot** screen (also reachable from the sidebar). The **not-installed** state leads with *what the co-pilot does* — live transcription, in-the-moment coaching, and writing the call back to the opportunity as an activity.
+3. Walk the **download section**: both macOS and Windows builds are offered, and the rep's OS is **auto-detected** and promoted to the primary button. Note the microphone-permission line and the **System requirements** disclosure. Click **Download for macOS** — watch the brief "Preparing…" beat, then the **Finish installing** panel (honest about being a prototype — no real installer). Click **I've installed the app**.
+4. The screen switches to the **installed-but-not-connected** state. "The desktop app is a thin client over the same account and the same subscription." Click **Connect to your account** — watch the connect beat resolve.
+5. Now **connected**: version, status, and a **Launch co-pilot** button. Click it — the mock **deep-link handoff** (`pitchgenius://…`) fires as a notification. Point out the reminder that launching from a deal binds the call to that buyer.
+6. Go back to an opportunity (before installing, on a fresh run) to show the **contextual download nudge** — a non-blocking, dismissible prompt that appears on opportunity detail until the app is installed. There's deliberately no post-onboarding popup; the sidebar item is the durable home.
+
+**Talking points:**
+- "Coaching shouldn't wait for the post-call write-up. The co-pilot is in the call with the rep — and everything it hears flows straight back into the same readiness model you've seen all demo."
+- "It's the same account and the same plan. No separate login, no separate billing — download, connect, launch."
+- "The in-call overlay itself — the resting prompt card, the 'still need to ask' nudge — is the next milestone's design mock."
+
+> **Note on flags:** the co-pilot's account-auth handshake (device pairing vs. token) and the exact first-launch permission copy are [FLAG] items. The desktop app itself is out of scope for this web prototype — every install/connection state here is mocked, and resets to "not installed" on reload.
+
+---
+
 ## Reset between runs
 
 If you're re-running the demo from a fresh state (e.g. the user signed up during the demo):
