@@ -88,6 +88,11 @@ interface MockActions {
     opportunityId: string,
     newStage: string,
   ) => MockOpportunity | null;
+  // Assign one or more unassigned buyers to a product (M13, PG-206/207). Each
+  // buyer becomes a new open opportunity, which removes it from the "unassigned"
+  // set (a buyer is unassigned precisely when it has no opportunity). Returns the
+  // opportunities created, skipping any buyer id that doesn't resolve.
+  assignBuyersToProduct: (buyerIds: string[], productId: string) => MockOpportunity[];
 
   addWorkspace: (
     input: Pick<MockWorkspace, 'name' | 'createdByUserId'> &
@@ -429,6 +434,60 @@ export const useMockStore = create<MockState & MockActions>()(
           'mock/moveOpportunityToStage',
         );
         return updated;
+      },
+
+      assignBuyersToProduct: (buyerIds, productId) => {
+        const state = get();
+        const product = state.products[productId];
+        const ownerUserId = state.session?.user.id;
+        if (!product || !ownerUserId) return [];
+
+        const created: MockOpportunity[] = [];
+        for (const buyerId of buyerIds) {
+          const buyer = state.buyers[buyerId];
+          if (!buyer) continue;
+          created.push({
+            id: newId('opp'),
+            workspaceId: buyer.workspaceId,
+            buyerId,
+            productId,
+            ownerUserId,
+            // Auto-named from the buyer's company + the product — the rep can
+            // rename it later on the opportunity detail.
+            opportunityName: `${buyer.company} – ${product.name}`,
+            // No import row to carry a stage from in M13, so the new opportunity
+            // starts unstaged; M14's Daily Workbench import will carry it.
+            currentCrmStage: '',
+            opportunityValue: null,
+            expectedCloseDate: null,
+            knownPain: null,
+            knownObjection: null,
+            dealNotes: null,
+            crmRecordId: null,
+            currentReadinessState: null,
+            currentReadinessScore: null,
+            currentAlignmentOutcome: null,
+            currentAlignmentLevel: null,
+            atRisk: false,
+            closedStatus: 'open',
+            reframedFromOpportunityId: null,
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          });
+        }
+        if (created.length === 0) return [];
+
+        set(
+          (s) => ({
+            opportunities: {
+              ...s.opportunities,
+              ...Object.fromEntries(created.map((o) => [o.id, o])),
+            },
+          }),
+          undefined,
+          'mock/assignBuyersToProduct',
+        );
+        return created;
       },
 
       addWorkspace: (input) => {
@@ -817,6 +876,8 @@ export const mockActions = {
     useMockStore.getState().setAtRisk(opportunityId, atRisk),
   moveOpportunityToStage: (opportunityId: string, newStage: string) =>
     useMockStore.getState().moveOpportunityToStage(opportunityId, newStage),
+  assignBuyersToProduct: (buyerIds: string[], productId: string) =>
+    useMockStore.getState().assignBuyersToProduct(buyerIds, productId),
   addWorkspace: (input: Parameters<MockActions['addWorkspace']>[0]) =>
     useMockStore.getState().addWorkspace(input),
   updateWorkspace: (

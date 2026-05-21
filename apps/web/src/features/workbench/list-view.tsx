@@ -74,7 +74,9 @@ export function ListView({ rows, sort, dir, onSort, showProduct }: ListViewProps
                 )}
                 <Table.Td>
                   <Badge variant="light" color="gray" size="sm">
-                    {opportunity.currentCrmStage}
+                    {/* An opportunity from buyer assignment (M13) carries no
+                        stage yet — show it as Unstaged, matching the board. */}
+                    {opportunity.currentCrmStage || 'Unstaged'}
                   </Badge>
                 </Table.Td>
                 <Table.Td>

@@ -19,6 +19,9 @@ export const queryKeys = {
     all: ['buyer'] as const,
     list: () => ['buyer', 'list'] as const,
     byId: (id: string) => ['buyer', 'byId', id] as const,
+    // Read-model for the M13 Buyers directory: buyers joined with opportunity
+    // count + assigned/unassigned status.
+    directory: () => ['buyer', 'directory'] as const,
   },
 
   opportunity: {

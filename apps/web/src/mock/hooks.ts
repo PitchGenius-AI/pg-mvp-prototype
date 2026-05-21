@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mockApi } from './mock-api';
 import { queryKeys } from './queries';
 import { useMockStore } from './store';
+import { buildBuyerRows, type BuyerRow } from './buyer-rows';
 import { buildWorkbenchRows, type WorkbenchRow } from './workbench-rows';
 import type {
   MockActivity,
@@ -87,6 +88,23 @@ export function useBuyers() {
         return Object.values(s.buyers)
           .filter((b) => b.workspaceId === workspaceId)
           .sort((a, b) => a.firstName.localeCompare(b.firstName));
+      }),
+  });
+}
+
+// The Buyers people-directory read-model (M13) — every buyer joined with its
+// opportunity count + assigned/unassigned status. Backs the /buyers table.
+export function useBuyerDirectory() {
+  return useQuery({
+    queryKey: queryKeys.buyer.directory(),
+    // No retry: the injected-error demo path (window.__mockApi.setErrorRate)
+    // should surface the error state immediately, not after backoff.
+    retry: false,
+    queryFn: () =>
+      mockApi<BuyerRow[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return buildBuyerRows(s.session.workspaceId);
       }),
   });
 }
@@ -295,6 +313,25 @@ export function useAddOpportunity() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
       qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
+    },
+  });
+}
+
+// Turn unassigned buyers into opportunities by assigning a product (M13,
+// PG-206/207). One buyer (per-row action) or many (bulk) in a single call.
+export function useAssignBuyersToProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { buyerIds: string[]; productId: string }) =>
+      mockApi<MockOpportunity[]>(() =>
+        useMockStore.getState().assignBuyersToProduct(input.buyerIds, input.productId),
+      ),
+    onSuccess: () => {
+      // New opportunities re-derive the directory's assigned/unassigned status,
+      // the workbench rows, and the workbench's unassigned-buyers banner count.
+      qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
+      qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
       qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
     },
   });
