@@ -1,0 +1,11 @@
+Record ID,First Name,Last Name,Job Title,Company Name,Email,Deal Stage,Amount,Close Date,Deal Owner,Last Activity Date,Notes
+4815162342,Dana,Whitfield,VP Marketing,Northwind Traders,dana.whitfield@northwind.example,Discovery,52000,2026-08-14,Cassandra Wilcox,2026-05-18,Inbound from webinar; evaluating for Q3.
+4815162343,Marcus,Lao,Director of RevOps,Contoso Logistics,marcus.lao@contoso.example,Qualified,88000,2026-09-02,Cassandra Wilcox,2026-05-19,Referred by existing customer.
+4815162344,Priya,Anand,Head of Sales,Fabrikam Inc,priya.anand@fabrikam.example,Proposal,134000,2026-07-30,Cassandra Wilcox,2026-05-20,Proposal sent; waiting on procurement.
+4815162345,Tom,Becker,CRO,Adventure Works,tom.becker@adventureworks.example,Negotiation,210000,2026-06-25,Cassandra Wilcox,2026-05-20,Redlines back from legal.
+4815162346,Sofia,Restrepo,Sales Manager,Tailspin Toys,sofia.restrepo@tailspin.example,Discovery,46000,2026-09-15,Cassandra Wilcox,2026-05-15,Early-stage; needs a second call.
+4815162347,Liam,O'Connor,VP Revenue,Wide World Importers,liam.oconnor@wwimporters.example,Qualified,72000,2026-08-28,Cassandra Wilcox,2026-05-17,Champion identified; no economic buyer yet.
+4815162348,Hana,Kobayashi,Director of Sales Ops,Lucerne Publishing,hana.kobayashi@lucerne.example,Proposal,99000,2026-07-12,Cassandra Wilcox,2026-05-19,Pilot scoped; security review pending.
+4815162349,Wesley,Aturu,Head of GTM,Proseware Systems,wesley.aturu@proseware.example,Discovery,61000,2026-10-01,Cassandra Wilcox,2026-05-16,Cold outbound; lukewarm interest.
+,Grace,Mwangi,VP Sales,Coho Vineyard,grace.mwangi@coho.example,Qualified,57000,2026-09-20,Cassandra Wilcox,2026-05-20,New deal — not yet saved in CRM.
+,Owen,Delacroix,Sales Director,Graphic Design Institute,owen.delacroix@gdi.example,Discovery,49000,2026-10-10,Cassandra Wilcox,2026-05-20,New deal — not yet saved in CRM.

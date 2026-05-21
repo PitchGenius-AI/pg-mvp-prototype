@@ -10,10 +10,9 @@ import {
 } from '@mantine/core';
 import { IconLayoutKanban, IconList, IconPlus } from '@tabler/icons-react';
 import { getRouteApi } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useBuyers, useProducts, useWorkbench } from '../../mock/hooks';
 import { useWorkspaceStages } from '../../mock/use-workspace-stages';
-import { AddOpportunityModal } from '../opportunity-intake';
 import { BoardView } from './board-view';
 import { ListFilters } from './list-filters';
 import { ListView } from './list-view';
@@ -37,7 +36,6 @@ export function WorkbenchPage() {
   const params = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const [view, setView] = useWorkbenchView();
-  const [addOpen, setAddOpen] = useState(false);
 
   const workbench = useWorkbench();
   const buyers = useBuyers();
@@ -109,7 +107,10 @@ export function WorkbenchPage() {
                 },
               ]}
             />
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={() => navigate({ to: '/buyers/new' })}
+            >
               Add opportunity
             </Button>
           </Group>
@@ -121,8 +122,8 @@ export function WorkbenchPage() {
           <WorkbenchError onRetry={() => void workbench.refetch()} />
         ) : rows.length === 0 ? (
           <WorkbenchEmpty
-            onAdd={() => setAddOpen(true)}
-            onImport={() => setAddOpen(true)}
+            onAdd={() => navigate({ to: '/buyers/new' })}
+            onImport={() => navigate({ to: '/buyers/new', search: { method: 'import' } })}
           />
         ) : (
           <Stack gap="md">
@@ -156,8 +157,6 @@ export function WorkbenchPage() {
           </Stack>
         )}
       </Stack>
-
-      <AddOpportunityModal opened={addOpen} onClose={() => setAddOpen(false)} />
     </Container>
   );
 }

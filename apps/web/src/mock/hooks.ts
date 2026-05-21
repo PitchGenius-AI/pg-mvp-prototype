@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mockApi } from './mock-api';
 import { queryKeys } from './queries';
-import { useMockStore } from './store';
+import { useMockStore, type ImportBuyerRow, type ImportResult } from './store';
 import { buildBuyerRows, type BuyerRow } from './buyer-rows';
 import { buildWorkbenchRows, type WorkbenchRow } from './workbench-rows';
 import type {
@@ -521,6 +521,31 @@ export function useAddImportMapping() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.importMapping.all });
+    },
+  });
+}
+
+// Bulk Daily Workbench import (M14, PG-212). Commits the confirmed, mapped rows
+// in one transactional store write, then invalidates every read-model the
+// import touches — the workbench, the buyers directory, the unassigned banner.
+export function useImportBuyerRows() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { productId: string | null; rows: ImportBuyerRow[] }) =>
+      mockApi<ImportResult>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) throw new Error('No active session');
+        return s.importBuyerRows({
+          workspaceId: s.session.workspaceId,
+          ownerUserId: s.session.user.id,
+          productId: input.productId,
+          rows: input.rows,
+        });
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
+      qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
     },
   });
 }

@@ -2,6 +2,7 @@ import {
   Button,
   Group,
   NumberInput,
+  Paper,
   Select,
   SimpleGrid,
   Stack,
@@ -12,15 +13,21 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ParsedOpportunity } from '@pg/shared';
-import { useCurrentProduct, useCurrentWorkspace, useSession } from '../../mock/hooks';
+import { useAddOpportunity, useCurrentWorkspace, useProducts, useSession } from '../../mock/hooks';
 import { useWorkspaceStages } from '../../mock/use-workspace-stages';
 import type { MockBuyer } from '../../mock/types';
 import { BuyerDedupPrompt, type DedupChoice } from './buyer-dedup-prompt';
-import { checkDedup, commitOpportunity, type PreSaveOpportunity } from './submit-helpers';
+import {
+  buildAddOpportunityArgs,
+  checkDedup,
+  type BuyerStrategy,
+  type PreSaveOpportunity,
+} from './intake-helpers';
+import { ProductField } from './product-field';
 
-interface ParsedReviewProps {
+interface PasteReviewProps {
   parsed: ParsedOpportunity;
   onSuccess: (opportunityId: string) => void;
   onBack: () => void;
@@ -42,8 +49,8 @@ interface ReviewState {
   dealNotes: string;
 }
 
-// Tracks which fields the AI left null so we can surface "couldn't extract"
-// hints in the UI even after the user edits them.
+// Tracks which fields the parser left null so "couldn't extract" hints persist
+// even after the rep edits them.
 type MissingMap = Record<keyof ReviewState, boolean>;
 
 function buildInitialState(parsed: ParsedOpportunity, fallbackStage: string) {
@@ -82,12 +89,27 @@ function buildInitialState(parsed: ParsedOpportunity, fallbackStage: string) {
   return { state, missing };
 }
 
-export function ParsedReview({ parsed, onSuccess, onBack }: ParsedReviewProps) {
+// Review/confirm screen for the Paste method (PG-211) — the rep edits the
+// fake-AI extraction and picks a product before saving.
+export function PasteReview({ parsed, onSuccess, onBack }: PasteReviewProps) {
   const stages = useWorkspaceStages();
   const { data: session } = useSession();
   const { data: workspace } = useCurrentWorkspace();
-  const { data: product } = useCurrentProduct();
-  const initial = buildInitialState(parsed, stages[0] ?? '');
+  const { data: products } = useProducts();
+  const addOpportunity = useAddOpportunity();
+
+  const productList = useMemo(() => products ?? [], [products]);
+  const primary = useMemo(
+    () => productList.find((p) => p.isPrimary) ?? productList[0] ?? null,
+    [productList],
+  );
+  const [productOverride, setProductOverride] = useState<string | null>(null);
+  const productId = productOverride ?? primary?.id ?? null;
+
+  const initial = useMemo(
+    () => buildInitialState(parsed, stages[0] ?? ''),
+    [parsed, stages],
+  );
   const [state, setState] = useState<ReviewState>(initial.state);
   const [dedupMatch, setDedupMatch] = useState<MockBuyer | null>(null);
   const [dedupOpen, setDedupOpen] = useState(false);
@@ -132,21 +154,16 @@ export function ParsedReview({ parsed, onSuccess, onBack }: ParsedReviewProps) {
     return Object.keys(next).length === 0;
   };
 
-  const performSave = (
-    draft: PreSaveOpportunity,
-    strategy: { kind: 'create' } | { kind: 'link'; buyerId: string },
-  ) => {
-    if (!session || !workspace || !product) return;
-    const result = commitOpportunity(
+  const save = (draft: PreSaveOpportunity, strategy: BuyerStrategy) => {
+    if (!session || !workspace || !productId) return;
+    const args = buildAddOpportunityArgs(
       draft,
-      {
-        workspaceId: workspace.id,
-        ownerUserId: session.user.id,
-        productId: product.id,
-      },
+      { workspaceId: workspace.id, ownerUserId: session.user.id, productId },
       strategy,
     );
-    onSuccess(result.opportunity.id);
+    addOpportunity.mutate(args, {
+      onSuccess: (opportunity) => onSuccess(opportunity.id),
+    });
   };
 
   const handleSave = () => {
@@ -158,15 +175,15 @@ export function ParsedReview({ parsed, onSuccess, onBack }: ParsedReviewProps) {
       setDedupOpen(true);
       return;
     }
-    performSave(draft, { kind: 'create' });
+    save(draft, { kind: 'create' });
   };
 
   const handleDedupChoice = (choice: DedupChoice) => {
     const draft = buildDraft();
     if (choice === 'link' && dedupMatch) {
-      performSave(draft, { kind: 'link', buyerId: dedupMatch.id });
+      save(draft, { kind: 'link', buyerId: dedupMatch.id });
     } else if (choice === 'create-new') {
-      performSave(draft, { kind: 'create' });
+      save(draft, { kind: 'create' });
     }
     setDedupMatch(null);
   };
@@ -175,16 +192,30 @@ export function ParsedReview({ parsed, onSuccess, onBack }: ParsedReviewProps) {
     initial.missing[key] ? (
       <Group gap={4} c="orange">
         <IconAlertCircle size={12} />
-        <Text size="xs">AI couldn't extract this</Text>
+        <Text size="xs">Parser couldn't extract this</Text>
       </Group>
     ) : null;
 
   return (
     <>
-      <Stack gap="md">
+      <Stack gap="lg">
         <Text size="sm" c="dimmed">
           Review the extracted fields — edit anything that looks off, then save.
         </Text>
+
+        <Paper withBorder radius="md" p="md">
+          <Stack gap="md">
+            <Text size="sm" fw={600}>
+              Product
+            </Text>
+            <ProductField
+              products={productList}
+              value={productId}
+              onChange={setProductOverride}
+            />
+          </Stack>
+        </Paper>
+
         <TextInput
           label="Opportunity name"
           required
@@ -298,7 +329,13 @@ export function ParsedReview({ parsed, onSuccess, onBack }: ParsedReviewProps) {
               Back to paste
             </Button>
           </Tooltip>
-          <Button onClick={handleSave}>Save opportunity</Button>
+          <Button
+            onClick={handleSave}
+            loading={addOpportunity.isPending}
+            disabled={!productId}
+          >
+            Save opportunity
+          </Button>
         </Group>
       </Stack>
       <BuyerDedupPrompt

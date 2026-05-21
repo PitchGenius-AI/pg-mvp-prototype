@@ -16,8 +16,9 @@ import { Route as CheckoutRouteImport } from './routes/checkout';
 import { Route as AuthedRouteImport } from './routes/_authed';
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index';
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings';
-import { Route as AuthedBuyersRouteImport } from './routes/_authed/buyers';
+import { Route as AuthedBuyersIndexRouteImport } from './routes/_authed/buyers.index';
 import { Route as AuthedOpportunitiesOpportunityIdRouteImport } from './routes/_authed/opportunities.$opportunityId';
+import { Route as AuthedBuyersNewRouteImport } from './routes/_authed/buyers.new';
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -53,9 +54,9 @@ const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthedRoute,
 } as any);
-const AuthedBuyersRoute = AuthedBuyersRouteImport.update({
-  id: '/buyers',
-  path: '/buyers',
+const AuthedBuyersIndexRoute = AuthedBuyersIndexRouteImport.update({
+  id: '/buyers/',
+  path: '/buyers/',
   getParentRoute: () => AuthedRoute,
 } as any);
 const AuthedOpportunitiesOpportunityIdRoute =
@@ -64,6 +65,11 @@ const AuthedOpportunitiesOpportunityIdRoute =
     path: '/opportunities/$opportunityId',
     getParentRoute: () => AuthedRoute,
   } as any);
+const AuthedBuyersNewRoute = AuthedBuyersNewRouteImport.update({
+  id: '/buyers/new',
+  path: '/buyers/new',
+  getParentRoute: () => AuthedRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute;
@@ -71,19 +77,21 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/buyers': typeof AuthedBuyersRoute;
   '/settings': typeof AuthedSettingsRoute;
+  '/buyers/new': typeof AuthedBuyersNewRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/buyers/': typeof AuthedBuyersIndexRoute;
 }
 export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/buyers': typeof AuthedBuyersRoute;
   '/settings': typeof AuthedSettingsRoute;
   '/': typeof AuthedIndexRoute;
+  '/buyers/new': typeof AuthedBuyersNewRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/buyers': typeof AuthedBuyersIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -92,10 +100,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
-  '/_authed/buyers': typeof AuthedBuyersRoute;
   '/_authed/settings': typeof AuthedSettingsRoute;
   '/_authed/': typeof AuthedIndexRoute;
+  '/_authed/buyers/new': typeof AuthedBuyersNewRoute;
   '/_authed/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
+  '/_authed/buyers/': typeof AuthedBuyersIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -105,19 +114,21 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/buyers'
     | '/settings'
-    | '/opportunities/$opportunityId';
+    | '/buyers/new'
+    | '/opportunities/$opportunityId'
+    | '/buyers/';
   fileRoutesByTo: FileRoutesByTo;
   to:
     | '/checkout'
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/buyers'
     | '/settings'
     | '/'
-    | '/opportunities/$opportunityId';
+    | '/buyers/new'
+    | '/opportunities/$opportunityId'
+    | '/buyers';
   id:
     | '__root__'
     | '/_authed'
@@ -125,10 +136,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/_authed/buyers'
     | '/_authed/settings'
     | '/_authed/'
-    | '/_authed/opportunities/$opportunityId';
+    | '/_authed/buyers/new'
+    | '/_authed/opportunities/$opportunityId'
+    | '/_authed/buyers/';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -190,11 +202,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsRouteImport;
       parentRoute: typeof AuthedRoute;
     };
-    '/_authed/buyers': {
-      id: '/_authed/buyers';
+    '/_authed/buyers/': {
+      id: '/_authed/buyers/';
       path: '/buyers';
-      fullPath: '/buyers';
-      preLoaderRoute: typeof AuthedBuyersRouteImport;
+      fullPath: '/buyers/';
+      preLoaderRoute: typeof AuthedBuyersIndexRouteImport;
       parentRoute: typeof AuthedRoute;
     };
     '/_authed/opportunities/$opportunityId': {
@@ -204,21 +216,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOpportunitiesOpportunityIdRouteImport;
       parentRoute: typeof AuthedRoute;
     };
+    '/_authed/buyers/new': {
+      id: '/_authed/buyers/new';
+      path: '/buyers/new';
+      fullPath: '/buyers/new';
+      preLoaderRoute: typeof AuthedBuyersNewRouteImport;
+      parentRoute: typeof AuthedRoute;
+    };
   }
 }
 
 interface AuthedRouteChildren {
-  AuthedBuyersRoute: typeof AuthedBuyersRoute;
   AuthedSettingsRoute: typeof AuthedSettingsRoute;
   AuthedIndexRoute: typeof AuthedIndexRoute;
+  AuthedBuyersNewRoute: typeof AuthedBuyersNewRoute;
   AuthedOpportunitiesOpportunityIdRoute: typeof AuthedOpportunitiesOpportunityIdRoute;
+  AuthedBuyersIndexRoute: typeof AuthedBuyersIndexRoute;
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedBuyersRoute: AuthedBuyersRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedIndexRoute: AuthedIndexRoute,
+  AuthedBuyersNewRoute: AuthedBuyersNewRoute,
   AuthedOpportunitiesOpportunityIdRoute: AuthedOpportunitiesOpportunityIdRoute,
+  AuthedBuyersIndexRoute: AuthedBuyersIndexRoute,
 };
 
 const AuthedRouteWithChildren =

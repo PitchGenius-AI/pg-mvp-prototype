@@ -18,6 +18,36 @@ import type {
   OnboardingDraft,
 } from './types';
 
+// One mapped row produced by the Daily Workbench import (M14, PG-212) — the
+// confirmed column mapping applied to a source row, ready for commit.
+export interface ImportBuyerRow {
+  buyer: {
+    firstName: string;
+    lastName: string | null;
+    title: string | null;
+    company: string;
+    email: string | null;
+    linkedin: string | null;
+  };
+  opportunity: {
+    opportunityName: string;
+    currentCrmStage: string;
+    opportunityValue: number | null;
+    expectedCloseDate: string | null;
+    knownPain: string | null;
+    knownObjection: string | null;
+    dealNotes: string | null;
+    crmRecordId: string | null;
+  };
+}
+
+// Outcome of a Daily Workbench import — drives the import's done-step summary.
+export interface ImportResult {
+  buyersCreated: number;
+  buyersLinked: number;
+  opportunitiesCreated: number;
+}
+
 interface MockState {
   session: MockSession | null;
   workspaces: Record<string, MockWorkspace>;
@@ -152,6 +182,18 @@ interface MockActions {
     workspaceId: string,
     input: Omit<MockImportMapping, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
   ) => MockImportMapping;
+
+  // Bulk Daily Workbench import (M14, PG-212). Creates buyers — deduping by
+  // email or firstName+company, including against buyers created earlier in the
+  // same import — and, when a product is chosen, an opportunity per row. A null
+  // productId is the deferral path: buyers land unassigned for later assignment
+  // via the /buyers flow. One transactional write.
+  importBuyerRows: (input: {
+    workspaceId: string;
+    ownerUserId: string;
+    productId: string | null;
+    rows: ImportBuyerRow[];
+  }) => ImportResult;
 }
 
 const emptyState: Omit<MockState, 'onboardingDraft'> = {
@@ -724,6 +766,116 @@ export const useMockStore = create<MockState & MockActions>()(
         );
         return mapping;
       },
+
+      importBuyerRows: ({ workspaceId, ownerUserId, productId, rows }) => {
+        const state = get();
+        const product = productId ? state.products[productId] ?? null : null;
+        const existingBuyers = Object.values(state.buyers).filter(
+          (b) => b.workspaceId === workspaceId,
+        );
+
+        const createdBuyers: MockBuyer[] = [];
+        const createdOpps: MockOpportunity[] = [];
+        let buyersCreated = 0;
+        let buyersLinked = 0;
+        let opportunitiesCreated = 0;
+
+        // Dedup against existing workspace buyers AND buyers created earlier in
+        // this same import — two rows for the same person collapse to one buyer.
+        const matchBuyer = (input: {
+          firstName: string;
+          company: string;
+          email: string | null;
+        }): MockBuyer | null => {
+          const pool = [...existingBuyers, ...createdBuyers];
+          if (input.email) {
+            const target = input.email.toLowerCase();
+            const byEmail = pool.find(
+              (b) => b.email && b.email.toLowerCase() === target,
+            );
+            if (byEmail) return byEmail;
+          }
+          const firstName = input.firstName.toLowerCase();
+          const company = input.company.toLowerCase();
+          return (
+            pool.find(
+              (b) =>
+                b.firstName.toLowerCase() === firstName &&
+                b.company.toLowerCase() === company,
+            ) ?? null
+          );
+        };
+
+        for (const row of rows) {
+          let buyer = matchBuyer({
+            firstName: row.buyer.firstName,
+            company: row.buyer.company,
+            email: row.buyer.email,
+          });
+          if (buyer) {
+            buyersLinked += 1;
+          } else {
+            buyer = {
+              ...row.buyer,
+              id: newId('buy'),
+              workspaceId,
+              notes: null,
+              createdAt: nowIso(),
+              updatedAt: nowIso(),
+            };
+            createdBuyers.push(buyer);
+            buyersCreated += 1;
+          }
+
+          if (product) {
+            createdOpps.push({
+              id: newId('opp'),
+              workspaceId,
+              buyerId: buyer.id,
+              productId: product.id,
+              ownerUserId,
+              opportunityName:
+                row.opportunity.opportunityName.trim() ||
+                `${buyer.company} – ${product.name}`,
+              currentCrmStage: row.opportunity.currentCrmStage,
+              opportunityValue: row.opportunity.opportunityValue,
+              expectedCloseDate: row.opportunity.expectedCloseDate,
+              knownPain: row.opportunity.knownPain,
+              knownObjection: row.opportunity.knownObjection,
+              dealNotes: row.opportunity.dealNotes,
+              crmRecordId: row.opportunity.crmRecordId,
+              currentReadinessState: null,
+              currentReadinessScore: null,
+              currentAlignmentOutcome: null,
+              currentAlignmentLevel: null,
+              atRisk: false,
+              closedStatus: 'open',
+              reframedFromOpportunityId: null,
+              createdAt: nowIso(),
+              updatedAt: nowIso(),
+            });
+            opportunitiesCreated += 1;
+          }
+        }
+
+        if (createdBuyers.length > 0 || createdOpps.length > 0) {
+          set(
+            (s) => ({
+              buyers: {
+                ...s.buyers,
+                ...Object.fromEntries(createdBuyers.map((b) => [b.id, b])),
+              },
+              opportunities: {
+                ...s.opportunities,
+                ...Object.fromEntries(createdOpps.map((o) => [o.id, o])),
+              },
+            }),
+            undefined,
+            'mock/importBuyerRows',
+          );
+        }
+        return { buyersCreated, buyersLinked, opportunitiesCreated };
+      },
     }),
     { name: 'pg-mock-store', enabled: import.meta.env.DEV },
   ),
@@ -914,6 +1066,8 @@ export const mockActions = {
     workspaceId: string,
     input: Parameters<MockActions['addImportMapping']>[1],
   ) => useMockStore.getState().addImportMapping(workspaceId, input),
+  importBuyerRows: (input: Parameters<MockActions['importBuyerRows']>[0]) =>
+    useMockStore.getState().importBuyerRows(input),
 };
 
 // --- Read-only helpers ---

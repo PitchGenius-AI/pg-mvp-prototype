@@ -1,6 +1,6 @@
 import { Button, Container, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconX } from '@tabler/icons-react';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { getRouteApi } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useAssignBuyersToProduct, useBuyerDirectory, useProducts } from '../../mock/hooks';
@@ -17,7 +17,7 @@ import {
 } from './buyers-states';
 import { BuyersTable } from './buyers-table';
 
-const routeApi = getRouteApi('/_authed/buyers');
+const routeApi = getRouteApi('/_authed/buyers/');
 
 // The Buyers people directory (M13) — every buyer in the workspace, with the
 // product-assignment workflow the Workbench's unassigned-buyers banner points
@@ -120,13 +120,21 @@ export function BuyersPage() {
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
-        <Stack gap={2}>
-          <Title order={2}>Buyers</Title>
-          <Text size="sm" c="dimmed">
-            Everyone you sell to. Assign a product to anyone still waiting to start tracking them on
-            your workbench.
-          </Text>
-        </Stack>
+        <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
+          <Stack gap={2}>
+            <Title order={2}>Buyers</Title>
+            <Text size="sm" c="dimmed">
+              Everyone you sell to. Assign a product to anyone still waiting to start tracking
+              them on your workbench.
+            </Text>
+          </Stack>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => navigate({ to: '/buyers/new' })}
+          >
+            Add buyer
+          </Button>
+        </Group>
 
         {directory.isPending ? (
           <BuyersLoading />

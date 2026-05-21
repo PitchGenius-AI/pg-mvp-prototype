@@ -144,6 +144,7 @@ export const importMappingFieldSchema = z.object({
   sourceColumn: z.string(),
   targetField: z.string().nullable(),
 });
+export type ImportMappingField = z.infer<typeof importMappingFieldSchema>;
 
 export const importMappingSchema = z.object({
   id: z.string(),

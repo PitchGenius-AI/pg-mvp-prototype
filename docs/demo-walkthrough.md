@@ -37,18 +37,19 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 
 ## 2. Add an opportunity — three intake methods (~3 minutes)
 
-The Pitch Genius value prop is that capturing buyer evidence has to feel effortless. Show all three intake methods so the audience sees the breadth — but spend most of the time on Quick Paste (the marquee one).
+The Pitch Genius value prop is that capturing buyer evidence has to feel effortless. Intake is its own page — `/buyers/new` — with three methods as tabs. Show all three so the audience sees the breadth; spend most of the time on the Daily Workbench import (the bulk path).
 
 **Steps:**
-1. Click **Add opportunity** at the top right of the Workbench.
-2. Toggle through the three tabs and talk briefly:
-   - **Structured form** — "for the rep who already knows the shape of the deal."
-   - **Quick paste** — "paste your meeting notes, AI parses out the buyer + opportunity fields, you review and confirm." Walk through pasting a short paragraph; show the fake-AI animation; let it land on the review screen; cancel without saving.
-   - **CSV upload** — "for migrating an existing pipeline; AI suggests column mappings with confidence indicators, you approve before insert." Skip the actual upload unless the audience asks.
-3. Close the modal — you already have eight seeded deals to work from.
+1. Click **Add opportunity** at the top right of the Workbench — it opens the `/buyers/new` intake page.
+2. Walk the three tabs:
+   - **Structured form** — "for the rep who already knows the shape of the deal." One fully-formed opportunity in a single step: buyer fields, a **product** (defaulted to the workspace's primary, changeable when there's more than one), and optional deal context.
+   - **Paste** — "paste meeting notes, the parser pulls out buyer + opportunity fields, you review and confirm." Paste a short paragraph, show the fake-AI animation, let it land on the review screen, then switch away without saving. (Paste carries a visible placeholder banner — its final behaviour is a [FLAG] pending Russell.)
+   - **Daily Workbench import** — the bulk path. Talk through the per-CRM **export guidance** panel, then drop a file (use the **Download a sample Daily Workbench file** link). Walk the **adaptive column mapping** — each column auto-mapped with a confidence badge — and the **confirm-mapping gate**. The review screen then shows the **missing-data check**, the **CRM Record ID soft gate** (a per-import acknowledgment when deals lack a Record ID), and the **assign-now vs. decide-later** choice. Confirm the mapping is saved so the next import reuses it.
+3. Head back to the Workbench — you already have ten seeded deals to work from.
 
 **Talking points:**
 - "We do not replace your CRM. We sit alongside it, ingest the same evidence your reps already produce, and surface diagnoses your CRM cannot."
+- "The Daily Workbench import adapts to whatever your CRM exports — no required column layout — and you only pay the mapping friction once."
 
 ---
 

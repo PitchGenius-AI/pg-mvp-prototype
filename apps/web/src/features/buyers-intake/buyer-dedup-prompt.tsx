@@ -10,6 +10,10 @@ interface BuyerDedupPromptProps {
   onChoose: (choice: DedupChoice) => void;
 }
 
+// Surfaces when an intake method's buyer matches an existing buyer in the
+// workspace — the rep links the new opportunity to that buyer or creates a
+// separate record. Buyers are first-class and separate from opportunities, so
+// linking is the common, correct choice for a returning buyer.
 export function BuyerDedupPrompt({
   opened,
   match,
@@ -33,8 +37,8 @@ export function BuyerDedupPrompt({
       <Stack gap="md">
         <Text size="sm">
           <strong>{fullName}</strong> at <strong>{match.company}</strong> is already a buyer
-          in your workspace. Would you like to link this new opportunity to that buyer, or
-          create a separate buyer record?
+          in your workspace. Link this new opportunity to that buyer, or create a separate
+          buyer record?
         </Text>
         {match.email && (
           <Text size="xs" c="dimmed">
