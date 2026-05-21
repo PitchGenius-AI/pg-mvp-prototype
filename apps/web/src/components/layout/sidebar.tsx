@@ -1,5 +1,11 @@
 import { NavLink, Stack } from '@mantine/core';
-import { IconLayoutKanban, IconSettings, IconUsers } from '@tabler/icons-react';
+import {
+  IconBox,
+  IconLayoutKanban,
+  IconScript,
+  IconSettings,
+  IconUsers,
+} from '@tabler/icons-react';
 import { Link, useLocation } from '@tanstack/react-router';
 
 export function Sidebar() {
@@ -20,6 +26,20 @@ export function Sidebar() {
         label="Buyers"
         leftSection={<IconUsers size={18} />}
         active={pathname.startsWith('/buyers')}
+      />
+      <NavLink
+        component={Link}
+        to="/products"
+        label="Products"
+        leftSection={<IconBox size={18} />}
+        active={pathname.startsWith('/products')}
+      />
+      <NavLink
+        component={Link}
+        to="/scripts"
+        label="Scripts"
+        leftSection={<IconScript size={18} />}
+        active={pathname.startsWith('/scripts')}
       />
       <NavLink
         component={Link}
