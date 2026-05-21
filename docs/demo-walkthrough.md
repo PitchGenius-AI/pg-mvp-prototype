@@ -40,7 +40,7 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 The Pitch Genius value prop is that capturing buyer evidence has to feel effortless. Show all three intake methods so the audience sees the breadth — but spend most of the time on Quick Paste (the marquee one).
 
 **Steps:**
-1. Click **Add opportunity** at the top right of the list.
+1. Click **Add opportunity** at the top right of the Workbench.
 2. Toggle through the three tabs and talk briefly:
    - **Structured form** — "for the rep who already knows the shape of the deal."
    - **Quick paste** — "paste your meeting notes, AI parses out the buyer + opportunity fields, you review and confirm." Walk through pasting a short paragraph; show the fake-AI animation; let it land on the review screen; cancel without saving.
@@ -52,14 +52,16 @@ The Pitch Genius value prop is that capturing buyer evidence has to feel effortl
 
 ---
 
-## 3. Filter the pipeline — surface the over-projecting deals (~30 seconds)
+## 3. The Opportunity Workbench — surface the over-projecting deals (~1.5 minutes)
 
-This is the setup for the punchline. The whole point of Pipeline Reality Check is that *some deals are not where the CRM says they are*.
+After sign-in the rep lands on the **Opportunity Workbench** at `/` — the daily cockpit. It has two views of the same ten deals, and it's the setup for the punchline: *some deals are not where the CRM says they are*.
 
 **Steps:**
-1. On the opportunity list, in the **Alignment** filter, select **Over-projecting**.
-2. The list narrows to four deals: **Globex (critical)**, **Initech (high)**, **Soylent (high)**, and **Pied Piper (low)**.
-3. Hover the at-risk icon on Globex, Initech, and Soylent — flagged because the buyer evidence is dominated by risk signals.
+1. **Board view** (the default) — a Kanban board, one column per CRM stage. Each card carries an alignment badge; a red **Mismatch** badge with an "Over-projecting" sub-label is the signal that should draw the eye.
+2. Drag a card forward a stage or two. The alignment badge re-checks live against the *unchanged* buyer evidence — a deal that was Aligned can flip to a Mismatch the moment you advance its CRM stage. "Moving a deal in the CRM doesn't move the buyer." (Hard-reload afterwards to reset the board.)
+3. Switch to **List view** with the toggle in the header.
+4. Click **Over-projecting only**. The list narrows to four deals: **Globex (critical)**, **Initech (high)**, **Soylent (high)**, and **Pied Piper (low)** — sorted most-severe-first by default, so Globex sits on top.
+5. Note Soylent's readiness badge: **At risk / regressed** — the buyer has gone backwards, not just stalled.
 
 **Talking points:**
 - "Four of ten deals in this pipeline are over-projecting. That's the kind of forecast surprise that costs a quarter."
@@ -121,7 +123,7 @@ Show that outcomes feed back into the deal so the manager can see what actually 
 This is a deeper second example. Pick **Massive Dynamic – sales enablement refresh** — it has two interactions with two diagnoses, so the readiness trend renders as a progression.
 
 **Steps:**
-1. Go back to `/opportunities` and click **Massive Dynamic – sales enablement refresh**.
+1. Go back to the Workbench (`/`) and open **Massive Dynamic – sales enablement refresh**.
 2. On the Overview tab, scroll down to the **Activity timeline** section.
 3. Point out the readiness trend bar: `Diagnosis Aligned · 41 → Stakeholder Validation Needed · 63`. "The same deal, two interactions, you can watch the buyer's readiness advance."
 4. Below it, per-interaction list shows each meeting with its readiness state — proof that the trend is real, not retrospective.
@@ -156,11 +158,10 @@ If you're re-running the demo from a fresh state (e.g. the user signed up during
 
 ## Known visual issues (do NOT spend demo time on these)
 
-These are tracked in Linear and intentionally deferred:
+These are intentionally deferred:
 
-- **Mobile layout (< 768px):** the opportunity list is a fixed-min-width table that scrolls horizontally inside its container instead of becoming a stacked-card view. Fix tracked as PG-180. Avoid presenting from a phone.
-- **Alignment badge palette:** uses up to five colors based on outcome × severity, which crowds the row visually when stacked next to readiness + at-risk. Simplification tracked as PG-181.
-- **"Opportunity" concept explainer:** no in-app hint about what an opportunity is vs. a deal. Tracked as PG-179.
+- **Mobile layout (< 768px):** the Workbench Board is a horizontally-scrolling Kanban and the List is a wide table — neither reflows to a stacked layout. Present from a laptop, not a phone.
+- **Board column height:** stage columns size to their content, so a stage with many more cards than its neighbours makes the board look uneven. Acceptable for the seeded data.
 
 ---
 
@@ -171,8 +172,8 @@ Confirmed at the following widths against the seeded demo flow:
 | Width  | AppShell sidebar      | Body horizontal scroll | Notes |
 | ------ | --------------------- | ---------------------- | ----- |
 | 1280px | Visible (240px)       | None                   | Designed default. |
-| 1024px | Visible (240px)       | None                   | Opportunity table reaches its 760px min-width and scrolls inside its ScrollArea (not body). Tabs + cards fit. |
+| 1024px | Visible (240px)       | None                   | Workbench Board / List scroll horizontally inside their own containers, not the body. |
 | 768px  | Visible (at exactly 768) | None                | Right at the `sm` breakpoint. |
-| < 768px | Collapsed behind burger; opens via top-bar toggle | None at page level; table scrolls within ScrollArea | Stacked-card mobile layout is PG-180 follow-up. |
+| < 768px | Collapsed behind burger; opens via top-bar toggle | None at page level; Board / List scroll within their containers | Board + List don't reflow to a stacked layout — present from a laptop. |
 
 Modals (Add opportunity, Add interaction, Buyer dedup prompt) all fit inside the viewport at all four widths.

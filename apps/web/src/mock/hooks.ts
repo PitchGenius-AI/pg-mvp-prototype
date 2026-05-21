@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mockApi } from './mock-api';
 import { queryKeys } from './queries';
 import { useMockStore } from './store';
+import { buildWorkbenchRows, type WorkbenchRow } from './workbench-rows';
 import type {
   MockActivity,
   MockBuyer,
@@ -129,6 +130,23 @@ export function useOpportunities() {
         return Object.values(s.opportunities)
           .filter((o) => o.workspaceId === workspaceId)
           .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      }),
+  });
+}
+
+// The Opportunity Workbench read-model (M12) — opportunities joined with buyer,
+// product, latest activity + diagnosis. One fetch backs both Board and List.
+export function useWorkbench() {
+  return useQuery({
+    queryKey: queryKeys.workbench.rows(),
+    // No retry: the injected-error demo path (window.__mockApi.setErrorRate)
+    // should surface the error state immediately, not after backoff.
+    retry: false,
+    queryFn: () =>
+      mockApi<WorkbenchRow[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return buildWorkbenchRows(s.session.workspaceId);
       }),
   });
 }
@@ -277,6 +295,7 @@ export function useAddOpportunity() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
       qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
     },
   });
 }
@@ -301,6 +320,8 @@ export function useAddActivity() {
       qc.invalidateQueries({
         queryKey: queryKeys.activity.forOpportunity(activity.opportunityId),
       });
+      // Workbench rows carry each opportunity's latest-activity date.
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
     },
   });
 }
@@ -313,12 +334,35 @@ export function useRunDiagnosis() {
       mockApi<MockDiagnosis>(() => useMockStore.getState().runDiagnosis(input), { slow: true }),
     onSuccess: (diagnosis) => {
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+      // A new diagnosis re-denormalizes readiness + alignment onto the board.
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
       qc.invalidateQueries({
         queryKey: queryKeys.diagnosis.latestForOpportunity(diagnosis.opportunityId),
       });
       qc.invalidateQueries({
         queryKey: queryKeys.diagnosis.listForOpportunity(diagnosis.opportunityId),
       });
+    },
+  });
+}
+
+// Workbench board drag-to-stage (M12, PG-201). Synchronous local update — a drag
+// must feel instant — so it skips the mockApi latency window. onSuccess patches
+// the workbench cache directly: the card lands in its new column with no
+// refetch flicker, and the alignment re-check (done in the store action) shows.
+export function useMoveOpportunityStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { opportunityId: string; stage: string }) =>
+      useMockStore.getState().moveOpportunityToStage(input.opportunityId, input.stage),
+    onSuccess: (updated) => {
+      if (!updated) return;
+      qc.setQueryData<WorkbenchRow[]>(queryKeys.workbench.rows(), (rows) =>
+        rows?.map((r) =>
+          r.opportunity.id === updated.id ? { ...r, opportunity: updated } : r,
+        ),
+      );
+      qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
     },
   });
 }
@@ -333,6 +377,7 @@ export function useRecordOutcome() {
         queryKey: queryKeys.outcome.forOpportunity(outcome.opportunityId),
       });
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
     },
   });
 }

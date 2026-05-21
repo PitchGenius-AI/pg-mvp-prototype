@@ -27,6 +27,13 @@ export const queryKeys = {
     byId: (id: string) => ['opportunity', 'byId', id] as const,
   },
 
+  // Denormalized read-model for the Opportunity Workbench (M12): opportunities
+  // joined with buyer, product, latest activity + latest diagnosis in one fetch.
+  workbench: {
+    all: ['workbench'] as const,
+    rows: () => ['workbench', 'rows'] as const,
+  },
+
   activity: {
     all: ['activity'] as const,
     forOpportunity: (opportunityId: string) =>

@@ -1,24 +1,25 @@
 import { NavLink, Stack } from '@mantine/core';
-import { IconLayoutGrid, IconSettings } from '@tabler/icons-react';
+import { IconLayoutKanban, IconSettings } from '@tabler/icons-react';
 import { Link, useLocation } from '@tanstack/react-router';
 
 export function Sidebar() {
-  const location = useLocation();
+  const { pathname } = useLocation();
   return (
     <Stack gap={4}>
       <NavLink
         component={Link}
-        to="/opportunities"
-        label="Opportunities"
-        leftSection={<IconLayoutGrid size={18} />}
-        active={location.pathname.startsWith('/opportunities')}
+        to="/"
+        label="Workbench"
+        leftSection={<IconLayoutKanban size={18} />}
+        // Detail pages (`/opportunities/$id`) belong to the workbench flow.
+        active={pathname === '/' || pathname.startsWith('/opportunities')}
       />
       <NavLink
         component={Link}
         to="/settings"
         label="Settings"
         leftSection={<IconSettings size={18} />}
-        active={location.pathname.startsWith('/settings')}
+        active={pathname.startsWith('/settings')}
       />
     </Stack>
   );

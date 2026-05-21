@@ -38,7 +38,7 @@ import { FAKE_DIAGNOSIS_STEPS, fakeGenerateDiagnosis } from '../../mock/fake-dia
 import { useCurrentProduct } from '../../mock/hooks';
 import { useBuyerById, useCurrentSession } from '../../mock/store';
 import { mockAiCall } from '../../mock/mock-api';
-import { relativeTime } from '../opportunity-list/filter-sort';
+import { relativeTime } from '../../lib/relative-time';
 import type {
   MockActivity,
   MockDiagnosis,

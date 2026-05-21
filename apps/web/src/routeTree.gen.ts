@@ -14,9 +14,9 @@ import { Route as OnboardingRouteImport } from './routes/onboarding';
 import { Route as LoginRouteImport } from './routes/login';
 import { Route as CheckoutRouteImport } from './routes/checkout';
 import { Route as AuthedRouteImport } from './routes/_authed';
-import { Route as IndexRouteImport } from './routes/index';
+import { Route as AuthedIndexRouteImport } from './routes/_authed/index';
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings';
-import { Route as AuthedOpportunitiesIndexRouteImport } from './routes/_authed/opportunities.index';
+import { Route as AuthedBuyersRouteImport } from './routes/_authed/buyers';
 import { Route as AuthedOpportunitiesOpportunityIdRouteImport } from './routes/_authed/opportunities.$opportunityId';
 
 const SignupRoute = SignupRouteImport.update({
@@ -43,22 +43,21 @@ const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any);
-const IndexRoute = IndexRouteImport.update({
+const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any);
 const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AuthedRoute,
 } as any);
-const AuthedOpportunitiesIndexRoute =
-  AuthedOpportunitiesIndexRouteImport.update({
-    id: '/opportunities/',
-    path: '/opportunities/',
-    getParentRoute: () => AuthedRoute,
-  } as any);
+const AuthedBuyersRoute = AuthedBuyersRouteImport.update({
+  id: '/buyers',
+  path: '/buyers',
+  getParentRoute: () => AuthedRoute,
+} as any);
 const AuthedOpportunitiesOpportunityIdRoute =
   AuthedOpportunitiesOpportunityIdRouteImport.update({
     id: '/opportunities/$opportunityId',
@@ -67,36 +66,36 @@ const AuthedOpportunitiesOpportunityIdRoute =
   } as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute;
+  '/': typeof AuthedIndexRoute;
   '/checkout': typeof CheckoutRoute;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/buyers': typeof AuthedBuyersRoute;
   '/settings': typeof AuthedSettingsRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
-  '/opportunities/': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute;
   '/checkout': typeof CheckoutRoute;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/buyers': typeof AuthedBuyersRoute;
   '/settings': typeof AuthedSettingsRoute;
+  '/': typeof AuthedIndexRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
-  '/opportunities': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
-  '/': typeof IndexRoute;
   '/_authed': typeof AuthedRouteWithChildren;
   '/checkout': typeof CheckoutRoute;
   '/login': typeof LoginRoute;
   '/onboarding': typeof OnboardingRoute;
   '/signup': typeof SignupRoute;
+  '/_authed/buyers': typeof AuthedBuyersRoute;
   '/_authed/settings': typeof AuthedSettingsRoute;
+  '/_authed/': typeof AuthedIndexRoute;
   '/_authed/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
-  '/_authed/opportunities/': typeof AuthedOpportunitiesIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -106,34 +105,33 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/buyers'
     | '/settings'
-    | '/opportunities/$opportunityId'
-    | '/opportunities/';
+    | '/opportunities/$opportunityId';
   fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
     | '/checkout'
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/buyers'
     | '/settings'
-    | '/opportunities/$opportunityId'
-    | '/opportunities';
+    | '/'
+    | '/opportunities/$opportunityId';
   id:
     | '__root__'
-    | '/'
     | '/_authed'
     | '/checkout'
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/_authed/buyers'
     | '/_authed/settings'
-    | '/_authed/opportunities/$opportunityId'
-    | '/_authed/opportunities/';
+    | '/_authed/'
+    | '/_authed/opportunities/$opportunityId';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
   AuthedRoute: typeof AuthedRouteWithChildren;
   CheckoutRoute: typeof CheckoutRoute;
   LoginRoute: typeof LoginRoute;
@@ -178,12 +176,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    '/': {
-      id: '/';
+    '/_authed/': {
+      id: '/_authed/';
       path: '/';
       fullPath: '/';
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
+      preLoaderRoute: typeof AuthedIndexRouteImport;
+      parentRoute: typeof AuthedRoute;
     };
     '/_authed/settings': {
       id: '/_authed/settings';
@@ -192,11 +190,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsRouteImport;
       parentRoute: typeof AuthedRoute;
     };
-    '/_authed/opportunities/': {
-      id: '/_authed/opportunities/';
-      path: '/opportunities';
-      fullPath: '/opportunities/';
-      preLoaderRoute: typeof AuthedOpportunitiesIndexRouteImport;
+    '/_authed/buyers': {
+      id: '/_authed/buyers';
+      path: '/buyers';
+      fullPath: '/buyers';
+      preLoaderRoute: typeof AuthedBuyersRouteImport;
       parentRoute: typeof AuthedRoute;
     };
     '/_authed/opportunities/$opportunityId': {
@@ -210,22 +208,23 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedBuyersRoute: typeof AuthedBuyersRoute;
   AuthedSettingsRoute: typeof AuthedSettingsRoute;
+  AuthedIndexRoute: typeof AuthedIndexRoute;
   AuthedOpportunitiesOpportunityIdRoute: typeof AuthedOpportunitiesOpportunityIdRoute;
-  AuthedOpportunitiesIndexRoute: typeof AuthedOpportunitiesIndexRoute;
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedBuyersRoute: AuthedBuyersRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
+  AuthedIndexRoute: AuthedIndexRoute,
   AuthedOpportunitiesOpportunityIdRoute: AuthedOpportunitiesOpportunityIdRoute,
-  AuthedOpportunitiesIndexRoute: AuthedOpportunitiesIndexRoute,
 };
 
 const AuthedRouteWithChildren =
   AuthedRoute._addFileChildren(AuthedRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
   LoginRoute: LoginRoute,

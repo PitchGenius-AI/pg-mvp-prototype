@@ -2,7 +2,7 @@ import { Anchor, Badge, Breadcrumbs, Group, Stack, Text, Title, Tooltip } from '
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { AlignmentBadge } from '../../components/alignment-badge';
-import { relativeTime } from '../opportunity-list/filter-sort';
+import { relativeTime } from '../../lib/relative-time';
 import type { MockBuyer, MockOpportunity } from '../../mock/types';
 import { humanize } from './badges';
 
@@ -20,8 +20,8 @@ export function OpportunityHeader({
   return (
     <Stack gap={6}>
       <Breadcrumbs separator="›" mb={2}>
-        <Anchor component={Link} to="/opportunities" size="sm" c="dimmed">
-          Opportunities
+        <Anchor component={Link} to="/" size="sm" c="dimmed">
+          Workbench
         </Anchor>
         <Text size="sm">{opportunity.opportunityName}</Text>
       </Breadcrumbs>

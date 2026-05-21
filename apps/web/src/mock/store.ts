@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
+import { computePipelineRealityCheck } from './fake-diagnosis';
 import { createInitialOnboardingDraft } from './types';
 import type {
   MockActivity,
@@ -81,6 +82,12 @@ interface MockActions {
   runDiagnosis: (input: Omit<MockDiagnosis, 'id' | 'createdAt'>) => MockDiagnosis;
   recordOutcome: (input: Omit<MockOutcome, 'id' | 'createdAt'>) => MockOutcome;
   setAtRisk: (opportunityId: string, atRisk: boolean) => void;
+  // Drag-to-stage on the Workbench board (M12, PG-201). Updates the CRM stage and
+  // re-runs the alignment check against the unchanged readiness state.
+  moveOpportunityToStage: (
+    opportunityId: string,
+    newStage: string,
+  ) => MockOpportunity | null;
 
   addWorkspace: (
     input: Pick<MockWorkspace, 'name' | 'createdByUserId'> &
@@ -394,6 +401,35 @@ export const useMockStore = create<MockState & MockActions>()(
           undefined,
           'mock/setAtRisk',
         ),
+
+      moveOpportunityToStage: (opportunityId, newStage) => {
+        let updated: MockOpportunity | null = null;
+        set(
+          (state) => {
+            const opp = state.opportunities[opportunityId];
+            if (!opp || opp.currentCrmStage === newStage) return state;
+            // Re-run the Pipeline Reality Check against the unchanged readiness
+            // state (PG-201) — the buyer's evidence hasn't moved, only the rep's
+            // CRM stage. With no diagnosis yet, alignment stays null.
+            const alignment = opp.currentReadinessState
+              ? computePipelineRealityCheck(newStage, opp.currentReadinessState)
+              : null;
+            updated = {
+              ...opp,
+              currentCrmStage: newStage,
+              currentAlignmentOutcome: alignment?.outcome ?? opp.currentAlignmentOutcome,
+              currentAlignmentLevel: alignment?.level ?? opp.currentAlignmentLevel,
+              updatedAt: nowIso(),
+            };
+            return {
+              opportunities: { ...state.opportunities, [opportunityId]: updated },
+            };
+          },
+          undefined,
+          'mock/moveOpportunityToStage',
+        );
+        return updated;
+      },
 
       addWorkspace: (input) => {
         const workspace: MockWorkspace = {
@@ -779,6 +815,8 @@ export const mockActions = {
     useMockStore.getState().recordOutcome(input),
   setAtRisk: (opportunityId: string, atRisk: boolean) =>
     useMockStore.getState().setAtRisk(opportunityId, atRisk),
+  moveOpportunityToStage: (opportunityId: string, newStage: string) =>
+    useMockStore.getState().moveOpportunityToStage(opportunityId, newStage),
   addWorkspace: (input: Parameters<MockActions['addWorkspace']>[0]) =>
     useMockStore.getState().addWorkspace(input),
   updateWorkspace: (

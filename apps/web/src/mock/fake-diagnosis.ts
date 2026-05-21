@@ -406,7 +406,10 @@ function inferConfidence(
 
 // --- Pipeline Reality Check ---
 
-function computePipelineRealityCheck(
+// Compares the CRM stage's implied readiness against the buyer's evidence-based
+// readiness state. Exported so the Workbench board (M12, PG-201) can re-run the
+// check when a card is dragged to a new stage column.
+export function computePipelineRealityCheck(
   crmStage: string,
   readinessState: ReadinessState,
 ): { outcome: AlignmentOutcome; level: AlignmentLevel; reason: string } {
