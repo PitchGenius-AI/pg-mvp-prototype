@@ -67,6 +67,12 @@ export const queryKeys = {
       ['precall', 'forOpportunity', opportunityId] as const,
   },
 
+  // Per-opportunity last-export timestamp (M17 Export tab, PG-226).
+  exportRecord: {
+    forOpportunity: (opportunityId: string) =>
+      ['exportRecord', 'forOpportunity', opportunityId] as const,
+  },
+
   importMapping: {
     all: ['importMapping'] as const,
     list: () => ['importMapping', 'list'] as const,

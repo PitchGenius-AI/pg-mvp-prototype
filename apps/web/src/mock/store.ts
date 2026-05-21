@@ -82,6 +82,10 @@ interface MockState {
   scriptTemplates: Record<string, MockScriptTemplate>;
   precallIntelligence: Record<string, MockPrecallIntelligence>;
   importMappings: Record<string, MockImportMapping>;
+  // Per-opportunity last-export timestamp (M17, PG-226). Set when the rep copies
+  // or downloads the Export-tab note; surfaces "last exported" without mutating
+  // readiness/stage/outcome. Not seeded — M18's CRM Update Pack formalizes it.
+  exportTimestamps: Record<string, string>;
   // In-progress onboarding wizard state (M10). Per-step edits land here so the
   // flow survives in-app navigation; committed to real entities on finish.
   onboardingDraft: OnboardingDraft;
@@ -200,6 +204,10 @@ interface MockActions {
     input: Omit<MockPrecallIntelligence, 'id' | 'generatedAt'>,
   ) => MockPrecallIntelligence;
 
+  // Stamp an opportunity as exported (M17, PG-226). Pure bookkeeping — it does
+  // not touch readiness, stage, or outcome.
+  recordExport: (opportunityId: string) => void;
+
   addImportMapping: (
     workspaceId: string,
     input: Omit<MockImportMapping, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
@@ -241,6 +249,7 @@ const emptyState: Omit<MockState, 'onboardingDraft'> = {
   scriptTemplates: {},
   precallIntelligence: {},
   importMappings: {},
+  exportTimestamps: {},
 };
 
 // Always produce a fresh draft (own array refs) alongside the empty entity maps.
@@ -782,6 +791,15 @@ export const useMockStore = create<MockState & MockActions>()(
         return precall;
       },
 
+      recordExport: (opportunityId) =>
+        set(
+          (state) => ({
+            exportTimestamps: { ...state.exportTimestamps, [opportunityId]: nowIso() },
+          }),
+          undefined,
+          'mock/recordExport',
+        ),
+
       addImportMapping: (workspaceId, input) => {
         const mapping: MockImportMapping = {
           ...input,
@@ -1233,6 +1251,8 @@ export const mockActions = {
     useMockStore.getState().setPrimaryScriptTemplate(scriptTemplateId),
   setPrecallIntelligence: (input: Parameters<MockActions['setPrecallIntelligence']>[0]) =>
     useMockStore.getState().setPrecallIntelligence(input),
+  recordExport: (opportunityId: string) =>
+    useMockStore.getState().recordExport(opportunityId),
   addImportMapping: (
     workspaceId: string,
     input: Parameters<MockActions['addImportMapping']>[1],

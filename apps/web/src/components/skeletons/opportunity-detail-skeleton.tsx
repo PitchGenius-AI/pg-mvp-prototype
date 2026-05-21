@@ -1,78 +1,72 @@
 import { Container, Group, Paper, SimpleGrid, Skeleton, Stack } from '@mantine/core';
 
-// Matches the structure of OpportunityHeader + Tabs + Overview tab so the page
-// transitions cleanly into the loaded layout. Used by /opportunities/$id while
-// useOpportunity is fetching.
+// Matches the structure of the M17 ScoreHeader + 4-tab bar + Overview tab so the
+// page transitions cleanly into the loaded layout. Used by /opportunities/$id
+// while useOpportunity is fetching.
 export function OpportunityDetailSkeleton() {
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
-        <HeaderSkeleton />
+        <ScoreHeaderSkeleton />
         <TabsBarSkeleton />
-        <DiagnosisCardsSkeleton />
+        <OverviewSkeleton />
       </Stack>
     </Container>
   );
 }
 
-function HeaderSkeleton() {
+function ScoreHeaderSkeleton() {
   return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="nowrap">
-          <Stack gap={6} style={{ flex: 1 }}>
-            <Skeleton height={22} width="40%" radius="sm" />
-            <Skeleton height={12} width="55%" radius="sm" />
+    <Stack gap="sm">
+      <Skeleton height={12} width={180} radius="sm" />
+      <Paper withBorder p="lg" radius="md">
+        <Group gap="xl" wrap="nowrap" align="center">
+          <Skeleton height={108} circle />
+          <Stack gap={8} style={{ flex: 1 }}>
+            <Skeleton height={22} width="45%" radius="sm" />
+            <Skeleton height={12} width="60%" radius="sm" />
+            <Group gap="xs" mt={4}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} height={22} width={96} radius="xl" />
+              ))}
+            </Group>
           </Stack>
-          <Group gap="xs">
-            <Skeleton height={22} width={120} radius="xl" />
-            <Skeleton height={22} width={100} radius="xl" />
-          </Group>
         </Group>
-      </Stack>
-    </Paper>
+      </Paper>
+    </Stack>
   );
 }
 
 function TabsBarSkeleton() {
   return (
     <Group gap="md">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} height={14} width={70} radius="sm" />
       ))}
     </Group>
   );
 }
 
-export function DiagnosisCardsSkeleton() {
+function OverviewSkeleton() {
   return (
     <Stack gap="md">
-      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Paper key={i} withBorder p="md" radius="md">
-            <Stack gap={6}>
-              <Skeleton height={10} width="60%" radius="sm" />
-              <Skeleton height={18} width="80%" radius="sm" />
-            </Stack>
-          </Paper>
-        ))}
-      </SimpleGrid>
-      <Paper withBorder p="md" radius="md">
-        <Stack gap="sm">
-          <Skeleton height={14} width="35%" radius="sm" />
-          <Skeleton height={10} width="80%" radius="sm" />
-          <Skeleton height={10} width="70%" radius="sm" />
-          <Skeleton height={10} width="75%" radius="sm" />
-        </Stack>
-      </Paper>
+      {Array.from({ length: 2 }).map((_, i) => (
+        <Paper key={i} withBorder p="md" radius="md">
+          <Stack gap="sm">
+            <Skeleton height={14} width="35%" radius="sm" />
+            <Skeleton height={10} width="90%" radius="sm" />
+            <Skeleton height={10} width="80%" radius="sm" />
+            <Skeleton height={10} width="60%" radius="sm" />
+          </Stack>
+        </Paper>
+      ))}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         {Array.from({ length: 2 }).map((_, i) => (
           <Paper key={i} withBorder p="md" radius="md">
             <Stack gap="sm">
               <Skeleton height={12} width="40%" radius="sm" />
-              <Skeleton height={10} width="90%" radius="sm" />
-              <Skeleton height={10} width="80%" radius="sm" />
-              <Skeleton height={10} width="60%" radius="sm" />
+              <Skeleton height={10} width="85%" radius="sm" />
+              <Skeleton height={10} width="70%" radius="sm" />
             </Stack>
           </Paper>
         ))}

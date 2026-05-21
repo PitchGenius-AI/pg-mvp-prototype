@@ -6,15 +6,16 @@ import {
   useActivities,
   useLatestDiagnosis,
   useOpportunity,
+  useProducts,
 } from '../../mock/hooks';
 import { useBuyerById } from '../../mock/store';
+import { ActivityTab } from './activity-tab';
+import { deriveReadinessVm } from './badges';
 import { DEFAULT_TAB, type DetailTab } from './detail-search';
-import { EvidenceTab } from './evidence-tab';
-import { ExportTab } from './export-tab';
 import { DiagnosisTab } from './diagnosis-tab';
-import { OpportunityHeader } from './opportunity-header';
-import { OutcomeTab } from './outcome-tab';
+import { ExportTab } from './export-tab';
 import { OverviewTab } from './overview-tab';
+import { ScoreHeader } from './score-header';
 
 interface DetailPageProps {
   opportunityId: string;
@@ -31,16 +32,20 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
     refetch,
   } = useOpportunity(opportunityId);
   const buyer = useBuyerById(opportunity?.buyerId);
-  const { data: interactions = [] } = useActivities(opportunity?.id);
+  const { data: activities = [] } = useActivities(opportunity?.id);
   const { data: latestDiagnosis = null } = useLatestDiagnosis(opportunity?.id);
+  const { data: products = [] } = useProducts();
 
-  const latestInteractionDate = useMemo(() => {
-    if (interactions.length === 0) return null;
-    return interactions.reduce(
-      (latest, a) => (a.activityDate > latest ? a.activityDate : latest),
-      interactions[0]!.activityDate,
-    );
-  }, [interactions]);
+  const vm = useMemo(
+    () => (opportunity ? deriveReadinessVm(opportunity, latestDiagnosis) : null),
+    [opportunity, latestDiagnosis],
+  );
+
+  // Product name is only worth showing when the workspace runs more than one.
+  const productName = useMemo(() => {
+    if (!opportunity || products.length <= 1) return null;
+    return products.find((p) => p.id === opportunity.productId)?.name ?? null;
+  }, [opportunity, products]);
 
   if (isLoading) {
     return <OpportunityDetailSkeleton />;
@@ -51,7 +56,7 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
       <Container size="md" py="xl">
         <ErrorState
           title="Couldn't load this opportunity"
-          description="Something went wrong fetching the deal. Retry, or head back to your list."
+          description="Something went wrong fetching the deal. Retry, or head back to your workbench."
           error={error instanceof Error ? error : null}
           onRetry={() => refetch()}
         />
@@ -59,7 +64,7 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
     );
   }
 
-  if (!opportunity) {
+  if (!opportunity || !vm) {
     return <NotFound />;
   }
 
@@ -68,10 +73,11 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
-        <OpportunityHeader
+        <ScoreHeader
           opportunity={opportunity}
           buyer={buyer}
-          latestInteractionDate={latestInteractionDate}
+          productName={productName}
+          vm={vm}
         />
 
         <Tabs
@@ -81,16 +87,15 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
         >
           <Tabs.List>
             <Tabs.Tab value="overview">Overview</Tabs.Tab>
-            <Tabs.Tab value="evidence">
-              Evidence
-              {interactions.length > 0 && (
+            <Tabs.Tab value="activity">
+              Activity
+              {activities.length > 0 && (
                 <Text component="span" size="xs" c="dimmed" ml={6}>
-                  {interactions.length}
+                  {activities.length}
                 </Text>
               )}
             </Tabs.Tab>
             <Tabs.Tab value="diagnosis">Diagnosis</Tabs.Tab>
-            <Tabs.Tab value="outcome">Outcome</Tabs.Tab>
             <Tabs.Tab value="export">Export</Tabs.Tab>
           </Tabs.List>
 
@@ -100,30 +105,25 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
                 opportunity={opportunity}
                 buyer={buyer}
                 latestDiagnosis={latestDiagnosis}
-                interactionCount={interactions.length}
-                interactions={interactions}
               />
             </TabFade>
           </Tabs.Panel>
-          <Tabs.Panel value="evidence" pt="lg">
-            <TabFade keyName={activeTab === 'evidence' ? 'evidence' : null}>
-              <EvidenceTab
+          <Tabs.Panel value="activity" pt="lg">
+            <TabFade keyName={activeTab === 'activity' ? 'activity' : null}>
+              <ActivityTab
                 opportunity={opportunity}
-                interactions={interactions}
+                activities={activities}
                 onJumpToDiagnosis={() => onTabChange('diagnosis')}
               />
             </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="diagnosis" pt="lg">
             <TabFade keyName={activeTab === 'diagnosis' ? 'diagnosis' : null}>
-              <DiagnosisTab opportunity={opportunity} diagnosis={latestDiagnosis} />
-            </TabFade>
-          </Tabs.Panel>
-          <Tabs.Panel value="outcome" pt="lg">
-            <TabFade keyName={activeTab === 'outcome' ? 'outcome' : null}>
-              <OutcomeTab
+              <DiagnosisTab
                 opportunity={opportunity}
-                latestDiagnosis={latestDiagnosis}
+                diagnosis={latestDiagnosis}
+                vm={vm}
+                onAddActivity={() => onTabChange('activity')}
               />
             </TabFade>
           </Tabs.Panel>
@@ -133,7 +133,7 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
                 opportunity={opportunity}
                 buyer={buyer}
                 diagnosis={latestDiagnosis}
-                interactions={interactions}
+                vm={vm}
               />
             </TabFade>
           </Tabs.Panel>
@@ -165,8 +165,8 @@ function NotFound() {
               Opportunity not found
             </Text>
             <Text size="sm" c="dimmed" ta="center">
-              This opportunity may have been deleted or never existed. Head back to the list
-              and try again.
+              This opportunity may have been deleted or never existed. Head back to the
+              workbench and try again.
             </Text>
           </Stack>
         </Paper>

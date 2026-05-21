@@ -1,7 +1,9 @@
 import {
   Accordion,
   ActionIcon,
+  Anchor,
   Badge,
+  Button,
   Card,
   Center,
   Code,
@@ -28,19 +30,26 @@ import {
   IconMail,
   IconNotebook,
   IconPlayerPlay,
-  IconTarget,
+  IconPlus,
+  IconTargetArrow,
 } from '@tabler/icons-react';
-import type {
-  Signal,
-  SignalDimension,
-  SignalExtraction,
-} from '@pg/shared';
+import { useNavigate } from '@tanstack/react-router';
+import type { Signal, SignalDimension, SignalExtraction } from '@pg/shared';
 import type { MockDiagnosis, MockOpportunity } from '../../mock/types';
-import { alignmentColor, confidenceColor, humanize, severityFromAlignment } from './badges';
+import {
+  alignmentColor,
+  confidenceColor,
+  humanize,
+  READINESS_LABELS,
+  type ReadinessVm,
+  severityFromAlignment,
+} from './badges';
 
 interface DiagnosisTabProps {
   opportunity: MockOpportunity;
   diagnosis: MockDiagnosis | null;
+  vm: ReadinessVm;
+  onAddActivity: () => void;
 }
 
 const DIMENSION_LABELS: Record<SignalDimension, string> = {
@@ -52,20 +61,21 @@ const DIMENSION_LABELS: Record<SignalDimension, string> = {
   risk: 'Risk',
 };
 
-export function DiagnosisTab({ opportunity, diagnosis }: DiagnosisTabProps) {
+export function DiagnosisTab({
+  opportunity,
+  diagnosis,
+  vm,
+  onAddActivity,
+}: DiagnosisTabProps) {
+  // No activity yet → a provisional, low-confidence read instead of an empty
+  // state, so the diagnosis surface (like the hero score) never renders blank.
   if (!diagnosis) {
     return (
-      <Center py="xl">
-        <Paper withBorder p="xl" radius="md" maw={520}>
-          <Stack align="center" gap="sm">
-            <IconInfoCircle size={36} color="var(--mantine-color-dimmed)" />
-            <Text fw={600}>No diagnosis yet</Text>
-            <Text size="sm" c="dimmed" ta="center">
-              Add an interaction in the Evidence tab to generate a buyer readiness diagnosis.
-            </Text>
-          </Stack>
-        </Paper>
-      </Center>
+      <ProvisionalDiagnosis
+        opportunity={opportunity}
+        vm={vm}
+        onAddActivity={onAddActivity}
+      />
     );
   }
 
@@ -95,7 +105,95 @@ export function DiagnosisTab({ opportunity, diagnosis }: DiagnosisTabProps) {
   );
 }
 
-// --- Pipeline Reality Check (FLAGSHIP) ---
+// --- Provisional readiness (no activity yet) -------------------------------
+
+function ProvisionalDiagnosis({
+  opportunity,
+  vm,
+  onAddActivity,
+}: {
+  opportunity: MockOpportunity;
+  vm: ReadinessVm;
+  onAddActivity: () => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <Stack gap="lg">
+      <Card withBorder padding="lg" radius="md" style={{ background: 'var(--mantine-color-blue-light)' }}>
+        <Stack gap="md">
+          <Group gap="xs" align="center">
+            <IconInfoCircle size={20} color="var(--mantine-color-blue-7)" />
+            <Text fw={700} size="lg" c="blue.7">
+              Provisional readiness
+            </Text>
+            <Badge variant="light" color="gray">
+              Low confidence
+            </Badge>
+          </Group>
+
+          <Text size="sm">
+            This deal has no buyer activity logged yet, so there&rsquo;s no evidence to
+            diagnose. The readiness below is a <strong>provisional read from the CRM
+            stage</strong> — it assumes the stage is accurate. Add a call, email, or
+            meeting and a real, evidence-based diagnosis replaces it.
+          </Text>
+
+          <Divider color="blue.2" />
+
+          <Group grow gap="md" align="flex-start" wrap="nowrap">
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                Your CRM stage
+              </Text>
+              <Text fw={600} size="xl">
+                {opportunity.currentCrmStage}
+              </Text>
+            </Stack>
+            <Center>
+              <IconArrowRight size={28} color="var(--mantine-color-blue-7)" />
+            </Center>
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                Provisional readiness
+              </Text>
+              <Text fw={600} size="xl">
+                {READINESS_LABELS[vm.state]} · {vm.score}
+              </Text>
+            </Stack>
+          </Group>
+        </Stack>
+      </Card>
+
+      <Paper withBorder p="lg" radius="md">
+        <Stack gap="sm">
+          <Text fw={600} size="sm">
+            What needs an activity
+          </Text>
+          <Text size="sm" c="dimmed">
+            Readiness dimension scores, the Pipeline Reality Check, blockers, and a
+            recommended next action all need buyer evidence. They unlock the moment you
+            log the first activity.
+          </Text>
+          <Group gap="sm" mt="xs">
+            <Button leftSection={<IconPlus size={16} />} onClick={onAddActivity}>
+              Add activity
+            </Button>
+            <Anchor
+              size="sm"
+              c="dimmed"
+              onClick={() => navigate({ to: '/buyers/new', search: { method: 'activity' } })}
+              style={{ cursor: 'pointer' }}
+            >
+              or import activity history from your CRM
+            </Anchor>
+          </Group>
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+// --- Pipeline Reality Check (FLAGSHIP) ------------------------------------
 
 function PipelineRealityCheck({
   opportunity,
@@ -140,7 +238,7 @@ function PipelineRealityCheck({
           </Center>
           <Stack gap={4}>
             <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
-              Buyer's evidence-based readiness
+              Buyer&rsquo;s evidence-based readiness
             </Text>
             <Text fw={600} size="xl">
               {humanize(check.readiness_state)}
@@ -207,7 +305,7 @@ function wash(outcome: string, severity: 'high' | 'medium' | 'low' | 'none'): Wa
   };
 }
 
-// --- Dimension scores ---
+// --- Dimension scores ------------------------------------------------------
 
 function DimensionScores({ diagnosis }: { diagnosis: MockDiagnosis }) {
   const dx = diagnosis.diagnosis;
@@ -251,7 +349,7 @@ function scoreColor(score: number): string {
   return 'red';
 }
 
-// --- Blockers ---
+// --- Blockers --------------------------------------------------------------
 
 function Blockers({ diagnosis }: { diagnosis: MockDiagnosis }) {
   const { primaryBlocker, secondaryBlocker } = diagnosis;
@@ -288,7 +386,7 @@ function Blockers({ diagnosis }: { diagnosis: MockDiagnosis }) {
   );
 }
 
-// --- Recommended action + What not to do ---
+// --- Recommended action + What not to do ----------------------------------
 
 function RecommendedAction({ diagnosis }: { diagnosis: MockDiagnosis }) {
   return (
@@ -327,7 +425,7 @@ function WhatNotToDoCard({ items }: { items: string[] }) {
   );
 }
 
-// --- Copy-to-clipboard cards ---
+// --- Copy-to-clipboard cards ----------------------------------------------
 
 function FollowUpEmailCard({ subject, body }: { subject: string; body: string }) {
   const clipboard = useClipboard({ timeout: 2000 });
@@ -396,7 +494,7 @@ function CoachingNoteCard({ note }: { note: string }) {
   );
 }
 
-// --- Signal cards (Observed + Inference) ---
+// --- Signal cards (Observed + Inference) ----------------------------------
 
 function SignalsSection({ extraction }: { extraction: SignalExtraction }) {
   const dimensions: SignalDimension[] = [
@@ -413,7 +511,7 @@ function SignalsSection({ extraction }: { extraction: SignalExtraction }) {
   return (
     <Stack gap="sm">
       <Group gap="xs">
-        <IconTarget size={18} />
+        <IconTargetArrow size={18} />
         <Title order={4}>Signals</Title>
         <Tooltip
           multiline
@@ -465,7 +563,7 @@ function SignalCard({ signal }: { signal: Signal }) {
             Observed evidence
           </Text>
           <Text size="sm" fs="italic">
-            "{signal.evidence}"
+            &ldquo;{signal.evidence}&rdquo;
           </Text>
         </Stack>
         <Stack gap={2}>

@@ -20,6 +20,7 @@ import { DateInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconArrowNarrowRight,
   IconCalendar,
   IconCheck,
   IconDeviceDesktop,
@@ -33,63 +34,70 @@ import {
   IconVideo,
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { activityTypes, type ActivityType } from '@pg/shared';
-import { useAddActivity, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
 import { FAKE_DIAGNOSIS_STEPS, fakeGenerateDiagnosis } from '../../mock/fake-diagnosis';
-import { useCurrentProduct } from '../../mock/hooks';
-import { useBuyerById, useCurrentSession } from '../../mock/store';
+import {
+  useAddActivity,
+  useCurrentProduct,
+  useDiagnoses,
+  useRunDiagnosis,
+} from '../../mock/hooks';
 import { mockAiCall } from '../../mock/mock-api';
+import { useBuyerById, useCurrentSession } from '../../mock/store';
 import { relativeTime } from '../../lib/relative-time';
-import type {
-  MockActivity,
-  MockDiagnosis,
-  MockOpportunity,
-} from '../../mock/types';
-import { humanize } from './badges';
+import type { MockActivity, MockDiagnosis, MockOpportunity } from '../../mock/types';
+import { humanize, READINESS_LABELS, readinessColor } from './badges';
 
-interface EvidenceTabProps {
+interface ActivityTabProps {
   opportunity: MockOpportunity;
-  interactions: MockActivity[];
+  activities: MockActivity[];
   onJumpToDiagnosis: () => void;
 }
 
-const INTERACTION_TYPE_OPTIONS = activityTypes.map((value) => ({
+const ACTIVITY_TYPE_OPTIONS = activityTypes.map((value) => ({
   value,
   label: humanize(value),
 }));
 
-export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: EvidenceTabProps) {
+// The Activity tab (M17, PG-224) — renamed from the M6 Evidence tab. Lists every
+// activity on the opportunity (one-off "Add activity" or auto-joined from the
+// bulk Activities import), each with the readiness state it produced. Adding an
+// activity (re)scores readiness.
+export function ActivityTab({ opportunity, activities, onJumpToDiagnosis }: ActivityTabProps) {
   const navigate = useNavigate();
   const [modalOpen, { open, close }] = useDisclosure(false);
   const { data: diagnoses = [] } = useDiagnoses(opportunity.id);
 
-  const diagnosesByInteraction = new Map<string, MockDiagnosis>();
-  for (const d of diagnoses) {
-    diagnosesByInteraction.set(d.activityId, d);
-  }
+  const diagnosesByActivity = useMemo(() => {
+    const map = new Map<string, MockDiagnosis>();
+    for (const d of diagnoses) map.set(d.activityId, d);
+    return map;
+  }, [diagnoses]);
 
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <Text fw={600}>Interactions ({interactions.length})</Text>
+        <Text fw={600}>Activity ({activities.length})</Text>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>
-          Add interaction
+          Add activity
         </Button>
       </Group>
 
-      {interactions.length === 0 ? (
+      <ReadinessTrend activities={activities} diagnosesByActivity={diagnosesByActivity} />
+
+      {activities.length === 0 ? (
         <Center py="xl">
           <Paper withBorder p="lg" radius="md" maw={480}>
             <Stack align="center" gap="sm">
               <IconScript size={28} color="var(--mantine-color-dimmed)" />
-              <Text fw={500}>No interactions yet</Text>
+              <Text fw={500}>No activity yet</Text>
               <Text size="sm" c="dimmed" ta="center">
-                Add a meeting transcript or note to generate a buyer readiness
-                diagnosis — until then, this deal's readiness is provisional.
+                Add a call, email, or meeting to generate a buyer readiness
+                diagnosis — until then, this deal&rsquo;s readiness is provisional.
               </Text>
               <Button leftSection={<IconPlus size={16} />} onClick={open}>
-                Add interaction
+                Add activity
               </Button>
               <Anchor
                 size="xs"
@@ -106,17 +114,17 @@ export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: Ev
         </Center>
       ) : (
         <Stack gap="sm">
-          {interactions.map((i) => (
-            <InteractionCard
-              key={i.id}
-              interaction={i}
-              diagnosis={diagnosesByInteraction.get(i.id) ?? null}
+          {activities.map((a) => (
+            <ActivityCard
+              key={a.id}
+              activity={a}
+              diagnosis={diagnosesByActivity.get(a.id) ?? null}
             />
           ))}
         </Stack>
       )}
 
-      <AddInteractionModal
+      <AddActivityModal
         opened={modalOpen}
         onClose={close}
         opportunity={opportunity}
@@ -129,42 +137,89 @@ export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: Ev
   );
 }
 
-function InteractionCard({
-  interaction,
+// --- Readiness trend -------------------------------------------------------
+
+// Progression of readiness across diagnosed activities, oldest → newest. Only
+// renders once a deal has two diagnoses to show movement (demo step 7).
+function ReadinessTrend({
+  activities,
+  diagnosesByActivity,
+}: {
+  activities: MockActivity[];
+  diagnosesByActivity: Map<string, MockDiagnosis>;
+}) {
+  const diagnosed = useMemo(
+    () =>
+      [...activities]
+        .sort((a, b) => a.activityDate.localeCompare(b.activityDate))
+        .map((a) => diagnosesByActivity.get(a.id))
+        .filter((d): d is MockDiagnosis => d != null),
+    [activities, diagnosesByActivity],
+  );
+
+  if (diagnosed.length < 2) return null;
+
+  return (
+    <Paper withBorder p="md" radius="md">
+      <Stack gap="sm">
+        <Text fw={600} size="sm">
+          Readiness trend
+        </Text>
+        <Group gap="xs" wrap="wrap">
+          {diagnosed.map((d, idx) => (
+            <Group key={d.id} gap={4} wrap="nowrap">
+              {idx > 0 && (
+                <IconArrowNarrowRight size={16} color="var(--mantine-color-dimmed)" />
+              )}
+              <Badge variant="light" color={readinessColor(d.readinessState)} radius="sm">
+                {READINESS_LABELS[d.readinessState]} · {d.readinessScore}
+              </Badge>
+            </Group>
+          ))}
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+// --- Activity card ---------------------------------------------------------
+
+function ActivityCard({
+  activity,
   diagnosis,
 }: {
-  interaction: MockActivity;
+  activity: MockActivity;
   diagnosis: MockDiagnosis | null;
 }) {
-  const snippet = (interaction.transcriptOrNotes ?? '').slice(0, 200).trim();
+  const snippet = (activity.transcriptOrNotes ?? '').slice(0, 200).trim();
   return (
     <Card withBorder padding="md" radius="md">
       <Stack gap="xs">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="xs">
-            <InteractionTypeIcon type={interaction.activityType} />
+            <ActivityTypeIcon type={activity.activityType} />
             <Stack gap={0}>
               <Text fw={500} size="sm">
-                {humanize(interaction.activityType)}
+                {humanize(activity.activityType)}
               </Text>
               <Text size="xs" c="dimmed">
-                {new Date(interaction.activityDate).toLocaleDateString()} ·{' '}
-                {relativeTime(interaction.activityDate)}
+                {new Date(activity.activityDate).toLocaleDateString()} ·{' '}
+                {relativeTime(activity.activityDate)}
               </Text>
             </Stack>
           </Group>
           {diagnosis && (
-            <Badge variant="light" size="sm">
-              {humanize(diagnosis.readinessState)} · {diagnosis.readinessScore}
+            <Badge variant="light" color={readinessColor(diagnosis.readinessState)} size="sm">
+              {READINESS_LABELS[diagnosis.readinessState]} · {diagnosis.readinessScore}
             </Badge>
           )}
         </Group>
 
-        {interaction.participants.length > 0 && (
+        {activity.participants.length > 0 && (
           <Group gap={4}>
             <IconUsers size={12} color="var(--mantine-color-dimmed)" />
             <Text size="xs" c="dimmed">
-              {interaction.participants.join(', ')}
+              {activity.participants.join(', ')}
             </Text>
           </Group>
         )}
@@ -172,11 +227,11 @@ function InteractionCard({
         {snippet && (
           <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
             {snippet}
-            {interaction.transcriptOrNotes && interaction.transcriptOrNotes.length > 200 && '…'}
+            {activity.transcriptOrNotes && activity.transcriptOrNotes.length > 200 && '…'}
           </Text>
         )}
 
-        {interaction.repSubjectiveNotes && (
+        {activity.repSubjectiveNotes && (
           <Paper p="xs" radius="sm" style={{ background: 'var(--mantine-color-yellow-light)' }}>
             <Group gap={4} mb={2}>
               <IconNotes size={12} color="var(--mantine-color-yellow-8)" />
@@ -185,7 +240,7 @@ function InteractionCard({
               </Text>
             </Group>
             <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>
-              {interaction.repSubjectiveNotes}
+              {activity.repSubjectiveNotes}
             </Text>
           </Paper>
         )}
@@ -194,7 +249,7 @@ function InteractionCard({
   );
 }
 
-function InteractionTypeIcon({ type }: { type: ActivityType }) {
+function ActivityTypeIcon({ type }: { type: ActivityType }) {
   switch (type) {
     case 'video_meeting':
     case 'demo':
@@ -211,16 +266,16 @@ function InteractionTypeIcon({ type }: { type: ActivityType }) {
   }
 }
 
-// --- Add Interaction modal ---
+// --- Add Activity modal ----------------------------------------------------
 
-interface AddInteractionModalProps {
+interface AddActivityModalProps {
   opened: boolean;
   onClose: () => void;
   opportunity: MockOpportunity;
   onComplete: () => void;
 }
 
-interface InteractionFormState {
+interface ActivityFormState {
   activityType: ActivityType;
   activityDate: Date;
   participants: string[];
@@ -235,7 +290,7 @@ interface InteractionFormState {
   securityDiscussed: boolean;
 }
 
-function emptyForm(): InteractionFormState {
+function emptyForm(): ActivityFormState {
   return {
     activityType: 'video_meeting',
     activityDate: new Date(),
@@ -252,28 +307,28 @@ function emptyForm(): InteractionFormState {
   };
 }
 
-function AddInteractionModal({
+function AddActivityModal({
   opened,
   onClose,
   opportunity,
   onComplete,
-}: AddInteractionModalProps) {
+}: AddActivityModalProps) {
   const buyer = useBuyerById(opportunity.buyerId);
   const { data: product } = useCurrentProduct();
   const session = useCurrentSession();
   const { mutateAsync: addActivity } = useAddActivity();
   const { mutateAsync: runDiagnosis } = useRunDiagnosis();
 
-  const [form, setForm] = useState<InteractionFormState>(emptyForm());
+  const [form, setForm] = useState<ActivityFormState>(emptyForm());
   const [running, setRunning] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
   // Capture-then-update pattern. Accessing e.currentTarget inside a functional
   // state updater fails under React 18+ strict/concurrent mode because the
   // updater can be re-invoked after the synthetic event is detached.
-  const updateField = <K extends keyof InteractionFormState>(
+  const updateField = <K extends keyof ActivityFormState>(
     key: K,
-    value: InteractionFormState[K],
+    value: ActivityFormState[K],
   ) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
@@ -358,7 +413,7 @@ function AddInteractionModal({
       notifications.show({
         color: 'teal',
         title: 'Diagnosis ready',
-        message: 'New diagnosis generated from your evidence.',
+        message: 'New diagnosis generated from your activity.',
       });
       reset();
       onComplete();
@@ -378,7 +433,7 @@ function AddInteractionModal({
     <Modal
       opened={opened}
       onClose={handleClose}
-      title="Add interaction"
+      title="Add activity"
       size="lg"
       centered
       closeOnClickOutside={!running}
@@ -395,7 +450,7 @@ function AddInteractionModal({
                 Type
               </Text>
               <Group gap="xs" wrap="wrap">
-                {INTERACTION_TYPE_OPTIONS.map((o) => (
+                {ACTIVITY_TYPE_OPTIONS.map((o) => (
                   <Badge
                     key={o.value}
                     variant={form.activityType === o.value ? 'filled' : 'outline'}
@@ -523,7 +578,7 @@ function AddInteractionModal({
             <Button variant="default" onClick={handleClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>Save & run diagnosis</Button>
+            <Button onClick={handleSubmit}>Save &amp; run diagnosis</Button>
           </Group>
         </Stack>
       )}
@@ -571,7 +626,11 @@ function DiagnosisRunning({ stepIndex }: { stepIndex: number }) {
                   </Text>
                 )}
               </ThemeIcon>
-              <Text size="sm" c={status === 'pending' ? 'dimmed' : undefined} fw={status === 'active' ? 500 : 400}>
+              <Text
+                size="sm"
+                c={status === 'pending' ? 'dimmed' : undefined}
+                fw={status === 'active' ? 500 : 400}
+              >
                 {label}
               </Text>
             </Group>
@@ -580,7 +639,7 @@ function DiagnosisRunning({ stepIndex }: { stepIndex: number }) {
       </Stack>
 
       <Text size="xs" c="dimmed" ta="center">
-        We'll land you on the Diagnosis tab when this completes…
+        We&rsquo;ll land you on the Diagnosis tab when this completes…
       </Text>
 
       <style>{`@keyframes pg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>

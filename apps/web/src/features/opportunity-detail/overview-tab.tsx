@@ -1,128 +1,81 @@
+import { Anchor, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import {
-  Anchor,
-  Badge,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-} from '@mantine/core';
-import { IconArrowNarrowRight, IconClock } from '@tabler/icons-react';
-import { AlignmentBadge } from '../../components/alignment-badge';
-import { useDiagnosesForOpportunity } from '../../mock/store';
-import type {
-  MockActivity,
-  MockBuyer,
-  MockDiagnosis,
-  MockOpportunity,
-} from '../../mock/types';
-import { confidenceColor, humanize } from './badges';
+  IconBuilding,
+  IconCalendarEvent,
+  IconCoin,
+  IconUser,
+} from '@tabler/icons-react';
+import type { MockBuyer, MockDiagnosis, MockOpportunity } from '../../mock/types';
+import { PrecallIntelligence } from './precall-intelligence';
 
 interface OverviewTabProps {
   opportunity: MockOpportunity;
   buyer: MockBuyer | null;
   latestDiagnosis: MockDiagnosis | null;
-  interactionCount: number;
-  interactions: MockActivity[];
 }
 
-export function OverviewTab({
-  opportunity,
-  buyer,
-  latestDiagnosis,
-  interactionCount,
-  interactions,
-}: OverviewTabProps) {
-  const diagnoses = useDiagnosesForOpportunity(opportunity.id);
+// The Overview tab (M17, PG-222/PG-223) — pre-call intelligence up top, then the
+// opportunity context the rep captured. Readiness + alignment moved to the
+// persistent score header, so this tab is prep-focused.
+export function OverviewTab({ opportunity, buyer, latestDiagnosis }: OverviewTabProps) {
   return (
     <Stack gap="lg">
-      <AtAGlance
+      <PrecallIntelligence
         opportunity={opportunity}
+        buyer={buyer}
         latestDiagnosis={latestDiagnosis}
-        interactionCount={interactionCount}
       />
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-        <BuyerCard buyer={buyer} />
-        <OpportunityCard opportunity={opportunity} />
+        <OpportunityContextCard opportunity={opportunity} />
+        <BuyerContactCard buyer={buyer} />
       </SimpleGrid>
-      {(opportunity.knownPain || opportunity.knownObjection || opportunity.dealNotes) && (
-        <NotesCard opportunity={opportunity} />
-      )}
-      <ReadinessTrend interactions={interactions} diagnoses={diagnoses} />
     </Stack>
   );
 }
 
-function AtAGlance({
-  opportunity,
-  latestDiagnosis,
-  interactionCount,
-}: {
-  opportunity: MockOpportunity;
-  latestDiagnosis: MockDiagnosis | null;
-  interactionCount: number;
-}) {
+function OpportunityContextCard({ opportunity }: { opportunity: MockOpportunity }) {
+  const hasNotes =
+    !!opportunity.knownPain || !!opportunity.knownObjection || !!opportunity.dealNotes;
   return (
-    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-      <StatCard label="Readiness state">
-        {opportunity.currentReadinessState ? (
-          <Stack gap={2}>
-            <Text fw={600} size="sm">
-              {humanize(opportunity.currentReadinessState)}
-            </Text>
-            {opportunity.currentReadinessScore != null && (
-              <Text size="xs" c="dimmed">
-                Score {opportunity.currentReadinessScore}/100
-              </Text>
-            )}
-          </Stack>
-        ) : (
-          <Text size="sm" c="dimmed">
-            No diagnosis yet
-          </Text>
-        )}
-      </StatCard>
-      <StatCard label="Alignment">
-        <AlignmentBadge
-          outcome={opportunity.currentAlignmentOutcome}
-          level={opportunity.currentAlignmentLevel}
-          size="md"
+    <Section title="Opportunity context">
+      <Stack gap="sm">
+        <Field
+          icon={<IconCoin size={14} />}
+          label="Value"
+          value={
+            opportunity.opportunityValue != null
+              ? `$${opportunity.opportunityValue.toLocaleString()}`
+              : null
+          }
         />
-      </StatCard>
-      <StatCard label="Confidence">
-        {latestDiagnosis ? (
-          <Badge variant="light" color={confidenceColor(latestDiagnosis.confidenceLevel)}>
-            {latestDiagnosis.confidenceLevel}
-          </Badge>
-        ) : (
-          <Text size="sm" c="dimmed">
-            —
+        <Field
+          icon={<IconCalendarEvent size={14} />}
+          label="Expected close"
+          value={opportunity.expectedCloseDate}
+        />
+        <Field
+          icon={<IconBuilding size={14} />}
+          label="CRM stage"
+          value={opportunity.currentCrmStage}
+        />
+        {hasNotes && (
+          <Stack gap="sm" mt={4}>
+            <LongField label="Known pain" value={opportunity.knownPain} />
+            <LongField label="Known objection" value={opportunity.knownObjection} />
+            <LongField label="Deal notes" value={opportunity.dealNotes} />
+          </Stack>
+        )}
+        {!hasNotes && (
+          <Text size="xs" c="dimmed" fs="italic">
+            No pain, objection, or deal notes captured yet.
           </Text>
         )}
-      </StatCard>
-      <StatCard label="Interactions">
-        <Text fw={600} size="lg">
-          {interactionCount}
-        </Text>
-      </StatCard>
-    </SimpleGrid>
-  );
-}
-
-function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap={4}>
-        <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
-          {label}
-        </Text>
-        {children}
       </Stack>
-    </Paper>
+    </Section>
   );
 }
 
-function BuyerCard({ buyer }: { buyer: MockBuyer | null }) {
+function BuyerContactCard({ buyer }: { buyer: MockBuyer | null }) {
   if (!buyer) {
     return (
       <Section title="Buyer">
@@ -135,7 +88,11 @@ function BuyerCard({ buyer }: { buyer: MockBuyer | null }) {
   return (
     <Section title="Buyer">
       <Stack gap="sm">
-        <Field label="Name" value={[buyer.firstName, buyer.lastName].filter(Boolean).join(' ')} />
+        <Field
+          icon={<IconUser size={14} />}
+          label="Name"
+          value={[buyer.firstName, buyer.lastName].filter(Boolean).join(' ')}
+        />
         <Field label="Title" value={buyer.title} />
         <Field label="Company" value={buyer.company} />
         <Field
@@ -158,105 +115,7 @@ function BuyerCard({ buyer }: { buyer: MockBuyer | null }) {
             ) : null
           }
         />
-      </Stack>
-    </Section>
-  );
-}
-
-function OpportunityCard({ opportunity }: { opportunity: MockOpportunity }) {
-  return (
-    <Section title="Opportunity">
-      <Stack gap="sm">
-        <Field label="Name" value={opportunity.opportunityName} />
-        <Field
-          label="Value"
-          value={
-            opportunity.opportunityValue != null
-              ? `$${opportunity.opportunityValue.toLocaleString()}`
-              : null
-          }
-        />
-        <Field label="Expected close" value={opportunity.expectedCloseDate} />
-        <Field label="CRM stage" value={opportunity.currentCrmStage} />
-      </Stack>
-    </Section>
-  );
-}
-
-function NotesCard({ opportunity }: { opportunity: MockOpportunity }) {
-  return (
-    <Section title="Notes">
-      <Stack gap="sm">
-        <LongField label="Known pain" value={opportunity.knownPain} />
-        <LongField label="Known objection" value={opportunity.knownObjection} />
-        <LongField label="Deal notes" value={opportunity.dealNotes} />
-      </Stack>
-    </Section>
-  );
-}
-
-function ReadinessTrend({
-  interactions,
-  diagnoses,
-}: {
-  interactions: MockActivity[];
-  diagnoses: MockDiagnosis[];
-}) {
-  if (interactions.length === 0) {
-    return (
-      <Section title="Activity timeline">
-        <Text size="sm" c="dimmed">
-          No interactions yet. Add one in the Evidence tab to run a diagnosis.
-        </Text>
-      </Section>
-    );
-  }
-  const dxByInteraction = new Map(diagnoses.map((d) => [d.activityId, d]));
-  const sorted = [...interactions].sort((a, b) =>
-    a.activityDate.localeCompare(b.activityDate),
-  );
-  const diagnosedSorted = sorted.filter((i) => dxByInteraction.has(i.id));
-  const showTrend = diagnosedSorted.length >= 2;
-  return (
-    <Section title="Activity timeline">
-      <Stack gap="md">
-        {showTrend && (
-          <Group gap="xs" wrap="wrap">
-            {diagnosedSorted.map((i, idx) => {
-              const d = dxByInteraction.get(i.id)!;
-              return (
-                <Group key={i.id} gap={4} wrap="nowrap">
-                  {idx > 0 && (
-                    <IconArrowNarrowRight size={14} color="var(--mantine-color-dimmed)" />
-                  )}
-                  <Badge variant="light" size="sm" radius="sm">
-                    {humanize(d.readinessState)} · {d.readinessScore}
-                  </Badge>
-                </Group>
-              );
-            })}
-          </Group>
-        )}
-        <Stack gap="xs">
-          {sorted.map((i) => {
-            const d = dxByInteraction.get(i.id);
-            return (
-              <Group key={i.id} gap="sm">
-                <IconClock size={14} color="var(--mantine-color-dimmed)" />
-                <Text size="sm">{new Date(i.activityDate).toLocaleDateString()}</Text>
-                <Text size="xs" c="dimmed">
-                  {humanize(i.activityType)} · {i.participants.length} participant
-                  {i.participants.length === 1 ? '' : 's'}
-                </Text>
-                {d && (
-                  <Badge variant="default" size="xs">
-                    {humanize(d.readinessState)} · {d.readinessScore}
-                  </Badge>
-                )}
-              </Group>
-            );
-          })}
-        </Stack>
+        {buyer.notes && <LongField label="Notes" value={buyer.notes} />}
       </Stack>
     </Section>
   );
@@ -275,12 +134,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <Group gap="sm" wrap="nowrap" align="flex-start">
-      <Text size="xs" c="dimmed" w={100} style={{ flexShrink: 0 }}>
-        {label}
-      </Text>
+      <Group gap={4} w={120} wrap="nowrap" style={{ flexShrink: 0 }}>
+        {icon && (
+          <Text component="span" c="dimmed" style={{ display: 'inline-flex' }}>
+            {icon}
+          </Text>
+        )}
+        <Text size="xs" c="dimmed">
+          {label}
+        </Text>
+      </Group>
       <Text size="sm">
         {value ?? (
           <Text component="span" size="sm" c="dimmed">

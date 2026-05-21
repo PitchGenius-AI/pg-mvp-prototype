@@ -78,7 +78,7 @@ After sign-in the rep lands on the **Opportunity Workbench** at `/` — the dail
 
 **Steps:**
 1. Open **Globex – CDP replacement Q2** (the critical over-projection).
-2. The detail page lands on the **Overview** tab. Briefly point out: CRM stage = Negotiation, buyer state = Problem Aware, score 28/100. "Five readiness stages of gap."
+2. The **persistent score header** carries the headline on every tab: hero score **28/100**, **Problem aware**, a red **Mismatch · Over-projecting · critical** badge, CRM stage **Negotiation**. "Five readiness stages of gap — and that header follows you across all four tabs."
 3. Click into the **Diagnosis** tab.
 4. The **Pipeline Reality Check** callout is the moment of value. Sit on it. Read the framing aloud:
    > "CRM Negotiation implies commitment readiness, but evidence shows the buyer has not aligned the team, discussed budget, or agreed a next step. Five readiness stages of gap."
@@ -91,60 +91,46 @@ After sign-in the rep lands on the **Opportunity Workbench** at `/` — the dail
 
 ---
 
-## 5. Tour all 5 tabs on the same deal (~3 minutes)
+## 5. Tour all 4 tabs on the same deal (~3 minutes)
 
-Now you've sold the headline. Use Globex (still loaded) to walk through what the rest of the product looks like.
+Now you've sold the headline. Use Globex (still loaded) to walk through what the rest of the product looks like. The score header stays pinned above all four tabs.
 
 **Steps:**
-1. **Overview** — buyer + opportunity cards, denormalized readiness state, activity timeline. If the deal has multiple interactions with diagnoses, the readiness trend bar shows progression (see step 7 for that demo).
-2. **Evidence** — interactions list with checklist signals. Each interaction card shows the readiness state it produced. Click **Add interaction** to show the form (but don't run a diagnosis here — keep momentum).
+1. **Overview** — the pre-call intelligence. A **DISC + OCEAN psychological profile** of the buyer, a **matched sales technique** (Challenger / SPIN / NEPQ) with reasoning, and a **generated pre-call script** in that technique — editable and regenerable. Below it, the opportunity context the rep captured. "All of this is ready before the rep ever logs a conversation." (On a deal you've not opened before, watch it generate progressively.)
+2. **Activity** — the activities list (call / email / meeting / note), each card showing the readiness state it produced. Click **Add activity** to show the form (but don't run a diagnosis here — keep momentum). On a multi-activity deal a **readiness trend** bar sits up top (see step 6).
 3. **Diagnosis** — already shown in step 4. Scroll down past the Pipeline Reality Check to show signal cards (Observed Evidence / AI Inference / Missing Evidence sections), the **What not to do yet** card, the **Follow-up email** (copy-to-clipboard), and the **Manager coaching note**.
-4. **Outcome** — pre-built to capture what happened after the recommended action. Walk through the outcome types briefly.
-5. **Export** — CRM note (copy-to-clipboard), CSV download, JSON download. "Drop this straight into your CRM activity log."
+4. **Export** — a single human-readable **CRM note**. **Copy note** always works; **Download import file** is enabled here because this deal carries a CRM Record ID. The **follow-up email** is a separate, separately-copyable draft. "Drop the note straight into your CRM activity log."
 
 **Talking points:**
 - "Every artifact on this page is generated from the same buyer evidence. No double-entry from the rep."
+- "The pre-call intelligence needs no activity at all — profile, technique, and script are ready the moment the opportunity exists."
 - "The follow-up email isn't a generic template — it adapts to the readiness state and alignment outcome. A buyer at Problem Aware gets a different email than a buyer at Commit Ready."
 
 ---
 
-## 6. Record an outcome (~1 minute)
+## 6. Show readiness progression on a multi-activity deal (~1 minute)
 
-Show that outcomes feed back into the deal so the manager can see what actually happened.
-
-**Steps:**
-1. Stay on the Globex detail. Click into the **Outcome** tab.
-2. Select an outcome type (e.g. "stakeholder added" or "deal advanced"), add a note, save.
-3. Watch the outcome appear in the outcomes list with a timestamp.
-4. Navigate back to the Overview — note the activity timeline now reflects the new outcome.
-
-**Talking points:**
-- "Outcomes are recorded but in the MVP they don't feed back into prompt updates. That's the Sales Brain loop — explicitly post-MVP."
-
----
-
-## 7. Show readiness progression on a multi-interaction deal (~1 minute)
-
-This is a deeper second example. Pick **Massive Dynamic – sales enablement refresh** — it has two interactions with two diagnoses, so the readiness trend renders as a progression.
+This is a deeper second example. Pick **Massive Dynamic – sales enablement refresh** — it has two activities with two diagnoses, so the readiness trend renders as a progression.
 
 **Steps:**
 1. Go back to the Workbench (`/`) and open **Massive Dynamic – sales enablement refresh**.
-2. On the Overview tab, scroll down to the **Activity timeline** section.
-3. Point out the readiness trend bar: `Diagnosis Aligned · 41 → Stakeholder Validation Needed · 63`. "The same deal, two interactions, you can watch the buyer's readiness advance."
-4. Below it, per-interaction list shows each meeting with its readiness state — proof that the trend is real, not retrospective.
+2. Open the **Activity** tab.
+3. Point out the **Readiness trend** bar at the top: `Diagnosis aligned · 41 → Stakeholder validation · 63`. "The same deal, two activities, you can watch the buyer's readiness advance."
+4. Below it, each activity card shows the readiness state it produced — proof that the trend is real, not retrospective.
 
 **Talking points:**
-- "Every diagnosis is anchored to a specific interaction, so the rep — and the manager — can see exactly which conversation moved the needle."
+- "Every diagnosis is anchored to a specific activity, so the rep — and the manager — can see exactly which conversation moved the needle."
 
 ---
 
-## 8. Export the CRM note (~30 seconds — close on this)
+## 7. Export the CRM note (~30 seconds — close on this)
 
 End on something tangible the rep would actually do.
 
 **Steps:**
-1. Go to **Export** tab on the Massive Dynamic detail (or Globex — either works).
-2. Click **Copy CRM note** and paste into a text editor to show the formatted output.
+1. Go to the **Export** tab on the Massive Dynamic detail (or Globex — either works).
+2. Click **Copy note** and paste into a text editor to show the formatted, human-readable output.
+3. Point out the two-tier model: a deal with a CRM Record ID also gets **Download import file** (a note file the CRM ingests directly); a deal without one is copy-only.
 
 **Talking points:**
 - "This is the artifact the rep drops into their CRM activity log. The whole flow takes a minute. The intelligence behind it took the buyer evidence and four prompt chains we ran in the background."
@@ -181,4 +167,4 @@ Confirmed at the following widths against the seeded demo flow:
 | 768px  | Visible (at exactly 768) | None                | Right at the `sm` breakpoint. |
 | < 768px | Collapsed behind burger; opens via top-bar toggle | None at page level; Board / List scroll within their containers | Board + List don't reflow to a stacked layout — present from a laptop. |
 
-Modals (Add opportunity, Add interaction, Buyer dedup prompt) all fit inside the viewport at all four widths.
+Modals (Add opportunity, Add activity, Buyer dedup prompt) all fit inside the viewport at all four widths.

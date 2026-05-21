@@ -457,6 +457,26 @@ function severityFromDelta(d: number): AlignmentLevel {
   return 'low';
 }
 
+// Provisional readiness for an opportunity with no buyer evidence yet (M17,
+// PG-225). With nothing but the rep's CRM stage to go on, the provisional state
+// mirrors that stage's implied readiness — discounted to a deliberately low
+// score because no activity has confirmed it. The hero score header uses this
+// so it never renders empty; the first real diagnosis replaces it.
+export function computeProvisionalReadiness(crmStage: string): {
+  state: ReadinessState;
+  score: number;
+} {
+  const implied = STAGE_IMPLIED_READINESS[
+    crmStage as keyof typeof STAGE_IMPLIED_READINESS
+  ] as ReadinessState | undefined;
+  const state = implied ?? 'problem_aware';
+  const idx = Math.max(0, STAGE_ORDER.indexOf(state));
+  // Scale the funnel position into a conservative 18–58 band — a provisional
+  // read should never look as confident as a diagnosed one.
+  const score = Math.round(18 + (idx / (STAGE_ORDER.length - 1)) * 40);
+  return { state, score };
+}
+
 // --- Derived narrative ---
 
 function derivePrimaryBlocker(

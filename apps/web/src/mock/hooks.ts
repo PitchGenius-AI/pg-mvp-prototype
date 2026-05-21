@@ -283,6 +283,23 @@ export function usePrecallIntelligence(opportunityId: string | undefined) {
   });
 }
 
+// Per-opportunity last-export timestamp (M17 Export tab, PG-226). Null until the
+// rep first copies or downloads the note.
+export function useExportTimestamp(opportunityId: string | undefined) {
+  return useQuery({
+    queryKey: opportunityId
+      ? queryKeys.exportRecord.forOpportunity(opportunityId)
+      : ['exportRecord', 'forOpportunity', 'noop'],
+    enabled: opportunityId !== undefined,
+    queryFn: () =>
+      mockApi<string | null>(() =>
+        opportunityId
+          ? useMockStore.getState().exportTimestamps[opportunityId] ?? null
+          : null,
+      ),
+  });
+}
+
 // --- Mutations ---
 
 type Actions = ReturnType<typeof useMockStore.getState>;
@@ -513,6 +530,23 @@ export function useSetPrecallIntelligence() {
     onSuccess: (precall) => {
       qc.invalidateQueries({
         queryKey: queryKeys.precall.forOpportunity(precall.opportunityId),
+      });
+    },
+  });
+}
+
+// Stamp an opportunity as exported (M17 Export tab, PG-226). Synchronous local
+// bookkeeping — no mockApi latency window.
+export function useRecordExport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (opportunityId: string) => {
+      useMockStore.getState().recordExport(opportunityId);
+      return opportunityId;
+    },
+    onSuccess: (opportunityId) => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.exportRecord.forOpportunity(opportunityId),
       });
     },
   });
