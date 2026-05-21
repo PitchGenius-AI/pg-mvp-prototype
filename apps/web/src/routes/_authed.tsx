@@ -3,11 +3,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { Sidebar } from '../components/layout/sidebar';
 import { TopBar } from '../components/layout/top-bar';
+import { hasActiveSubscription } from '../mock/access';
 import { useMockStore } from '../mock/store';
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: ({ location }) => {
-    const session = useMockStore.getState().session;
+    const { session, workspaces } = useMockStore.getState();
     if (!session) {
       throw redirect({
         to: '/login',
@@ -17,6 +18,11 @@ export const Route = createFileRoute('/_authed')({
     }
     if (!session.workspaceOnboardingCompleted) {
       throw redirect({ to: '/onboarding' });
+    }
+    // Hard paywall (M11): an onboarded-but-unpaid workspace can't reach any
+    // in-shell route — every `_authed` child bounces to /checkout until payment.
+    if (!hasActiveSubscription(workspaces[session.workspaceId])) {
+      throw redirect({ to: '/checkout' });
     }
   },
   component: AuthedLayout,

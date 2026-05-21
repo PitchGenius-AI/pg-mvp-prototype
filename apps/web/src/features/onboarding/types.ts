@@ -5,7 +5,7 @@ import type { OnboardingDraft } from '../../mock/types';
 // step-numbering and the confirmation-vs-manual mode derivation.
 
 // The full account-creation flow is 11 steps. Step 1 is /signup; the wizard at
-// /onboarding renders steps 2–10; step 11 (checkout) lands in M11.
+// /onboarding renders steps 2–10; step 11 (checkout) is the /checkout route (M11).
 export const ONBOARDING_TOTAL_STEPS = 11;
 export const FIRST_WIZARD_STEP = 2;
 export const LAST_WIZARD_STEP = 10;

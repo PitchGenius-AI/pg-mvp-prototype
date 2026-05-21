@@ -6,7 +6,7 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 
 ---
 
-## 1. Sign up + onboarding (~3 minutes)
+## 1. Sign up + onboarding (~4 minutes)
 
 **What to say:**
 > "Pitch Genius is buyer-readiness intelligence for individual sales reps. Let me walk you through what a brand-new user experiences from the very first screen."
@@ -14,18 +14,22 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 **Steps:**
 1. Land on `/login` → click **Sign up**.
 2. **Create account:** enter a name, a fresh email, and a password (8+ characters with a letter and a number). Inline validation fires on blur — to show it off, try `casey@acmesales.co` (reads as already registered) or a 3-character password.
-3. The 10-step onboarding wizard opens. Step through it:
+3. The onboarding wizard opens — steps 2–10 of the 11-step account-creation flow. Step through it:
    - **Workspace name** — "Acme Sales Co".
    - **Website** — paste any URL and click **Analyze my website**. Watch the "Reading your website…" animation; it pre-fills the next four steps. (To demo the fallback instead, use a URL containing the word `fail` — the scrape "can't read" the site and steps 4–7 switch to blank manual entry. The **Skip** link does the same.)
    - **Industry / Products / Customer / Problem** — pre-filled from the scrape. Talk through editing the product list and marking a **primary** product; every readiness diagnosis is anchored to this product context.
    - **Call script** — paste a script, upload a file, or click **I don't have a script**.
    - **CRM** — pick HubSpot or Pipedrive (None / Other degrade export to copy-ready notes).
    - **Pipeline stages** — pick **Simple B2B Sales**.
-4. Click **Finish setup**. You land in the app on a fresh, empty workspace.
+4. Click **Continue to checkout** on the pipeline-stages step. This commits the workspace and hands off to step 11.
+5. **Checkout (step 11):** a mock Stripe screen. The hard paywall holds a brand-new account here until payment "completes". Enter any card details and click **Pay $49 and continue** — watch the processing state resolve to a success panel, then you land in the app on a fresh, empty workspace.
+   - To demo a decline instead, use a card number ending in `0002` (mirrors Stripe's classic decline test card) — the screen shows a "Card declined" error and lets you retry.
+   - Pricing on this screen is a placeholder pending Russell ([FLAG] in [routes/checkout.tsx](../apps/web/src/routes/checkout.tsx)) — don't quote the number as final.
 
 **Talking points:**
 - "Account to a configured workspace in a couple of minutes — and the website scrape means the rep confirms rather than types."
 - "The flow adapts: a thin or missing website just drops the rep into manual entry, no dead ends."
+- "The paywall is hard — a new account can't reach a single in-app screen until checkout completes." (Existing demo accounts come in via the sign-in flow already subscribed, so they skip this.)
 
 > **For the rest of the demo** you want the pre-loaded pipeline. Sign out, then **Sign in** (any email + password) — that loads the seeded demo workspace with ten deals.
 

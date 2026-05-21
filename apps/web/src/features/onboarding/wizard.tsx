@@ -110,12 +110,13 @@ export function OnboardingWizard() {
 
     notifications.show({
       color: 'teal',
-      title: `You’re all set, ${session.user.name.split(' ')[0]}!`,
-      message: 'Your workspace is ready.',
+      title: 'Workspace ready',
+      message: 'One last step — activate your subscription.',
     });
 
-    // M11 inserts step 11 (checkout) here — for now, straight into the app.
-    navigate({ to: '/' });
+    // Onboarding step 11: the mock checkout + hard paywall (M11). The paywall
+    // holds the rep at /checkout until payment "completes".
+    navigate({ to: '/checkout' });
   };
 
   const StepComponent = STEP_COMPONENTS[step] ?? WorkspaceNameStep;

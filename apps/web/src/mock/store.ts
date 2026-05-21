@@ -54,6 +54,7 @@ interface MockActions {
   setSession: (session: MockSession) => void;
   clearSession: () => void;
   completeOnboarding: () => void;
+  activateSubscription: () => void;
 
   updateOnboardingDraft: (patch: Partial<OnboardingDraft>) => void;
   resetOnboardingDraft: () => void;
@@ -219,6 +220,29 @@ export const useMockStore = create<MockState & MockActions>()(
           },
           undefined,
           'mock/completeOnboarding',
+        ),
+
+      // Post-payment flow (M11, PG-198). Successful mock checkout flips the
+      // workspace to `active` — the flag the hard-paywall guards read.
+      activateSubscription: () =>
+        set(
+          (state) => {
+            if (!state.session) return state;
+            const workspace = state.workspaces[state.session.workspaceId];
+            if (!workspace) return state;
+            return {
+              workspaces: {
+                ...state.workspaces,
+                [workspace.id]: {
+                  ...workspace,
+                  subscriptionStatus: 'active',
+                  updatedAt: nowIso(),
+                },
+              },
+            };
+          },
+          undefined,
+          'mock/activateSubscription',
         ),
 
       updateOnboardingDraft: (patch) =>
@@ -739,6 +763,7 @@ export const mockActions = {
   setSession: (session: MockSession) => useMockStore.getState().setSession(session),
   clearSession: () => useMockStore.getState().clearSession(),
   completeOnboarding: () => useMockStore.getState().completeOnboarding(),
+  activateSubscription: () => useMockStore.getState().activateSubscription(),
   updateOnboardingDraft: (patch: Parameters<MockActions['updateOnboardingDraft']>[0]) =>
     useMockStore.getState().updateOnboardingDraft(patch),
   resetOnboardingDraft: () => useMockStore.getState().resetOnboardingDraft(),

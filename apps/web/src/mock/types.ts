@@ -117,7 +117,7 @@ export type OnboardingCrmChoice = 'hubspot' | 'pipedrive' | 'none' | 'other';
 
 // The full onboarding wizard state. Lives in the mock store so per-step edits
 // persist across in-app navigation (PG-190). Covers steps 2–10 of the 11-step
-// flow — step 1 is /signup and step 11 (checkout) lands in M11.
+// flow — step 1 is /signup and step 11 (checkout) is the /checkout route (M11).
 export interface OnboardingDraft {
   currentStep: number;
   workspaceName: string;
