@@ -9,7 +9,9 @@ import {
   Title,
 } from '@mantine/core';
 import {
+  IconAppWindow,
   IconArrowBackUp,
+  IconArrowRight,
   IconBroadcast,
   IconGauge,
   IconLock,
@@ -64,8 +66,47 @@ export function CopilotPage() {
         )}
         {copilot.installState === 'installed' && <ConnectPanel />}
         {copilot.installState === 'connected' && <ConnectedPanel />}
+
+        <OverlayMockLink />
       </Stack>
     </Container>
+  );
+}
+
+// Entry point to the in-call overlay design mock (M20, PG-238/239). The overlay
+// itself is part of the desktop app, not a web screen — this links to the
+// static design gallery that stands in for it so the demo can show the in-call
+// experience. Shown in every install state: it's a "what you're getting"
+// preview as much as a feature surface.
+function OverlayMockLink() {
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Group justify="space-between" wrap="nowrap" gap="md">
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon size={36} radius="md" variant="light" color="indigo">
+            <IconAppWindow size={20} />
+          </ThemeIcon>
+          <div>
+            <Text size="sm" fw={600}>
+              See the in-call experience
+            </Text>
+            <Text size="sm" c="dimmed">
+              A design mock of the overlay the desktop app shows while you're on
+              a call.
+            </Text>
+          </div>
+        </Group>
+        <Button
+          component={Link}
+          to="/copilot/overlay"
+          variant="default"
+          rightSection={<IconArrowRight size={16} />}
+          style={{ flexShrink: 0 }}
+        >
+          Preview
+        </Button>
+      </Group>
+    </Paper>
   );
 }
 

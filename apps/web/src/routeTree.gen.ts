@@ -22,6 +22,7 @@ import { Route as AuthedExportRouteImport } from './routes/_authed/export';
 import { Route as AuthedCopilotRouteImport } from './routes/_authed/copilot';
 import { Route as AuthedBuyersIndexRouteImport } from './routes/_authed/buyers.index';
 import { Route as AuthedOpportunitiesOpportunityIdRouteImport } from './routes/_authed/opportunities.$opportunityId';
+import { Route as AuthedCopilotOverlayRouteImport } from './routes/_authed/copilot_.overlay';
 import { Route as AuthedBuyersNewRouteImport } from './routes/_authed/buyers.new';
 
 const SignupRoute = SignupRouteImport.update({
@@ -89,6 +90,11 @@ const AuthedOpportunitiesOpportunityIdRoute =
     path: '/opportunities/$opportunityId',
     getParentRoute: () => AuthedRoute,
   } as any);
+const AuthedCopilotOverlayRoute = AuthedCopilotOverlayRouteImport.update({
+  id: '/copilot_/overlay',
+  path: '/copilot/overlay',
+  getParentRoute: () => AuthedRoute,
+} as any);
 const AuthedBuyersNewRoute = AuthedBuyersNewRouteImport.update({
   id: '/buyers/new',
   path: '/buyers/new',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/scripts': typeof AuthedScriptsRoute;
   '/settings': typeof AuthedSettingsRoute;
   '/buyers/new': typeof AuthedBuyersNewRoute;
+  '/copilot/overlay': typeof AuthedCopilotOverlayRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
   '/buyers/': typeof AuthedBuyersIndexRoute;
 }
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthedSettingsRoute;
   '/': typeof AuthedIndexRoute;
   '/buyers/new': typeof AuthedBuyersNewRoute;
+  '/copilot/overlay': typeof AuthedCopilotOverlayRoute;
   '/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
   '/buyers': typeof AuthedBuyersIndexRoute;
 }
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_authed/settings': typeof AuthedSettingsRoute;
   '/_authed/': typeof AuthedIndexRoute;
   '/_authed/buyers/new': typeof AuthedBuyersNewRoute;
+  '/_authed/copilot_/overlay': typeof AuthedCopilotOverlayRoute;
   '/_authed/opportunities/$opportunityId': typeof AuthedOpportunitiesOpportunityIdRoute;
   '/_authed/buyers/': typeof AuthedBuyersIndexRoute;
 }
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/scripts'
     | '/settings'
     | '/buyers/new'
+    | '/copilot/overlay'
     | '/opportunities/$opportunityId'
     | '/buyers/';
   fileRoutesByTo: FileRoutesByTo;
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/'
     | '/buyers/new'
+    | '/copilot/overlay'
     | '/opportunities/$opportunityId'
     | '/buyers';
   id:
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_authed/settings'
     | '/_authed/'
     | '/_authed/buyers/new'
+    | '/_authed/copilot_/overlay'
     | '/_authed/opportunities/$opportunityId'
     | '/_authed/buyers/';
   fileRoutesById: FileRoutesById;
@@ -292,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOpportunitiesOpportunityIdRouteImport;
       parentRoute: typeof AuthedRoute;
     };
+    '/_authed/copilot_/overlay': {
+      id: '/_authed/copilot_/overlay';
+      path: '/copilot/overlay';
+      fullPath: '/copilot/overlay';
+      preLoaderRoute: typeof AuthedCopilotOverlayRouteImport;
+      parentRoute: typeof AuthedRoute;
+    };
     '/_authed/buyers/new': {
       id: '/_authed/buyers/new';
       path: '/buyers/new';
@@ -310,6 +329,7 @@ interface AuthedRouteChildren {
   AuthedSettingsRoute: typeof AuthedSettingsRoute;
   AuthedIndexRoute: typeof AuthedIndexRoute;
   AuthedBuyersNewRoute: typeof AuthedBuyersNewRoute;
+  AuthedCopilotOverlayRoute: typeof AuthedCopilotOverlayRoute;
   AuthedOpportunitiesOpportunityIdRoute: typeof AuthedOpportunitiesOpportunityIdRoute;
   AuthedBuyersIndexRoute: typeof AuthedBuyersIndexRoute;
 }
@@ -322,6 +342,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedBuyersNewRoute: AuthedBuyersNewRoute,
+  AuthedCopilotOverlayRoute: AuthedCopilotOverlayRoute,
   AuthedOpportunitiesOpportunityIdRoute: AuthedOpportunitiesOpportunityIdRoute,
   AuthedBuyersIndexRoute: AuthedBuyersIndexRoute,
 };

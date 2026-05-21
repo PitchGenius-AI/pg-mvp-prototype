@@ -163,7 +163,7 @@ The Export tab in step 7 handles one deal. The **CRM Update Pack** is the booken
 
 ## 9. The Live Co-pilot — get the desktop app (~1.5 minutes)
 
-The Live Co-pilot is real-time, in-call coaching — and it's a **desktop app**, not a web screen. This milestone is the web-app side: how a rep discovers, installs, connects, and launches it. (The in-call overlay itself ships as a separate design mock.)
+The Live Co-pilot is real-time, in-call coaching — and it's a **desktop app**, not a web screen. This milestone is the web-app side: how a rep discovers, installs, connects, and launches it. (The in-call overlay itself is a static design mock — walked separately in step 10.)
 
 **Steps:**
 1. On any opportunity (Globex is still fine), point at the **Start live co-pilot** button in the persistent score header. "Every deal can launch a coached call, already bound to that buyer." Click it — because the app isn't installed yet, it routes to `/copilot`.
@@ -172,13 +172,38 @@ The Live Co-pilot is real-time, in-call coaching — and it's a **desktop app**,
 4. The screen switches to the **installed-but-not-connected** state. "The desktop app is a thin client over the same account and the same subscription." Click **Connect to your account** — watch the connect beat resolve.
 5. Now **connected**: version, status, and a **Launch co-pilot** button. Click it — the mock **deep-link handoff** (`pitchgenius://…`) fires as a notification. Point out the reminder that launching from a deal binds the call to that buyer.
 6. Go back to an opportunity (before installing, on a fresh run) to show the **contextual download nudge** — a non-blocking, dismissible prompt that appears on opportunity detail until the app is installed. There's deliberately no post-onboarding popup; the sidebar item is the durable home.
+7. Before leaving the `/copilot` screen, point at the **See the in-call experience** card near the bottom and click **Preview** — that's the lead-in to step 10.
 
 **Talking points:**
 - "Coaching shouldn't wait for the post-call write-up. The co-pilot is in the call with the rep — and everything it hears flows straight back into the same readiness model you've seen all demo."
 - "It's the same account and the same plan. No separate login, no separate billing — download, connect, launch."
-- "The in-call overlay itself — the resting prompt card, the 'still need to ask' nudge — is the next milestone's design mock."
+- "What the rep actually sees mid-call — the overlay — is the design mock in step 10."
 
 > **Note on flags:** the co-pilot's account-auth handshake (device pairing vs. token) and the exact first-launch permission copy are [FLAG] items. The desktop app itself is out of scope for this web prototype — every install/connection state here is mocked, and resets to "not installed" on reload.
+
+---
+
+## 10. The in-call overlay — design mock (~1.5 minutes)
+
+Step 9 was how the rep *gets* the co-pilot. This is what they actually see *during* a call. The in-call overlay is part of the **desktop app**, not a web screen — so this is a **static design mock**, a gallery at `/copilot/overlay`. Set expectations up front: nothing on this page is interactive, it's a design artifact so the demo can show the in-call concept.
+
+**Steps:**
+1. From the `/copilot` screen, click **Preview** on the **See the in-call experience** card (step 9.7). You land on the **In-call overlay** page.
+2. Read the **design-mock banner** aloud — "this is not a working screen; the desktop app is a separate future-phase build." Don't skip this; it's how you stay honest about what the prototype is.
+3. Walk **How a call reaches the overlay** — the three launch paths. Path 1 (from a deal) and Path 2 (the picker) you've already shown live in step 9; Path 3 (standalone, unbound) is the one to flag — it sets up the warning state later.
+4. **Opportunity picker** — the first mock. "Launched without a deal attached, the desktop app opens here so the rep binds the call to an opportunity first." Point at the four deals (the same seeded pipeline) and the *start without a deal* footer — that's the door into Path 3.
+5. **The in-call hero** (resting state) — *sit on this one.* "One prompt card, in the deal's matched technique — SPIN, for Globex's analytical buyer. A quiet readiness state, never the 0–100 score. Script and questions stay collapsed. Exactly one thing ever asks for the rep's attention mid-call."
+6. **The missing-question nudge** — "When the co-pilot notices the rep skipped something the technique calls for, the card escalates: *Still need to ask* — the missing question, phrased as the next SPIN move."
+7. **Collapsed pill** — "The overlay's smallest footprint. Out of the way, but still counting prompts waiting."
+8. **Not linked to a deal** — the Path 3 warning. "Coaching still runs unbound — but the overlay is explicit that with no deal attached, nothing gets saved when the call ends."
+9. **Processing & handoff** — the two post-call windows. "The rep hangs up; the co-pilot writes the transcript back to the opportunity as an activity, re-scores the deal, and hands the rep back into the web app."
+
+**Talking points:**
+- "Everything you've seen all demo — the readiness model, the matched technique, the pre-call script — is what the rep gets *live, in the call*, not in a post-call write-up."
+- "The design discipline here is one prompt at a time. A rep on a call can't read a dashboard — they can read one card."
+- "The overlay closes the loop: the call it coaches becomes the next activity that re-scores the deal. Same model, end to end."
+
+> **Note on flags:** the page itself carries the two open questions for the real desktop build — **recording consent** ([FLAG FOR RUSSELL] + legal) and whether **live script rewrite** is MVP or a fast-follow ([FLAG]). The mock is static — there's no state to reset.
 
 ---
 
