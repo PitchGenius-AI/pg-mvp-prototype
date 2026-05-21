@@ -15,9 +15,11 @@ export interface OpportunityFactoryInput
     | 'closedStatus'
     | 'reframedFromOpportunityId'
     | 'atRisk'
+    | 'crmRecordId'
   > {
   id?: string;
   atRisk?: boolean;
+  crmRecordId?: string | null;
   closedStatus?: MockOpportunity['closedStatus'];
   createdAt?: string;
   updatedAt?: string;
@@ -45,6 +47,7 @@ export function makeOpportunity(input: OpportunityFactoryInput): MockOpportunity
     knownPain: input.knownPain ?? null,
     knownObjection: input.knownObjection ?? null,
     dealNotes: input.dealNotes ?? null,
+    crmRecordId: input.crmRecordId ?? null,
     currentReadinessState: input.currentReadinessState ?? null,
     currentReadinessScore: input.currentReadinessScore ?? null,
     currentAlignmentOutcome: input.currentAlignmentOutcome ?? null,

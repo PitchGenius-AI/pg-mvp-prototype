@@ -2,12 +2,15 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type {
+  MockActivity,
   MockBuyer,
   MockDiagnosis,
-  MockInteraction,
+  MockImportMapping,
   MockOpportunity,
   MockOutcome,
+  MockPrecallIntelligence,
   MockProduct,
+  MockScriptTemplate,
   MockSession,
   MockWorkspace,
 } from './types';
@@ -18,9 +21,12 @@ interface MockState {
   products: Record<string, MockProduct>;
   buyers: Record<string, MockBuyer>;
   opportunities: Record<string, MockOpportunity>;
-  interactions: Record<string, MockInteraction>;
+  activities: Record<string, MockActivity>;
   diagnoses: Record<string, MockDiagnosis>;
   outcomes: Record<string, MockOutcome>;
+  scriptTemplates: Record<string, MockScriptTemplate>;
+  precallIntelligence: Record<string, MockPrecallIntelligence>;
+  importMappings: Record<string, MockImportMapping>;
 }
 
 export interface HydrateInput {
@@ -28,9 +34,12 @@ export interface HydrateInput {
   products: MockProduct[];
   buyers: MockBuyer[];
   opportunities: MockOpportunity[];
-  interactions: MockInteraction[];
+  activities: MockActivity[];
   diagnoses: MockDiagnosis[];
   outcomes: MockOutcome[];
+  scriptTemplates: MockScriptTemplate[];
+  precallIntelligence: MockPrecallIntelligence[];
+  importMappings: MockImportMapping[];
 }
 
 interface MockActions {
@@ -55,30 +64,73 @@ interface MockActions {
       | 'closedStatus'
       | 'reframedFromOpportunityId'
       | 'atRisk'
+      | 'crmRecordId'
     > &
-      Partial<Pick<MockOpportunity, 'atRisk' | 'closedStatus'>>,
+      Partial<Pick<MockOpportunity, 'atRisk' | 'closedStatus' | 'crmRecordId'>>,
   ) => MockOpportunity;
-  addInteraction: (
-    input: Omit<MockInteraction, 'id' | 'createdAt' | 'updatedAt'>,
-  ) => MockInteraction;
-  runDiagnosis: (
-    input: Omit<MockDiagnosis, 'id' | 'createdAt'>,
-  ) => MockDiagnosis;
+  addActivity: (input: Omit<MockActivity, 'id' | 'createdAt' | 'updatedAt'>) => MockActivity;
+  runDiagnosis: (input: Omit<MockDiagnosis, 'id' | 'createdAt'>) => MockDiagnosis;
   recordOutcome: (input: Omit<MockOutcome, 'id' | 'createdAt'>) => MockOutcome;
   setAtRisk: (opportunityId: string, atRisk: boolean) => void;
 
   addWorkspace: (
     input: Pick<MockWorkspace, 'name' | 'createdByUserId'> &
-      Partial<Pick<MockWorkspace, 'crmStageTemplate' | 'onboardingCompleted'>>,
+      Partial<
+        Pick<MockWorkspace, 'crmStageTemplate' | 'onboardingCompleted' | 'subscriptionStatus' | 'crmType'>
+      >,
   ) => MockWorkspace;
   updateWorkspace: (
     workspaceId: string,
-    patch: Partial<Pick<MockWorkspace, 'name' | 'website' | 'industry' | 'crmStageTemplate' | 'customCrmStages'>>,
+    patch: Partial<
+      Pick<
+        MockWorkspace,
+        | 'name'
+        | 'website'
+        | 'industry'
+        | 'crmStageTemplate'
+        | 'customCrmStages'
+        | 'crmType'
+        | 'subscriptionStatus'
+      >
+    >,
   ) => MockWorkspace | null;
+
+  addProduct: (
+    workspaceId: string,
+    input: Omit<MockProduct, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt' | 'isPrimary'> &
+      Partial<Pick<MockProduct, 'isPrimary'>>,
+  ) => MockProduct;
+  updateProduct: (
+    productId: string,
+    patch: Partial<Pick<MockProduct, 'name' | 'description' | 'targetBuyer' | 'problemSolved'>>,
+  ) => MockProduct | null;
+  setPrimaryProduct: (productId: string) => void;
+  // Legacy onboarding helper (M3) — creates the workspace's first product as the
+  // primary, or updates the existing one. Superseded by addProduct in M10/M16.
   upsertProductForWorkspace: (
     workspaceId: string,
-    input: Omit<MockProduct, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
+    input: Omit<MockProduct, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt' | 'isPrimary'>,
   ) => MockProduct;
+
+  addScriptTemplate: (
+    workspaceId: string,
+    input: Omit<MockScriptTemplate, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt' | 'isPrimary'> &
+      Partial<Pick<MockScriptTemplate, 'isPrimary'>>,
+  ) => MockScriptTemplate;
+  updateScriptTemplate: (
+    scriptTemplateId: string,
+    patch: Partial<Pick<MockScriptTemplate, 'name' | 'content'>>,
+  ) => MockScriptTemplate | null;
+  setPrimaryScriptTemplate: (scriptTemplateId: string) => void;
+
+  setPrecallIntelligence: (
+    input: Omit<MockPrecallIntelligence, 'id' | 'generatedAt'>,
+  ) => MockPrecallIntelligence;
+
+  addImportMapping: (
+    workspaceId: string,
+    input: Omit<MockImportMapping, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
+  ) => MockImportMapping;
 }
 
 const emptyState: MockState = {
@@ -87,9 +139,12 @@ const emptyState: MockState = {
   products: {},
   buyers: {},
   opportunities: {},
-  interactions: {},
+  activities: {},
   diagnoses: {},
   outcomes: {},
+  scriptTemplates: {},
+  precallIntelligence: {},
+  importMappings: {},
 };
 
 const newId = (prefix: string) =>
@@ -112,9 +167,14 @@ export const useMockStore = create<MockState & MockActions>()(
             products: Object.fromEntries(input.products.map((p) => [p.id, p])),
             buyers: Object.fromEntries(input.buyers.map((b) => [b.id, b])),
             opportunities: Object.fromEntries(input.opportunities.map((o) => [o.id, o])),
-            interactions: Object.fromEntries(input.interactions.map((i) => [i.id, i])),
+            activities: Object.fromEntries(input.activities.map((a) => [a.id, a])),
             diagnoses: Object.fromEntries(input.diagnoses.map((d) => [d.id, d])),
             outcomes: Object.fromEntries(input.outcomes.map((o) => [o.id, o])),
+            scriptTemplates: Object.fromEntries(input.scriptTemplates.map((s) => [s.id, s])),
+            precallIntelligence: Object.fromEntries(
+              input.precallIntelligence.map((p) => [p.id, p]),
+            ),
+            importMappings: Object.fromEntries(input.importMappings.map((m) => [m.id, m])),
           }),
           undefined,
           'mock/hydrate',
@@ -166,6 +226,7 @@ export const useMockStore = create<MockState & MockActions>()(
           id: newId('opp'),
           atRisk: input.atRisk ?? false,
           closedStatus: input.closedStatus ?? 'open',
+          crmRecordId: input.crmRecordId ?? null,
           currentReadinessState: null,
           currentReadinessScore: null,
           currentAlignmentOutcome: null,
@@ -182,21 +243,21 @@ export const useMockStore = create<MockState & MockActions>()(
         return opp;
       },
 
-      addInteraction: (input) => {
-        const interaction: MockInteraction = {
+      addActivity: (input) => {
+        const activity: MockActivity = {
           ...input,
-          id: newId('int'),
+          id: newId('act'),
           createdAt: nowIso(),
           updatedAt: nowIso(),
         };
         set(
           (state) => ({
-            interactions: { ...state.interactions, [interaction.id]: interaction },
+            activities: { ...state.activities, [activity.id]: activity },
           }),
           undefined,
-          'mock/addInteraction',
+          'mock/addActivity',
         );
-        return interaction;
+        return activity;
       },
 
       runDiagnosis: (input) => {
@@ -288,6 +349,8 @@ export const useMockStore = create<MockState & MockActions>()(
           industry: null,
           crmStageTemplate: input.crmStageTemplate ?? 'simple_b2b_sales',
           customCrmStages: null,
+          crmType: input.crmType ?? null,
+          subscriptionStatus: input.subscriptionStatus ?? 'none',
           createdByUserId: input.createdByUserId,
           onboardingCompleted: input.onboardingCompleted ?? false,
           createdAt: nowIso(),
@@ -315,6 +378,74 @@ export const useMockStore = create<MockState & MockActions>()(
         return updated;
       },
 
+      addProduct: (workspaceId, input) => {
+        const existing = Object.values(get().products).filter(
+          (p) => p.workspaceId === workspaceId,
+        );
+        // First product in a workspace is always primary; otherwise honor the flag.
+        const isPrimary = existing.length === 0 ? true : input.isPrimary ?? false;
+        const product: MockProduct = {
+          name: input.name,
+          description: input.description,
+          targetBuyer: input.targetBuyer,
+          problemSolved: input.problemSolved,
+          id: newId('prod'),
+          workspaceId,
+          isPrimary,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        set(
+          (state) => {
+            // A new primary demotes every other product in the workspace.
+            const products = { ...state.products };
+            if (isPrimary) {
+              for (const p of Object.values(products)) {
+                if (p.workspaceId === workspaceId && p.isPrimary) {
+                  products[p.id] = { ...p, isPrimary: false, updatedAt: nowIso() };
+                }
+              }
+            }
+            products[product.id] = product;
+            return { products };
+          },
+          undefined,
+          'mock/addProduct',
+        );
+        return product;
+      },
+
+      updateProduct: (productId, patch) => {
+        const existing = get().products[productId];
+        if (!existing) return null;
+        const updated: MockProduct = { ...existing, ...patch, updatedAt: nowIso() };
+        set(
+          (state) => ({ products: { ...state.products, [productId]: updated } }),
+          undefined,
+          'mock/updateProduct',
+        );
+        return updated;
+      },
+
+      setPrimaryProduct: (productId) =>
+        set(
+          (state) => {
+            const target = state.products[productId];
+            if (!target) return state;
+            const products = { ...state.products };
+            for (const p of Object.values(products)) {
+              if (p.workspaceId !== target.workspaceId) continue;
+              const shouldBePrimary = p.id === productId;
+              if (p.isPrimary !== shouldBePrimary) {
+                products[p.id] = { ...p, isPrimary: shouldBePrimary, updatedAt: nowIso() };
+              }
+            }
+            return { products };
+          },
+          undefined,
+          'mock/setPrimaryProduct',
+        ),
+
       upsertProductForWorkspace: (workspaceId, input) => {
         const existing = Object.values(get().products).find(
           (p) => p.workspaceId === workspaceId,
@@ -325,6 +456,7 @@ export const useMockStore = create<MockState & MockActions>()(
               ...input,
               id: newId('prod'),
               workspaceId,
+              isPrimary: true,
               createdAt: nowIso(),
               updatedAt: nowIso(),
             };
@@ -334,6 +466,114 @@ export const useMockStore = create<MockState & MockActions>()(
           'mock/upsertProductForWorkspace',
         );
         return product;
+      },
+
+      addScriptTemplate: (workspaceId, input) => {
+        const existing = Object.values(get().scriptTemplates).filter(
+          (s) => s.workspaceId === workspaceId,
+        );
+        const isPrimary = existing.length === 0 ? true : input.isPrimary ?? false;
+        const template: MockScriptTemplate = {
+          name: input.name,
+          content: input.content,
+          id: newId('scr'),
+          workspaceId,
+          isPrimary,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        set(
+          (state) => {
+            const scriptTemplates = { ...state.scriptTemplates };
+            if (isPrimary) {
+              for (const s of Object.values(scriptTemplates)) {
+                if (s.workspaceId === workspaceId && s.isPrimary) {
+                  scriptTemplates[s.id] = { ...s, isPrimary: false, updatedAt: nowIso() };
+                }
+              }
+            }
+            scriptTemplates[template.id] = template;
+            return { scriptTemplates };
+          },
+          undefined,
+          'mock/addScriptTemplate',
+        );
+        return template;
+      },
+
+      updateScriptTemplate: (scriptTemplateId, patch) => {
+        const existing = get().scriptTemplates[scriptTemplateId];
+        if (!existing) return null;
+        const updated: MockScriptTemplate = { ...existing, ...patch, updatedAt: nowIso() };
+        set(
+          (state) => ({
+            scriptTemplates: { ...state.scriptTemplates, [scriptTemplateId]: updated },
+          }),
+          undefined,
+          'mock/updateScriptTemplate',
+        );
+        return updated;
+      },
+
+      setPrimaryScriptTemplate: (scriptTemplateId) =>
+        set(
+          (state) => {
+            const target = state.scriptTemplates[scriptTemplateId];
+            if (!target) return state;
+            const scriptTemplates = { ...state.scriptTemplates };
+            for (const s of Object.values(scriptTemplates)) {
+              if (s.workspaceId !== target.workspaceId) continue;
+              const shouldBePrimary = s.id === scriptTemplateId;
+              if (s.isPrimary !== shouldBePrimary) {
+                scriptTemplates[s.id] = {
+                  ...s,
+                  isPrimary: shouldBePrimary,
+                  updatedAt: nowIso(),
+                };
+              }
+            }
+            return { scriptTemplates };
+          },
+          undefined,
+          'mock/setPrimaryScriptTemplate',
+        ),
+
+      setPrecallIntelligence: (input) => {
+        // One bundle per opportunity — keyed by opportunity id, replaced on regenerate.
+        const existing = Object.values(get().precallIntelligence).find(
+          (p) => p.opportunityId === input.opportunityId,
+        );
+        const precall: MockPrecallIntelligence = {
+          ...input,
+          id: existing?.id ?? newId('pci'),
+          generatedAt: nowIso(),
+        };
+        set(
+          (state) => ({
+            precallIntelligence: { ...state.precallIntelligence, [precall.id]: precall },
+          }),
+          undefined,
+          'mock/setPrecallIntelligence',
+        );
+        return precall;
+      },
+
+      addImportMapping: (workspaceId, input) => {
+        const mapping: MockImportMapping = {
+          ...input,
+          id: newId('imp'),
+          workspaceId,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        set(
+          (state) => ({
+            importMappings: { ...state.importMappings, [mapping.id]: mapping },
+          }),
+          undefined,
+          'mock/addImportMapping',
+        );
+        return mapping;
       },
     }),
     { name: 'pg-mock-store', enabled: import.meta.env.DEV },
@@ -347,17 +587,48 @@ export const useCurrentSession = () => useMockStore((s) => s.session);
 export const useWorkspace = () =>
   useMockStore((s) => (s.session ? s.workspaces[s.session.workspaceId] ?? null : null));
 
-export const useProductForCurrentWorkspace = () =>
-  useMockStore((s) => {
-    if (!s.session) return null;
-    return (
-      Object.values(s.products).find((p) => p.workspaceId === s.session?.workspaceId) ?? null
-    );
-  });
-
 // Array-returning selectors below all wrap in `useShallow` — zustand v5 treats
 // a fresh array reference as a state change and will infinite-loop on consumers
 // otherwise. Same pattern as use-workspace-stages.ts.
+
+export const useProductsForCurrentWorkspace = () =>
+  useMockStore(
+    useShallow((s) => {
+      if (!s.session) return [];
+      return Object.values(s.products).filter((p) => p.workspaceId === s.session?.workspaceId);
+    }),
+  );
+
+// The primary product is the default context for new opportunities.
+export const usePrimaryProduct = () =>
+  useMockStore((s) => {
+    if (!s.session) return null;
+    const products = Object.values(s.products).filter(
+      (p) => p.workspaceId === s.session?.workspaceId,
+    );
+    return products.find((p) => p.isPrimary) ?? products[0] ?? null;
+  });
+
+// Back-compat alias for M3–M6 surfaces written against single-product workspaces.
+export const useProductForCurrentWorkspace = usePrimaryProduct;
+
+export const useBuyersForCurrentWorkspace = () =>
+  useMockStore(
+    useShallow((s) => {
+      if (!s.session) return [];
+      return Object.values(s.buyers).filter((b) => b.workspaceId === s.session?.workspaceId);
+    }),
+  );
+
+export const useScriptTemplatesForCurrentWorkspace = () =>
+  useMockStore(
+    useShallow((s) => {
+      if (!s.session) return [];
+      return Object.values(s.scriptTemplates).filter(
+        (t) => t.workspaceId === s.session?.workspaceId,
+      );
+    }),
+  );
 
 export const useOpportunities = () =>
   useMockStore(
@@ -374,13 +645,16 @@ export const useOpportunityById = (id: string | undefined) =>
 export const useBuyerById = (id: string | undefined) =>
   useMockStore((s) => (id ? s.buyers[id] ?? null : null));
 
-export const useInteractionsForOpportunity = (opportunityId: string | undefined) =>
+export const useProductById = (id: string | undefined) =>
+  useMockStore((s) => (id ? s.products[id] ?? null : null));
+
+export const useActivitiesForOpportunity = (opportunityId: string | undefined) =>
   useMockStore(
     useShallow((s) => {
       if (!opportunityId) return [];
-      return Object.values(s.interactions)
-        .filter((i) => i.opportunityId === opportunityId)
-        .sort((a, b) => b.interactionDate.localeCompare(a.interactionDate));
+      return Object.values(s.activities)
+        .filter((a) => a.opportunityId === opportunityId)
+        .sort((a, b) => b.activityDate.localeCompare(a.activityDate));
     }),
   );
 
@@ -415,6 +689,14 @@ export const useOutcomesForOpportunity = (opportunityId: string | undefined) =>
     }),
   );
 
+export const usePrecallIntelligenceForOpportunity = (opportunityId: string | undefined) =>
+  useMockStore((s) => {
+    if (!opportunityId) return null;
+    return (
+      Object.values(s.precallIntelligence).find((p) => p.opportunityId === opportunityId) ?? null
+    );
+  });
+
 // --- Action accessors (stable refs; safe to use outside React) ---
 
 export const mockActions = {
@@ -427,8 +709,8 @@ export const mockActions = {
     useMockStore.getState().addBuyer(input),
   addOpportunity: (input: Parameters<MockActions['addOpportunity']>[0]) =>
     useMockStore.getState().addOpportunity(input),
-  addInteraction: (input: Parameters<MockActions['addInteraction']>[0]) =>
-    useMockStore.getState().addInteraction(input),
+  addActivity: (input: Parameters<MockActions['addActivity']>[0]) =>
+    useMockStore.getState().addActivity(input),
   runDiagnosis: (input: Parameters<MockActions['runDiagnosis']>[0]) =>
     useMockStore.getState().runDiagnosis(input),
   recordOutcome: (input: Parameters<MockActions['recordOutcome']>[0]) =>
@@ -441,10 +723,36 @@ export const mockActions = {
     workspaceId: string,
     patch: Parameters<MockActions['updateWorkspace']>[1],
   ) => useMockStore.getState().updateWorkspace(workspaceId, patch),
+  addProduct: (
+    workspaceId: string,
+    input: Parameters<MockActions['addProduct']>[1],
+  ) => useMockStore.getState().addProduct(workspaceId, input),
+  updateProduct: (
+    productId: string,
+    patch: Parameters<MockActions['updateProduct']>[1],
+  ) => useMockStore.getState().updateProduct(productId, patch),
+  setPrimaryProduct: (productId: string) =>
+    useMockStore.getState().setPrimaryProduct(productId),
   upsertProductForWorkspace: (
     workspaceId: string,
     input: Parameters<MockActions['upsertProductForWorkspace']>[1],
   ) => useMockStore.getState().upsertProductForWorkspace(workspaceId, input),
+  addScriptTemplate: (
+    workspaceId: string,
+    input: Parameters<MockActions['addScriptTemplate']>[1],
+  ) => useMockStore.getState().addScriptTemplate(workspaceId, input),
+  updateScriptTemplate: (
+    scriptTemplateId: string,
+    patch: Parameters<MockActions['updateScriptTemplate']>[1],
+  ) => useMockStore.getState().updateScriptTemplate(scriptTemplateId, patch),
+  setPrimaryScriptTemplate: (scriptTemplateId: string) =>
+    useMockStore.getState().setPrimaryScriptTemplate(scriptTemplateId),
+  setPrecallIntelligence: (input: Parameters<MockActions['setPrecallIntelligence']>[0]) =>
+    useMockStore.getState().setPrecallIntelligence(input),
+  addImportMapping: (
+    workspaceId: string,
+    input: Parameters<MockActions['addImportMapping']>[1],
+  ) => useMockStore.getState().addImportMapping(workspaceId, input),
 };
 
 // --- Read-only helpers ---

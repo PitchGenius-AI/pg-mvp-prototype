@@ -1,6 +1,6 @@
 import type { AlignmentLevel } from '@pg/shared';
 import { useMockStore } from '../../mock/store';
-import type { MockBuyer, MockInteraction, MockOpportunity } from '../../mock/types';
+import type { MockActivity, MockBuyer, MockOpportunity } from '../../mock/types';
 import type { ListSearchParams, SortOption } from './search-schema';
 
 // Severity ordering for "most over-projecting" sort. Higher number = more severe.
@@ -26,8 +26,8 @@ export function selectOpportunityRows(workspaceId: string): OpportunityRowData[]
   const opps = Object.values(state.opportunities).filter(
     (o) => o.workspaceId === workspaceId,
   );
-  const interactionsByOpp = groupInteractionsByOpportunity(
-    Object.values(state.interactions),
+  const interactionsByOpp = groupActivitiesByOpportunity(
+    Object.values(state.activities),
   );
   return opps
     .map((opp) => ({
@@ -43,26 +43,26 @@ export function selectOpportunityRows(workspaceId: string): OpportunityRowData[]
     );
 }
 
-function groupInteractionsByOpportunity(
-  interactions: MockInteraction[],
-): Map<string, MockInteraction[]> {
-  const result = new Map<string, MockInteraction[]>();
-  for (const i of interactions) {
-    const list = result.get(i.opportunityId);
-    if (list) list.push(i);
-    else result.set(i.opportunityId, [i]);
+function groupActivitiesByOpportunity(
+  activities: MockActivity[],
+): Map<string, MockActivity[]> {
+  const result = new Map<string, MockActivity[]>();
+  for (const a of activities) {
+    const list = result.get(a.opportunityId);
+    if (list) list.push(a);
+    else result.set(a.opportunityId, [a]);
   }
   return result;
 }
 
 function pickLatestInteractionDate(
-  interactions: MockInteraction[] | undefined,
+  activities: MockActivity[] | undefined,
   fallback: string,
 ): string {
-  if (!interactions || interactions.length === 0) return fallback;
-  return interactions.reduce(
-    (latest, i) => (i.interactionDate > latest ? i.interactionDate : latest),
-    interactions[0]!.interactionDate,
+  if (!activities || activities.length === 0) return fallback;
+  return activities.reduce(
+    (latest, a) => (a.activityDate > latest ? a.activityDate : latest),
+    activities[0]!.activityDate,
   );
 }
 

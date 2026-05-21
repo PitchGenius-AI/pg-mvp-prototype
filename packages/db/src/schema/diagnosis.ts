@@ -19,9 +19,9 @@ import {
 } from './enums';
 import { user } from './auth';
 import { workspaces } from './workspace';
-import { interactions, opportunities } from './pipeline';
+import { activities, opportunities } from './pipeline';
 
-// One diagnosis per interaction. JSON columns hold the validated AI output verbatim;
+// One diagnosis per activity. JSON columns hold the validated AI output verbatim;
 // the discrete columns are denormalized for filtering/sorting.
 export const readinessDiagnoses = pgTable(
   'readiness_diagnoses',
@@ -33,9 +33,9 @@ export const readinessDiagnoses = pgTable(
     opportunityId: uuid('opportunity_id')
       .notNull()
       .references(() => opportunities.id, { onDelete: 'cascade' }),
-    interactionId: uuid('interaction_id')
+    activityId: uuid('activity_id')
       .notNull()
-      .references(() => interactions.id, { onDelete: 'cascade' }),
+      .references(() => activities.id, { onDelete: 'cascade' }),
     // Structured AI outputs (validated by zod schemas in @pg/shared before insert).
     signalExtraction: jsonb('signal_extraction').notNull(),
     diagnosis: jsonb('diagnosis').notNull(),
@@ -57,7 +57,7 @@ export const readinessDiagnoses = pgTable(
   },
   (t) => [
     index('diagnoses_opportunity_created_idx').on(t.opportunityId, t.createdAt),
-    index('diagnoses_interaction_idx').on(t.interactionId),
+    index('diagnoses_activity_idx').on(t.activityId),
   ],
 );
 

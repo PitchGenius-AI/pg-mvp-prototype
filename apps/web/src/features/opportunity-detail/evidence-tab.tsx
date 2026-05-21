@@ -32,27 +32,27 @@ import {
   IconVideo,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { interactionTypes, type InteractionType } from '@pg/shared';
-import { useAddInteraction, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
+import { activityTypes, type ActivityType } from '@pg/shared';
+import { useAddActivity, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
 import { FAKE_DIAGNOSIS_STEPS, fakeGenerateDiagnosis } from '../../mock/fake-diagnosis';
 import { useCurrentProduct } from '../../mock/hooks';
 import { useBuyerById, useCurrentSession } from '../../mock/store';
 import { mockAiCall } from '../../mock/mock-api';
 import { relativeTime } from '../opportunity-list/filter-sort';
 import type {
+  MockActivity,
   MockDiagnosis,
-  MockInteraction,
   MockOpportunity,
 } from '../../mock/types';
 import { humanize } from './badges';
 
 interface EvidenceTabProps {
   opportunity: MockOpportunity;
-  interactions: MockInteraction[];
+  interactions: MockActivity[];
   onJumpToDiagnosis: () => void;
 }
 
-const INTERACTION_TYPE_OPTIONS = interactionTypes.map((value) => ({
+const INTERACTION_TYPE_OPTIONS = activityTypes.map((value) => ({
   value,
   label: humanize(value),
 }));
@@ -63,7 +63,7 @@ export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: Ev
 
   const diagnosesByInteraction = new Map<string, MockDiagnosis>();
   for (const d of diagnoses) {
-    diagnosesByInteraction.set(d.interactionId, d);
+    diagnosesByInteraction.set(d.activityId, d);
   }
 
   return (
@@ -119,7 +119,7 @@ function InteractionCard({
   interaction,
   diagnosis,
 }: {
-  interaction: MockInteraction;
+  interaction: MockActivity;
   diagnosis: MockDiagnosis | null;
 }) {
   const snippet = (interaction.transcriptOrNotes ?? '').slice(0, 200).trim();
@@ -128,14 +128,14 @@ function InteractionCard({
       <Stack gap="xs">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="xs">
-            <InteractionTypeIcon type={interaction.interactionType} />
+            <InteractionTypeIcon type={interaction.activityType} />
             <Stack gap={0}>
               <Text fw={500} size="sm">
-                {humanize(interaction.interactionType)}
+                {humanize(interaction.activityType)}
               </Text>
               <Text size="xs" c="dimmed">
-                {new Date(interaction.interactionDate).toLocaleDateString()} ·{' '}
-                {relativeTime(interaction.interactionDate)}
+                {new Date(interaction.activityDate).toLocaleDateString()} ·{' '}
+                {relativeTime(interaction.activityDate)}
               </Text>
             </Stack>
           </Group>
@@ -180,7 +180,7 @@ function InteractionCard({
   );
 }
 
-function InteractionTypeIcon({ type }: { type: InteractionType }) {
+function InteractionTypeIcon({ type }: { type: ActivityType }) {
   switch (type) {
     case 'video_meeting':
     case 'demo':
@@ -207,8 +207,8 @@ interface AddInteractionModalProps {
 }
 
 interface InteractionFormState {
-  interactionType: InteractionType;
-  interactionDate: Date;
+  activityType: ActivityType;
+  activityDate: Date;
   participants: string[];
   transcriptOrNotes: string;
   repSubjectiveNotes: string;
@@ -223,8 +223,8 @@ interface InteractionFormState {
 
 function emptyForm(): InteractionFormState {
   return {
-    interactionType: 'video_meeting',
-    interactionDate: new Date(),
+    activityType: 'video_meeting',
+    activityDate: new Date(),
     participants: [],
     transcriptOrNotes: '',
     repSubjectiveNotes: '',
@@ -247,7 +247,7 @@ function AddInteractionModal({
   const buyer = useBuyerById(opportunity.buyerId);
   const { data: product } = useCurrentProduct();
   const session = useCurrentSession();
-  const { mutateAsync: addInteraction } = useAddInteraction();
+  const { mutateAsync: addActivity } = useAddActivity();
   const { mutateAsync: runDiagnosis } = useRunDiagnosis();
 
   const [form, setForm] = useState<InteractionFormState>(emptyForm());
@@ -294,11 +294,11 @@ function AddInteractionModal({
     }, 600);
 
     try {
-      const interaction = await addInteraction({
+      const activity = await addActivity({
         workspaceId: opportunity.workspaceId,
         opportunityId: opportunity.id,
-        interactionType: form.interactionType,
-        interactionDate: form.interactionDate.toISOString(),
+        activityType: form.activityType,
+        activityDate: form.activityDate.toISOString(),
         participants: form.participants,
         transcriptOrNotes: form.transcriptOrNotes,
         repSubjectiveNotes: form.repSubjectiveNotes || null,
@@ -316,7 +316,7 @@ function AddInteractionModal({
           opportunity,
           buyer,
           product: product ?? null,
-          interaction,
+          activity,
           repName: session?.user.name,
         }),
       );
@@ -324,7 +324,7 @@ function AddInteractionModal({
       await runDiagnosis({
         workspaceId: opportunity.workspaceId,
         opportunityId: opportunity.id,
-        interactionId: interaction.id,
+        activityId: activity.id,
         signalExtraction,
         diagnosis,
         readinessState: diagnosis.readiness_state,
@@ -384,10 +384,10 @@ function AddInteractionModal({
                 {INTERACTION_TYPE_OPTIONS.map((o) => (
                   <Badge
                     key={o.value}
-                    variant={form.interactionType === o.value ? 'filled' : 'outline'}
+                    variant={form.activityType === o.value ? 'filled' : 'outline'}
                     size="md"
                     style={{ cursor: 'pointer' }}
-                    onClick={() => updateField('interactionType', o.value as InteractionType)}
+                    onClick={() => updateField('activityType', o.value as ActivityType)}
                   >
                     {o.label}
                   </Badge>
@@ -397,10 +397,10 @@ function AddInteractionModal({
             <DateInput
               label="Date"
               leftSection={<IconCalendar size={14} />}
-              value={form.interactionDate}
+              value={form.activityDate}
               onChange={(value) =>
                 updateField(
-                  'interactionDate',
+                  'activityDate',
                   value instanceof Date ? value : value ? new Date(value) : new Date(),
                 )
               }

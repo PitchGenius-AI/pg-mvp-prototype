@@ -7,7 +7,7 @@ import {
   type SignalExtractorInput,
 } from '@pg/ai';
 import {
-  interactions,
+  activities,
   opportunities,
   products,
   readinessDiagnoses,
@@ -35,21 +35,21 @@ export const diagnosisRouter = router({
       });
     }),
 
-  // The end-to-end AI pipeline for one interaction:
-  //   1. Load product + opportunity + interaction context
+  // The end-to-end AI pipeline for one activity:
+  //   1. Load product + opportunity + activity context
   //   2. Extract signals (Claude call 1)
   //   3. Generate diagnosis (Claude call 2)
   //   4. Persist diagnosis row + update opportunity's denormalized current_* fields
   run: protectedProcedure
-    .input(z.object({ interactionId: z.string().uuid() }))
+    .input(z.object({ activityId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const interaction = await ctx.db.query.interactions.findFirst({
-        where: eq(interactions.id, input.interactionId),
+      const activity = await ctx.db.query.activities.findFirst({
+        where: eq(activities.id, input.activityId),
       });
-      if (!interaction) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (!activity) throw new TRPCError({ code: 'NOT_FOUND' });
 
       const opp = await ctx.db.query.opportunities.findFirst({
-        where: eq(opportunities.id, interaction.opportunityId),
+        where: eq(opportunities.id, activity.opportunityId),
       });
       if (!opp) throw new TRPCError({ code: 'NOT_FOUND' });
 
@@ -77,17 +77,17 @@ export const diagnosisRouter = router({
         productDescription: product.description,
         targetBuyer: product.targetBuyer,
         problemSolved: product.problemSolved,
-        interactionType: interaction.interactionType,
-        transcriptOrNotes: interaction.transcriptOrNotes,
-        repSubjectiveNotes: interaction.repSubjectiveNotes,
+        activityType: activity.activityType,
+        transcriptOrNotes: activity.transcriptOrNotes,
+        repSubjectiveNotes: activity.repSubjectiveNotes,
         checklist: {
-          nextStepAgreed: interaction.nextStepAgreed,
-          stakeholderAdded: interaction.stakeholderAdded,
-          pricingDiscussed: interaction.pricingDiscussed,
-          budgetDiscussed: interaction.budgetDiscussed,
-          competitorDiscussed: interaction.competitorDiscussed,
-          implementationDiscussed: interaction.implementationDiscussed,
-          securityDiscussed: interaction.securityDiscussed,
+          nextStepAgreed: activity.nextStepAgreed,
+          stakeholderAdded: activity.stakeholderAdded,
+          pricingDiscussed: activity.pricingDiscussed,
+          budgetDiscussed: activity.budgetDiscussed,
+          competitorDiscussed: activity.competitorDiscussed,
+          implementationDiscussed: activity.implementationDiscussed,
+          securityDiscussed: activity.securityDiscussed,
         },
       };
       const signals = await extractSignals(ctx.anthropic, signalInput);
@@ -115,7 +115,7 @@ export const diagnosisRouter = router({
           .values({
             workspaceId: opp.workspaceId,
             opportunityId: opp.id,
-            interactionId: interaction.id,
+            activityId: activity.id,
             signalExtraction: signals,
             diagnosis,
             readinessState: diagnosis.readiness_state,

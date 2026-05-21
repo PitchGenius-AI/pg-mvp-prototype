@@ -1,7 +1,7 @@
 import type {
+  MockActivity,
   MockBuyer,
   MockDiagnosis,
-  MockInteraction,
   MockOpportunity,
 } from '../mock/types';
 
@@ -119,7 +119,7 @@ export function buildOpportunityJson(args: {
   opportunity: MockOpportunity;
   buyer: MockBuyer | null;
   diagnosis: MockDiagnosis | null;
-  interactions: MockInteraction[];
+  interactions: MockActivity[];
 }): string {
   return JSON.stringify(
     {

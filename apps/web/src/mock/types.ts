@@ -1,18 +1,39 @@
 import type {
+  Activity,
   AlignmentLevel,
   AlignmentOutcome,
+  Buyer,
   ClosedStatus,
   ConfidenceLevel,
-  InteractionType,
-  OutcomeType,
+  CrmStageTemplate,
+  ImportMapping,
+  Opportunity,
+  PrecallIntelligence,
+  Product,
   ReadinessDiagnosis,
   ReadinessState,
+  ScriptTemplate,
   SignalExtraction,
+  Workspace,
+  OutcomeType,
 } from '@pg/shared';
 
-// Prototype-local entities. Shape mirrors the Drizzle tables in @pg/db so that
-// swapping in the real tRPC client is mechanical — only ids/timestamps are
-// represented as plain strings (the DB issues uuids + Date objects).
+// Prototype-local entities. The store shape is a faithful mirror of the zod
+// entity schemas in @pg/shared (the SHARED CONTRACT) — the `Mock*` aliases below
+// derive straight from `z.infer` of those schemas, so swapping in the real tRPC
+// client later is mechanical. IDs and timestamps are plain strings here (the DB
+// issues uuids + Date objects); both shapes parse against the same schemas.
+
+export type { CrmStageTemplate };
+
+export type MockWorkspace = Workspace;
+export type MockProduct = Product;
+export type MockBuyer = Buyer;
+export type MockOpportunity = Opportunity;
+export type MockActivity = Activity;
+export type MockScriptTemplate = ScriptTemplate;
+export type MockImportMapping = ImportMapping;
+export type MockPrecallIntelligence = PrecallIntelligence;
 
 export interface MockUser {
   id: string;
@@ -20,95 +41,13 @@ export interface MockUser {
   email: string;
 }
 
-export type CrmStageTemplate = 'simple_b2b_sales' | 'custom';
-
-export interface MockWorkspace {
-  id: string;
-  name: string;
-  website: string | null;
-  industry: string | null;
-  crmStageTemplate: CrmStageTemplate;
-  customCrmStages: Array<{ name: string; order: number }> | null;
-  createdByUserId: string;
-  onboardingCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MockProduct {
-  id: string;
-  workspaceId: string;
-  name: string;
-  description: string;
-  targetBuyer: string;
-  problemSolved: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MockBuyer {
-  id: string;
-  workspaceId: string;
-  firstName: string;
-  lastName: string | null;
-  title: string | null;
-  company: string;
-  email: string | null;
-  linkedin: string | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MockOpportunity {
-  id: string;
-  workspaceId: string;
-  buyerId: string;
-  productId: string;
-  ownerUserId: string;
-  opportunityName: string;
-  currentCrmStage: string;
-  opportunityValue: number | null;
-  expectedCloseDate: string | null;
-  knownPain: string | null;
-  knownObjection: string | null;
-  dealNotes: string | null;
-  currentReadinessState: ReadinessState | null;
-  currentReadinessScore: number | null;
-  currentAlignmentOutcome: AlignmentOutcome | null;
-  currentAlignmentLevel: AlignmentLevel | null;
-  atRisk: boolean;
-  closedStatus: ClosedStatus;
-  reframedFromOpportunityId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MockInteraction {
-  id: string;
-  workspaceId: string;
-  opportunityId: string;
-  interactionType: InteractionType;
-  interactionDate: string;
-  participants: string[];
-  transcriptOrNotes: string | null;
-  repSubjectiveNotes: string | null;
-  nextStepAgreed: boolean;
-  stakeholderAdded: boolean;
-  pricingDiscussed: boolean;
-  budgetDiscussed: boolean;
-  competitorDiscussed: boolean;
-  implementationDiscussed: boolean;
-  securityDiscussed: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// Denormalized read-model: holds the validated AI output verbatim (`diagnosis`,
+// `signalExtraction`) plus discrete columns for filtering/sorting. One per activity.
 export interface MockDiagnosis {
   id: string;
   workspaceId: string;
   opportunityId: string;
-  interactionId: string;
+  activityId: string;
   signalExtraction: SignalExtraction;
   diagnosis: ReadinessDiagnosis;
   readinessState: ReadinessState;

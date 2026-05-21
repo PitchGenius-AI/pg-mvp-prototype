@@ -1,14 +1,14 @@
 import { router } from '../trpc';
 import { workspaceRouter } from './workspace';
 import { opportunityRouter } from './opportunity';
-import { interactionRouter } from './interaction';
+import { activityRouter } from './activity';
 import { diagnosisRouter } from './diagnosis';
 import { parserRouter } from './parser';
 
 export const appRouter = router({
   workspace: workspaceRouter,
   opportunity: opportunityRouter,
-  interaction: interactionRouter,
+  activity: activityRouter,
   diagnosis: diagnosisRouter,
   parser: parserRouter,
 });

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { ErrorState } from '../../components/error-boundary';
 import { OpportunityDetailSkeleton } from '../../components/skeletons/opportunity-detail-skeleton';
 import {
-  useInteractions,
+  useActivities,
   useLatestDiagnosis,
   useOpportunity,
 } from '../../mock/hooks';
@@ -31,14 +31,14 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
     refetch,
   } = useOpportunity(opportunityId);
   const buyer = useBuyerById(opportunity?.buyerId);
-  const { data: interactions = [] } = useInteractions(opportunity?.id);
+  const { data: interactions = [] } = useActivities(opportunity?.id);
   const { data: latestDiagnosis = null } = useLatestDiagnosis(opportunity?.id);
 
   const latestInteractionDate = useMemo(() => {
     if (interactions.length === 0) return null;
     return interactions.reduce(
-      (latest, i) => (i.interactionDate > latest ? i.interactionDate : latest),
-      interactions[0]!.interactionDate,
+      (latest, a) => (a.activityDate > latest ? a.activityDate : latest),
+      interactions[0]!.activityDate,
     );
   }, [interactions]);
 

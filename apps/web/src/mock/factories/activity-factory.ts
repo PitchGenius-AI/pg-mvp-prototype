@@ -1,23 +1,23 @@
-import type { MockInteraction } from '../types';
+import type { MockActivity } from '../types';
 
-let interactionCounter = 0;
+let activityCounter = 0;
 
-export interface InteractionFactoryInput
-  extends Omit<MockInteraction, 'id' | 'createdAt' | 'updatedAt'> {
+export interface ActivityFactoryInput
+  extends Omit<MockActivity, 'id' | 'createdAt' | 'updatedAt'> {
   id?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export function makeInteraction(input: InteractionFactoryInput): MockInteraction {
-  interactionCounter += 1;
+export function makeActivity(input: ActivityFactoryInput): MockActivity {
+  activityCounter += 1;
   const now = new Date().toISOString();
   return {
-    id: input.id ?? `int_seed_${interactionCounter}`,
+    id: input.id ?? `act_seed_${activityCounter}`,
     workspaceId: input.workspaceId,
     opportunityId: input.opportunityId,
-    interactionType: input.interactionType,
-    interactionDate: input.interactionDate,
+    activityType: input.activityType,
+    activityDate: input.activityDate,
     participants: input.participants,
     transcriptOrNotes: input.transcriptOrNotes ?? null,
     repSubjectiveNotes: input.repSubjectiveNotes ?? null,

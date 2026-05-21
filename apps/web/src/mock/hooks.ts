@@ -3,12 +3,15 @@ import { mockApi } from './mock-api';
 import { queryKeys } from './queries';
 import { useMockStore } from './store';
 import type {
+  MockActivity,
   MockBuyer,
   MockDiagnosis,
-  MockInteraction,
+  MockImportMapping,
   MockOpportunity,
   MockOutcome,
+  MockPrecallIntelligence,
   MockProduct,
+  MockScriptTemplate,
   MockSession,
   MockWorkspace,
 } from './types';
@@ -16,6 +19,11 @@ import type {
 // Hook layer. Components import from here, never from `./store` directly, so when
 // the real tRPC client lands the only file that changes is this one — the
 // component-facing hook names + return shapes stay identical.
+
+const workspaceProducts = (workspaceId: string): MockProduct[] =>
+  Object.values(useMockStore.getState().products).filter(
+    (p) => p.workspaceId === workspaceId,
+  );
 
 // --- Queries ---
 
@@ -37,15 +45,74 @@ export function useCurrentWorkspace() {
   });
 }
 
-export function useCurrentProduct() {
+// Every product in the current workspace (multi-product as of M9).
+export function useProducts() {
   return useQuery({
     queryKey: queryKeys.product.forCurrentWorkspace,
+    queryFn: () =>
+      mockApi<MockProduct[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return workspaceProducts(s.session.workspaceId);
+      }),
+  });
+}
+
+// The primary product — default context for new opportunities.
+export function usePrimaryProduct() {
+  return useQuery({
+    queryKey: queryKeys.product.primary,
     queryFn: () =>
       mockApi<MockProduct | null>(() => {
         const s = useMockStore.getState();
         if (!s.session) return null;
-        return (
-          Object.values(s.products).find((p) => p.workspaceId === s.session?.workspaceId) ?? null
+        const products = workspaceProducts(s.session.workspaceId);
+        return products.find((p) => p.isPrimary) ?? products[0] ?? null;
+      }),
+  });
+}
+
+// Back-compat alias for M3–M6 surfaces written against single-product workspaces.
+export const useCurrentProduct = usePrimaryProduct;
+
+export function useBuyers() {
+  return useQuery({
+    queryKey: queryKeys.buyer.list(),
+    queryFn: () =>
+      mockApi<MockBuyer[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        const workspaceId = s.session.workspaceId;
+        return Object.values(s.buyers)
+          .filter((b) => b.workspaceId === workspaceId)
+          .sort((a, b) => a.firstName.localeCompare(b.firstName));
+      }),
+  });
+}
+
+export function useScriptTemplates() {
+  return useQuery({
+    queryKey: queryKeys.scriptTemplate.list(),
+    queryFn: () =>
+      mockApi<MockScriptTemplate[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return Object.values(s.scriptTemplates).filter(
+          (t) => t.workspaceId === s.session?.workspaceId,
+        );
+      }),
+  });
+}
+
+export function useImportMappings() {
+  return useQuery({
+    queryKey: queryKeys.importMapping.list(),
+    queryFn: () =>
+      mockApi<MockImportMapping[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return Object.values(s.importMappings).filter(
+          (m) => m.workspaceId === s.session?.workspaceId,
         );
       }),
   });
@@ -77,18 +144,18 @@ export function useOpportunity(id: string | undefined) {
   });
 }
 
-export function useInteractions(opportunityId: string | undefined) {
+export function useActivities(opportunityId: string | undefined) {
   return useQuery({
     queryKey: opportunityId
-      ? queryKeys.interaction.forOpportunity(opportunityId)
-      : ['interaction', 'forOpportunity', 'noop'],
+      ? queryKeys.activity.forOpportunity(opportunityId)
+      : ['activity', 'forOpportunity', 'noop'],
     enabled: opportunityId !== undefined,
     queryFn: () =>
-      mockApi<MockInteraction[]>(() => {
+      mockApi<MockActivity[]>(() => {
         if (!opportunityId) return [];
-        return Object.values(useMockStore.getState().interactions)
-          .filter((i) => i.opportunityId === opportunityId)
-          .sort((a, b) => b.interactionDate.localeCompare(a.interactionDate));
+        return Object.values(useMockStore.getState().activities)
+          .filter((a) => a.opportunityId === opportunityId)
+          .sort((a, b) => b.activityDate.localeCompare(a.activityDate));
       }),
   });
 }
@@ -156,26 +223,46 @@ export function useOutcomes(opportunityId: string | undefined) {
   });
 }
 
+export function usePrecallIntelligence(opportunityId: string | undefined) {
+  return useQuery({
+    queryKey: opportunityId
+      ? queryKeys.precall.forOpportunity(opportunityId)
+      : ['precall', 'forOpportunity', 'noop'],
+    enabled: opportunityId !== undefined,
+    queryFn: () =>
+      mockApi<MockPrecallIntelligence | null>(() => {
+        if (!opportunityId) return null;
+        return (
+          Object.values(useMockStore.getState().precallIntelligence).find(
+            (p) => p.opportunityId === opportunityId,
+          ) ?? null
+        );
+      }),
+  });
+}
+
 // --- Mutations ---
 
-type AddOpportunityInput = Parameters<
-  ReturnType<typeof useMockStore.getState>['addOpportunity']
->[0];
-type AddBuyerInput = Parameters<ReturnType<typeof useMockStore.getState>['addBuyer']>[0];
-type AddInteractionInput = Parameters<
-  ReturnType<typeof useMockStore.getState>['addInteraction']
->[0];
-type RunDiagnosisInput = Parameters<
-  ReturnType<typeof useMockStore.getState>['runDiagnosis']
->[0];
-type RecordOutcomeInput = Parameters<
-  ReturnType<typeof useMockStore.getState>['recordOutcome']
->[0];
+type Actions = ReturnType<typeof useMockStore.getState>;
+type AddOpportunityInput = Parameters<Actions['addOpportunity']>[0];
+type AddBuyerInput = Parameters<Actions['addBuyer']>[0];
+type AddActivityInput = Parameters<Actions['addActivity']>[0];
+type RunDiagnosisInput = Parameters<Actions['runDiagnosis']>[0];
+type RecordOutcomeInput = Parameters<Actions['recordOutcome']>[0];
+type AddProductInput = Parameters<Actions['addProduct']>[1];
+type UpdateProductPatch = Parameters<Actions['updateProduct']>[1];
+type AddScriptTemplateInput = Parameters<Actions['addScriptTemplate']>[1];
+type UpdateScriptTemplatePatch = Parameters<Actions['updateScriptTemplate']>[1];
+type SetPrecallInput = Parameters<Actions['setPrecallIntelligence']>[0];
+type AddImportMappingInput = Parameters<Actions['addImportMapping']>[1];
 
 export function useAddOpportunity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { buyer?: AddBuyerInput; opportunity: Omit<AddOpportunityInput, 'buyerId'> & { buyerId?: string } }) =>
+    mutationFn: (input: {
+      buyer?: AddBuyerInput;
+      opportunity: Omit<AddOpportunityInput, 'buyerId'> & { buyerId?: string };
+    }) =>
       mockApi<MockOpportunity>(() => {
         const state = useMockStore.getState();
         let buyerId = input.opportunity.buyerId;
@@ -189,25 +276,30 @@ export function useAddOpportunity() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+      qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
     },
   });
 }
 
 export function useAddBuyer() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: AddBuyerInput) =>
       mockApi<MockBuyer>(() => useMockStore.getState().addBuyer(input)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
+    },
   });
 }
 
-export function useAddInteraction() {
+export function useAddActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: AddInteractionInput) =>
-      mockApi<MockInteraction>(() => useMockStore.getState().addInteraction(input)),
-    onSuccess: (interaction) => {
+    mutationFn: (input: AddActivityInput) =>
+      mockApi<MockActivity>(() => useMockStore.getState().addActivity(input)),
+    onSuccess: (activity) => {
       qc.invalidateQueries({
-        queryKey: queryKeys.interaction.forOpportunity(interaction.opportunityId),
+        queryKey: queryKeys.activity.forOpportunity(activity.opportunityId),
       });
     },
   });
@@ -241,6 +333,112 @@ export function useRecordOutcome() {
         queryKey: queryKeys.outcome.forOpportunity(outcome.opportunityId),
       });
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+    },
+  });
+}
+
+export function useAddProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { workspaceId: string; product: AddProductInput }) =>
+      mockApi<MockProduct>(() =>
+        useMockStore.getState().addProduct(input.workspaceId, input.product),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.product.all });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { productId: string; patch: UpdateProductPatch }) =>
+      mockApi<MockProduct | null>(() =>
+        useMockStore.getState().updateProduct(input.productId, input.patch),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.product.all });
+    },
+  });
+}
+
+export function useSetPrimaryProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (productId: string) =>
+      mockApi<void>(() => useMockStore.getState().setPrimaryProduct(productId)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.product.all });
+    },
+  });
+}
+
+export function useAddScriptTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { workspaceId: string; template: AddScriptTemplateInput }) =>
+      mockApi<MockScriptTemplate>(() =>
+        useMockStore.getState().addScriptTemplate(input.workspaceId, input.template),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.scriptTemplate.all });
+    },
+  });
+}
+
+export function useUpdateScriptTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { scriptTemplateId: string; patch: UpdateScriptTemplatePatch }) =>
+      mockApi<MockScriptTemplate | null>(() =>
+        useMockStore.getState().updateScriptTemplate(input.scriptTemplateId, input.patch),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.scriptTemplate.all });
+    },
+  });
+}
+
+export function useSetPrimaryScriptTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (scriptTemplateId: string) =>
+      mockApi<void>(() =>
+        useMockStore.getState().setPrimaryScriptTemplate(scriptTemplateId),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.scriptTemplate.all });
+    },
+  });
+}
+
+export function useSetPrecallIntelligence() {
+  const qc = useQueryClient();
+  return useMutation({
+    // "AI" enrichment call — slower latency window for a meaningful spinner.
+    mutationFn: (input: SetPrecallInput) =>
+      mockApi<MockPrecallIntelligence>(
+        () => useMockStore.getState().setPrecallIntelligence(input),
+        { slow: true },
+      ),
+    onSuccess: (precall) => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.precall.forOpportunity(precall.opportunityId),
+      });
+    },
+  });
+}
+
+export function useAddImportMapping() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { workspaceId: string; mapping: AddImportMappingInput }) =>
+      mockApi<MockImportMapping>(() =>
+        useMockStore.getState().addImportMapping(input.workspaceId, input.mapping),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.importMapping.all });
     },
   });
 }

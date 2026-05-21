@@ -27,7 +27,7 @@ export interface SignalExtractorInput {
   productDescription: string;
   targetBuyer: string;
   problemSolved: string;
-  interactionType: string;
+  activityType: string;
   transcriptOrNotes: string | null;
   repSubjectiveNotes: string | null;
   checklist: {
@@ -52,7 +52,7 @@ export async function extractSignals(
     `Target buyer: ${input.targetBuyer}`,
     `Problem solved: ${input.problemSolved}`,
     ``,
-    `## Interaction (${input.interactionType})`,
+    `## Activity (${input.activityType})`,
     ``,
     `### Transcript / notes`,
     input.transcriptOrNotes ?? '(none)',

@@ -17,7 +17,7 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
    - **Workspace name:** "Acme Sales Co" (or use the demo company's name)
    - **Product Q&A:** what you sell / who you sell to / what problem you solve. Talk through the importance of context — every readiness diagnosis is anchored against this product description.
    - **CRM stages:** pick **Simple B2B Sales** (the prototype's default template).
-3. Submit. You land on `/opportunities` with eight seeded deals.
+3. Submit. You land on `/opportunities` with ten seeded deals.
 
 **Talking points:**
 - "Under five minutes from sign-up to your first readiness diagnosis — that's the bar."
@@ -48,11 +48,11 @@ This is the setup for the punchline. The whole point of Pipeline Reality Check i
 
 **Steps:**
 1. On the opportunity list, in the **Alignment** filter, select **Over-projecting**.
-2. The list narrows to three deals: **Globex (critical)**, **Initech (high)**, and **Pied Piper (low)**.
-3. Hover the at-risk icon on Globex and Initech — both flagged because the buyer evidence is dominated by risk signals.
+2. The list narrows to four deals: **Globex (critical)**, **Initech (high)**, **Soylent (high)**, and **Pied Piper (low)**.
+3. Hover the at-risk icon on Globex, Initech, and Soylent — flagged because the buyer evidence is dominated by risk signals.
 
 **Talking points:**
-- "Three of eight deals in this pipeline are over-projecting. That's the kind of forecast surprise that costs a quarter."
+- "Four of ten deals in this pipeline are over-projecting. That's the kind of forecast surprise that costs a quarter."
 - "Notice we are not telling the rep their deal is dead — we are telling them the *stage they have it at* is ahead of what the buyer evidence supports."
 
 ---

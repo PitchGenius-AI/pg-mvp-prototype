@@ -10,7 +10,7 @@ import {
   type Signal,
   type SignalExtraction,
 } from '@pg/shared';
-import type { MockBuyer, MockInteraction, MockOpportunity, MockProduct } from './types';
+import type { MockActivity, MockBuyer, MockOpportunity, MockProduct } from './types';
 
 // Heuristic-light stand-in for the real Anthropic signal-extraction + diagnosis
 // chains. Scans the interaction text + checklist flags + rep notes for keywords,
@@ -24,7 +24,7 @@ interface GenerateInput {
   opportunity: MockOpportunity;
   buyer: MockBuyer | null;
   product: MockProduct | null;
-  interaction: MockInteraction;
+  activity: MockActivity;
   repName?: string;
 }
 
@@ -88,19 +88,19 @@ const STAGE_ORDER: ReadinessState[] = [
 ];
 
 export function fakeGenerateDiagnosis(input: GenerateInput): GenerateResult {
-  const { opportunity, buyer, interaction, repName } = input;
+  const { opportunity, buyer, activity, repName } = input;
   const text = [
-    interaction.transcriptOrNotes ?? '',
-    interaction.repSubjectiveNotes ? `[Rep note] ${interaction.repSubjectiveNotes}` : '',
+    activity.transcriptOrNotes ?? '',
+    activity.repSubjectiveNotes ? `[Rep note] ${activity.repSubjectiveNotes}` : '',
   ]
     .filter(Boolean)
     .join('\n');
 
-  const signalExtraction = extractSignals(text, interaction);
-  const dimensionScores = scoreDimensions(signalExtraction, interaction);
+  const signalExtraction = extractSignals(text, activity);
+  const dimensionScores = scoreDimensions(signalExtraction, activity);
   const readinessState = inferReadinessState(dimensionScores, opportunity);
   const readinessScore = computeOverallScore(dimensionScores);
-  const confidence = inferConfidence(signalExtraction, interaction);
+  const confidence = inferConfidence(signalExtraction, activity);
   const { outcome, level, reason } = computePipelineRealityCheck(
     opportunity.currentCrmStage,
     readinessState,
@@ -145,7 +145,7 @@ export function fakeGenerateDiagnosis(input: GenerateInput): GenerateResult {
 
 // --- Signal extraction ---
 
-function extractSignals(text: string, interaction: MockInteraction): SignalExtraction {
+function extractSignals(text: string, interaction: MockActivity): SignalExtraction {
   const sentences = splitSentences(text);
   const extraction: SignalExtraction = {
     pain: [],
@@ -268,7 +268,7 @@ function signalStrength(sentence: string): Signal['strength'] {
 
 function deriveMissingEvidence(
   extraction: SignalExtraction,
-  interaction: MockInteraction,
+  interaction: MockActivity,
 ): string[] {
   const missing: string[] = [];
   if (!interaction.budgetDiscussed && extraction.commitment.length === 0) {
@@ -299,7 +299,7 @@ interface DimensionScore {
 
 function scoreDimensions(
   extraction: SignalExtraction,
-  interaction: MockInteraction,
+  interaction: MockActivity,
 ): Record<DimensionKey, DimensionScore> {
   const dims: DimensionKey[] = ['pain', 'trust', 'urgency', 'solution_confidence', 'commitment'];
   const result = {} as Record<DimensionKey, DimensionScore>;
@@ -334,7 +334,7 @@ function scoreDimensions(
 function narrativeFor(
   dim: DimensionKey,
   signalCount: number,
-  _interaction: MockInteraction,
+  _interaction: MockActivity,
 ): string {
   if (signalCount === 0) return `No clear ${dim.replace(/_/g, ' ')} signals in this evidence.`;
   if (signalCount === 1) return `One ${dim.replace(/_/g, ' ')} signal — early but real.`;
@@ -383,7 +383,7 @@ function inferReadinessState(
 
 function inferConfidence(
   extraction: SignalExtraction,
-  interaction: MockInteraction,
+  interaction: MockActivity,
 ): ConfidenceLevel {
   const totalSignals = readinessStates // any iterable of constants
     ? Object.values(extraction).reduce(
@@ -512,6 +512,8 @@ function deriveRecommendedAction(
     case 'commercially_ready':
     case 'commit_ready':
       return 'Move to paper. Confirm signature timeline and kickoff plan.';
+    case 'at_risk':
+      return 'Treat this as a re-open: re-qualify whether the deal still exists before any further sales motion.';
   }
 }
 
@@ -525,6 +527,7 @@ function readinessBucket(state: ReadinessState): ReadinessBucket {
     case 'diagnosis_aligned':
     case 'solution_curious':
     case 'solution_confident':
+    case 'at_risk':
       return 'mid';
     case 'stakeholder_validation_needed':
     case 'commercially_ready':

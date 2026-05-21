@@ -10,7 +10,15 @@ export const queryKeys = {
   },
 
   product: {
+    all: ['product'] as const,
     forCurrentWorkspace: ['product', 'forCurrentWorkspace'] as const,
+    primary: ['product', 'primary'] as const,
+  },
+
+  buyer: {
+    all: ['buyer'] as const,
+    list: () => ['buyer', 'list'] as const,
+    byId: (id: string) => ['buyer', 'byId', id] as const,
   },
 
   opportunity: {
@@ -19,9 +27,10 @@ export const queryKeys = {
     byId: (id: string) => ['opportunity', 'byId', id] as const,
   },
 
-  interaction: {
+  activity: {
+    all: ['activity'] as const,
     forOpportunity: (opportunityId: string) =>
-      ['interaction', 'forOpportunity', opportunityId] as const,
+      ['activity', 'forOpportunity', opportunityId] as const,
   },
 
   diagnosis: {
@@ -35,5 +44,20 @@ export const queryKeys = {
   outcome: {
     forOpportunity: (opportunityId: string) =>
       ['outcome', 'forOpportunity', opportunityId] as const,
+  },
+
+  scriptTemplate: {
+    all: ['scriptTemplate'] as const,
+    list: () => ['scriptTemplate', 'list'] as const,
+  },
+
+  precall: {
+    forOpportunity: (opportunityId: string) =>
+      ['precall', 'forOpportunity', opportunityId] as const,
+  },
+
+  importMapping: {
+    all: ['importMapping'] as const,
+    list: () => ['importMapping', 'list'] as const,
   },
 };

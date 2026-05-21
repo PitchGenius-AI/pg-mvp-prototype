@@ -4,20 +4,32 @@ This file orients a Claude Code agent landing in this repo for the first time. R
 
 ## Key links
 
-- **Scope doc (source of truth):** https://docs.google.com/document/d/19SQHpRMS1OghLeCwZCOGACLo20_veArQy5r9Y0KbdlE/edit
+- **Scope doc:** https://docs.google.com/document/d/19SQHpRMS1OghLeCwZCOGACLo20_veArQy5r9Y0KbdlE/edit
 - **Linear project:** https://linear.app/pitch-genius/project/buyer-readiness-mvp-30ada7fd1617/overview
 
-The scope doc is the source of truth. Items marked `[FLAG FOR RUSSELL]` in the doc are open questions awaiting product confirmation — don't build past them without checking. Items marked `[LEVER]` can be cut or added depending on capacity.
+The source of truth is the **MVP UX Spec** (a screen-by-screen spec iterated in markdown) together with its companion **MVP Scope Overview**. As of **May 2026** the scope was materially expanded — see *Scope status* below; the UX Spec is the most current artifact. The **MVP Scope Overview supersedes the older Google Doc scope doc** linked above — keep the Google Doc link for history, but defer to the Scope Overview + UX Spec wherever they disagree. _Add the UX Spec's and Scope Overview's canonical URLs here once they have a stable home._ Items marked `[FLAG]` / `[FLAG FOR RUSSELL]` in the specs are open questions awaiting product confirmation — don't build past them without checking. `[LEVER]` items can be cut or added depending on capacity.
+
+## Scope status — May 2026 re-scope
+
+A new MVP UX Spec materially expanded the product. Several earlier exclusions were **reversed**, and the codebase is mid-migration:
+
+- **Now in scope:** DISC/OCEAN psychological profiling, a matched sales technique + generated pre-call scripts, a **Live Co-pilot** desktop app (real-time in-call transcription + coaching), multiple products per workspace, a Buyers screen, a Board (Kanban) workbench view, account signup + an 11-step onboarding + a Stripe hard paywall, and a bulk file-based CRM round-trip (Daily Workbench import / CRM Update Pack export).
+- **Taxonomy change:** the readiness taxonomy is now **9 states** — At-Risk/Regression is a state, no longer a separate boolean.
+- **Terminology:** what a rep adds to an opportunity is now an **activity** (earlier drafts called it "evidence").
+- **Migration tracked in Linear milestones M9–M20.** **M9 has landed:** the shared contract (`@pg/shared`), the Zustand mock store + seed, and the `@pg/db` schema now use the new model — 9 readiness states, multiple products per workspace, and the `activity` rename. The **UI surfaces are still M5–M8 era** (list, opportunity detail, onboarding, intake) and consume the new data layer through back-compat shapes until they are rebuilt: M10 (onboarding), M12 (workbench, supersedes the list), M14 (intake), M17 (opportunity detail). Where the data-model section below diverges, it notes current-code vs. target.
+
+The current build is a **mock-backed prototype** (Zustand mock store, fake AI, no real backend). Milestones M9–M20 extend that prototype; they do not yet wire a real backend — the `apps/api` + `packages/ai` code is a forward-looking stub and still carries a few pre-M9 assumptions (one product per workspace; the diagnosis prompt enumerates 8 states). Those reconcile when the real backend is wired.
 
 ## What the product is
 
-Pitch Genius is **Buyer Readiness Intelligence for individual sales reps.** A rep adds an opportunity, pastes in evidence from an interaction (transcript, notes, checklist), and the system produces:
+Pitch Genius is **Buyer Readiness Intelligence for individual sales reps.** A rep adds an opportunity, pastes in an **activity** from a buyer interaction (transcript, notes, checklist), and the system produces:
 
-1. A **buyer readiness diagnosis** — one of 8 readiness states, a 0–100 score, dimension-by-dimension breakdown with evidence, and primary/secondary blockers.
+1. A **buyer readiness diagnosis** — one of 9 readiness states, a 0–100 score, dimension-by-dimension breakdown with evidence, and primary/secondary blockers.
 2. A **Pipeline Reality Check** — comparing the rep's CRM stage to the buyer's evidence-based readiness state. Flags over-projection (dangerous), aligned, or under-projection.
 3. A **recommended next action**, a follow-up email ready to copy, and a manager coaching note.
+4. **Pre-call intelligence** — a DISC/OCEAN buyer profile, a matched sales technique (Challenger / SPIN / NEPQ), and a generated pre-call script, produced from enrichment so the rep can prep before the conversation.
 
-The flagship insight is the Pipeline Reality Check. The product is intentionally **not** a live coach, not a script generator, not a psych profiler, not a CRM replacement. See the scope doc (Google Doc shared with the team) for full product positioning. The Google Doc is the source of truth — if you find a contradiction between this file and the doc, the doc wins and this file should be updated.
+The flagship insight is the Pipeline Reality Check. The product also ships a **Live Co-pilot** desktop app for real-time in-call coaching. It is still intentionally **not a CRM replacement** — the CRM stays the system of record; Pitch Genius is the buyer-intelligence layer on top. If this file contradicts the MVP UX Spec, the spec wins and this file should be updated.
 
 ## Stack
 
@@ -76,20 +88,26 @@ Located in [`packages/ai/src/prompts/`](packages/ai/src/prompts):
 | --- | --- | --- | --- | --- |
 | Opportunity Parser | Pasted free-text deal notes | `parsedOpportunitySchema` | haiku | `parser.parseQuickPaste` tRPC mutation |
 | CSV Column Mapper | Headers + sample rows | `csvColumnMappingSchema` | haiku | `parser.mapCsvColumns` |
-| Readiness Signal Extractor | Product context + interaction evidence | `signalExtractionSchema` | sonnet | Inside `diagnosis.run` |
+| Readiness Signal Extractor | Product context + activity evidence | `signalExtractionSchema` | sonnet | Inside `diagnosis.run` |
 | Buyer Readiness Diagnosis Generator | Product + opportunity + extracted signals | `readinessDiagnosisSchema` | opus | Inside `diagnosis.run` |
 
 All four use the `generateStructured` helper which forces Claude to emit JSON via a `tool_use` block whose `input_schema` is the zod schema converted via `zod-to-json-schema`. **Do not** prompt for "respond in JSON" — use the tool. The system prompt is wrapped in `cache_control: ephemeral` to hit the prompt cache.
 
+The May-2026 scope adds further AI capabilities — website-scrape profile extraction, DISC/OCEAN profiling, sales-technique matching, pre-call script generation. In the current prototype these are **mocked** (`apps/web/src/mock`); real chains for them would live here alongside the four above.
+
 ## Data model semantics (read before touching `packages/db/src/schema`)
 
-- **Workspaces** own the pipeline configuration (CRM stages). MVP enforces one workspace per user.
-- **Products** are 1:N to workspaces in the schema — but MVP enforces one product per workspace via app-level check. The 1:N model exists so post-MVP multi-product needs no migration.
-- **Buyers are separate from opportunities.** A buyer is a person at a company; the same buyer can have many opportunities (current, historical, reframed). This separation makes the post-MVP reframe flow clean.
-- **Opportunities** carry denormalized "current_*" columns (readiness state, score, alignment) so the list view doesn't have to join the latest diagnosis. They MUST be updated in the same transaction that inserts a new diagnosis.
-- **At-Risk is a `boolean` flag on the opportunity**, not a value in the `readiness_state` enum. The state taxonomy has 8 values; At-Risk surfaces independently.
+The `@pg/shared` zod **entity** schemas (`entities.ts`, `precall.ts`) are the canonical contract as of M9; the Zustand mock store types (`apps/web/src/mock/types.ts`) derive straight from `z.infer` of them, and the `@pg/db` Drizzle tables mirror them.
+
+- **Workspaces** own the pipeline configuration (CRM stages). MVP enforces one workspace per user. As of M9 a workspace also carries a `subscriptionStatus` (the M11 hard-paywall gate) and an optional `crmType` (`hubspot` / `pipedrive`).
+- **Products** are 1:N to workspaces with exactly one `isPrimary` — the primary is the default product context for new opportunities. M9 lit this up in the shared contract + mock store + seed; the `apps/api` stub still has a one-product-per-workspace check (lifts when M16 wires it). The 1:N schema means lifting that check needs no migration.
+- **Buyers are separate from opportunities.** A buyer is a person at a company; the same buyer can have many opportunities (current, historical, reframed). A buyer with **no** opportunity is "unassigned" — assigning a product turns it into an opportunity (M13). This separation also makes the reframe flow clean.
+- **Opportunities** carry denormalized "current_*" columns (readiness state, score, alignment) so the list view doesn't have to join the latest diagnosis. They MUST be updated in the same transaction that inserts a new diagnosis. They also carry a nullable `crmRecordId` (HubSpot Record ID / Pipedrive System ID) that drives the two-tier export model and bulk-activity auto-join.
+- **Activities** (renamed from "interactions" / "evidence" in M9) are the unit of buyer evidence a rep adds to an opportunity; one diagnosis is produced per activity.
+- **Readiness taxonomy is 9 states** — `at_risk` (regression) is a first-class value in the `readiness_state` enum as of M9 (PG-183). A denormalized `atRisk` **boolean** is still kept on the opportunity as a list-rendering convenience; M12/M17 retire it once the workbench + detail surfaces read the state directly. (The `apps/ai` diagnosis-generator prompt still enumerates 8 states — a real-backend follow-up.)
+- **Pre-call intelligence** (DISC/OCEAN profile + matched technique + generated script) is keyed per opportunity, mirroring how diagnoses are stored. Mock-only in the prototype; no `@pg/db` table yet.
 - **Diagnoses store the full AI output as `jsonb`** (validated by the zod schemas in `@pg/shared`) plus discrete columns for filtering.
-- **`closed_status` enum includes `reframed`** — when post-MVP multi-product ships, changing an opportunity's product closes the original as `reframed` and creates a new one linked via `reframed_from_opportunity_id`. The schema is ready; the UI flow is not.
+- **`closed_status` enum includes `reframed`** — changing an opportunity's product closes the original as `reframed` and creates a new one linked via `reframed_from_opportunity_id`. The schema is ready; the UI flow is not yet built.
 - **CRM stages**: spec ships ONE template (`simple_b2b_sales`) + `custom`. Additional templates are post-MVP pending real-user pipeline observations. See the known design tension comment in [packages/db/src/schema/workspace.ts](packages/db/src/schema/workspace.ts) about JSON-vs-normalized stages.
 
 ## Commands
@@ -146,15 +164,14 @@ pnpm dev
 
 ## What's intentionally NOT here (and why)
 
-- **No CRM integration.** Manual copy-paste export only in MVP.
-- **No real-time / streaming / Chrome extension.** Async input only.
-- **No audio/video transcription.** Reps paste from their existing notetaker.
-- **No psych profiling (DISC/OCEAN).** The Pivot Brief drops these in favor of diagnostic depth on readiness state.
+- **No native CRM API integration.** The CRM round-trip is file-based — the rep exports a list out of their CRM and imports our Update Pack file back in. No live API sync; the CRM stays the system of record.
+- **No Chrome extension.** The Live Co-pilot is a cross-platform **desktop app**, not a browser extension. (Real-time in-call transcription/coaching *is* now in scope, via that app.)
+- **No Salesforce.** The CRM round-trip targets HubSpot and Pipedrive only — Salesforce is admin-heavy and a poor fit for the individual-rep user; a post-MVP candidate.
 - **No Sales Brain learning loop.** Outcomes are recorded but don't feed back into prompt updates in MVP.
-- **No multi-product UI.** Schema supports it; UI deferred.
+- **No teams / manager views / multi-user.** Individual-rep product in MVP.
 
 If a task asks you to build any of the above, push back and confirm — these are deliberate cuts, not omissions.
 
 ## Spec vs code
 
-When the scope doc disagrees with the code, **the doc wins** — fix the code and (if it's a recurring nuance) note it in this file. Doc + Linear URLs are at the top of this file under *Key links*.
+When the MVP UX Spec or scope doc disagrees with the code, **the spec wins** — fix the code and (if it's a recurring nuance) note it in this file. Spec + Linear URLs are at the top of this file under *Key links*.

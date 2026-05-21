@@ -14,7 +14,7 @@ export interface DiagnosisFactoryInput {
   id?: string;
   workspaceId: string;
   opportunityId: string;
-  interactionId: string;
+  activityId: string;
   signalExtraction: SignalExtraction;
   diagnosis: ReadinessDiagnosis;
   createdAt?: string;
@@ -27,7 +27,7 @@ export function makeDiagnosis(input: DiagnosisFactoryInput): MockDiagnosis {
     id: input.id ?? `dx_seed_${diagnosisCounter}`,
     workspaceId: input.workspaceId,
     opportunityId: input.opportunityId,
-    interactionId: input.interactionId,
+    activityId: input.activityId,
     signalExtraction: input.signalExtraction,
     diagnosis: dx,
     readinessState: dx.readiness_state,

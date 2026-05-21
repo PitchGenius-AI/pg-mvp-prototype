@@ -17,9 +17,9 @@ import {
   safeFilenameSlug,
 } from '../../lib/exports';
 import type {
+  MockActivity,
   MockBuyer,
   MockDiagnosis,
-  MockInteraction,
   MockOpportunity,
 } from '../../mock/types';
 
@@ -27,7 +27,7 @@ interface ExportTabProps {
   opportunity: MockOpportunity;
   buyer: MockBuyer | null;
   diagnosis: MockDiagnosis | null;
-  interactions: MockInteraction[];
+  interactions: MockActivity[];
 }
 
 export function ExportTab({ opportunity, buyer, diagnosis, interactions }: ExportTabProps) {

@@ -12,10 +12,10 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import {
+  activityTypeEnum,
   alignmentLevelEnum,
   alignmentOutcomeEnum,
   closedStatusEnum,
-  interactionTypeEnum,
   readinessStateEnum,
 } from './enums';
 import { user } from './auth';
@@ -71,6 +71,9 @@ export const opportunities = pgTable(
     knownPain: text('known_pain'),
     knownObjection: text('known_objection'),
     dealNotes: text('deal_notes'),
+    // CRM record identifier (HubSpot Record ID / Pipedrive System ID). Drives the
+    // two-tier export model (CRM note vs. Copy-only) and bulk-activity auto-join.
+    crmRecordId: text('crm_record_id'),
     // Denormalized from the latest diagnosis for cheap list-view rendering.
     currentReadinessState: readinessStateEnum('current_readiness_state'),
     currentReadinessScore: integer('current_readiness_score'),
@@ -97,9 +100,10 @@ export const opportunities = pgTable(
   ],
 );
 
-// One row per interaction = unit of evidence diagnosed.
-export const interactions = pgTable(
-  'interactions',
+// One row per activity = unit of buyer evidence diagnosed. Renamed from
+// `interactions` in the May-2026 re-scope.
+export const activities = pgTable(
+  'activities',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     workspaceId: uuid('workspace_id')
@@ -108,8 +112,8 @@ export const interactions = pgTable(
     opportunityId: uuid('opportunity_id')
       .notNull()
       .references(() => opportunities.id, { onDelete: 'cascade' }),
-    interactionType: interactionTypeEnum('interaction_type').notNull(),
-    interactionDate: timestamp('interaction_date', { withTimezone: true }).notNull(),
+    activityType: activityTypeEnum('activity_type').notNull(),
+    activityDate: timestamp('activity_date', { withTimezone: true }).notNull(),
     participants: jsonb('participants').$type<string[]>(),
     transcriptOrNotes: text('transcript_or_notes'),
     repSubjectiveNotes: text('rep_subjective_notes'),
@@ -123,5 +127,5 @@ export const interactions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('interactions_opportunity_date_idx').on(t.opportunityId, t.interactionDate)],
+  (t) => [index('activities_opportunity_date_idx').on(t.opportunityId, t.activityDate)],
 );

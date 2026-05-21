@@ -24,6 +24,7 @@ const READINESS_LABEL: Record<ReadinessState, string> = {
   stakeholder_validation_needed: 'Stakeholder validation needed',
   commercially_ready: 'Commercially ready',
   commit_ready: 'Commit ready',
+  at_risk: 'At risk / regressed',
 };
 
 const ALIGNMENT_LABEL: Record<AlignmentOutcome, string> = {

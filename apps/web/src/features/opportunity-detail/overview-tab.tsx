@@ -11,9 +11,9 @@ import { IconArrowNarrowRight, IconClock } from '@tabler/icons-react';
 import { AlignmentBadge } from '../../components/alignment-badge';
 import { useDiagnosesForOpportunity } from '../../mock/store';
 import type {
+  MockActivity,
   MockBuyer,
   MockDiagnosis,
-  MockInteraction,
   MockOpportunity,
 } from '../../mock/types';
 import { confidenceColor, humanize } from './badges';
@@ -23,7 +23,7 @@ interface OverviewTabProps {
   buyer: MockBuyer | null;
   latestDiagnosis: MockDiagnosis | null;
   interactionCount: number;
-  interactions: MockInteraction[];
+  interactions: MockActivity[];
 }
 
 export function OverviewTab({
@@ -199,7 +199,7 @@ function ReadinessTrend({
   interactions,
   diagnoses,
 }: {
-  interactions: MockInteraction[];
+  interactions: MockActivity[];
   diagnoses: MockDiagnosis[];
 }) {
   if (interactions.length === 0) {
@@ -211,9 +211,9 @@ function ReadinessTrend({
       </Section>
     );
   }
-  const dxByInteraction = new Map(diagnoses.map((d) => [d.interactionId, d]));
+  const dxByInteraction = new Map(diagnoses.map((d) => [d.activityId, d]));
   const sorted = [...interactions].sort((a, b) =>
-    a.interactionDate.localeCompare(b.interactionDate),
+    a.activityDate.localeCompare(b.activityDate),
   );
   const diagnosedSorted = sorted.filter((i) => dxByInteraction.has(i.id));
   const showTrend = diagnosedSorted.length >= 2;
@@ -243,9 +243,9 @@ function ReadinessTrend({
             return (
               <Group key={i.id} gap="sm">
                 <IconClock size={14} color="var(--mantine-color-dimmed)" />
-                <Text size="sm">{new Date(i.interactionDate).toLocaleDateString()}</Text>
+                <Text size="sm">{new Date(i.activityDate).toLocaleDateString()}</Text>
                 <Text size="xs" c="dimmed">
-                  {humanize(i.interactionType)} · {i.participants.length} participant
+                  {humanize(i.activityType)} · {i.participants.length} participant
                   {i.participants.length === 1 ? '' : 's'}
                 </Text>
                 {d && (

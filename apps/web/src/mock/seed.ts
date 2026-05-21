@@ -1,15 +1,18 @@
-import type { SignalExtraction } from '@pg/shared';
+import type { GeneratedScript, PsychProfile, SignalExtraction } from '@pg/shared';
 import type {
   HydrateInput,
 } from './store';
 import type {
   MockBuyer,
+  MockImportMapping,
+  MockPrecallIntelligence,
   MockProduct,
+  MockScriptTemplate,
   MockUser,
   MockWorkspace,
 } from './types';
 import { makeOpportunity } from './factories/opportunity-factory';
-import { makeInteraction } from './factories/interaction-factory';
+import { makeActivity } from './factories/activity-factory';
 import { buildDiagnosis, dim, makeDiagnosis } from './factories/diagnosis-factory';
 
 const WORKSPACE_ID = 'ws_seed_acme';
@@ -30,12 +33,16 @@ const workspace: MockWorkspace = {
   industry: 'SaaS — Sales Intelligence',
   crmStageTemplate: 'simple_b2b_sales',
   customCrmStages: null,
+  crmType: 'hubspot',
+  subscriptionStatus: 'active',
   createdByUserId: USER_ID,
   onboardingCompleted: true,
   createdAt: ISO('2026-02-01T15:00:00Z'),
   updatedAt: ISO('2026-05-12T15:00:00Z'),
 };
 
+// Multiple products per workspace, one primary (Pulse). The primary is the
+// default product context for new opportunities.
 const product: MockProduct = {
   id: PRODUCT_ID,
   workspaceId: WORKSPACE_ID,
@@ -46,8 +53,45 @@ const product: MockProduct = {
     'VP of Sales, Head of RevOps, and Sales Operations leaders at 100-1,000 person SaaS companies with multi-rep teams and unreliable forecasting.',
   problemSolved:
     'Reps habitually advance deals through CRM stages without enough buyer-side evidence, which inflates the forecast. Pulse compares CRM stage to evidence-based readiness and surfaces dangerous mismatches before they cost the quarter.',
+  isPrimary: true,
   createdAt: ISO('2026-02-01T15:00:00Z'),
   updatedAt: ISO('2026-02-01T15:00:00Z'),
+};
+
+const PRODUCT_SIGNAL_ID = 'prod_seed_signal';
+const PRODUCT_BRIEF_ID = 'prod_seed_brief';
+
+// A second product — same workspace, not primary. Gives the multi-product
+// surfaces (M16 Products page, intake product picker) real content.
+const productSignal: MockProduct = {
+  id: PRODUCT_SIGNAL_ID,
+  workspaceId: WORKSPACE_ID,
+  name: 'Signal',
+  description:
+    'Signal is a real-time call co-pilot that transcribes live sales conversations and surfaces the next question a rep should ask, matched to the buyer.',
+  targetBuyer:
+    'Individual account executives and SDRs who run a high volume of discovery and demo calls and want in-the-moment coaching.',
+  problemSolved:
+    'Reps miss buying signals and forget to ask the qualifying questions that decide a deal. Signal listens to the live call and prompts the rep in real time.',
+  isPrimary: false,
+  createdAt: ISO('2026-03-15T15:00:00Z'),
+  updatedAt: ISO('2026-03-15T15:00:00Z'),
+};
+
+// A third product — added recently, no opportunities yet.
+const productBrief: MockProduct = {
+  id: PRODUCT_BRIEF_ID,
+  workspaceId: WORKSPACE_ID,
+  name: 'Brief',
+  description:
+    'Brief generates a one-page pre-call intelligence sheet — buyer psychology, matched technique, and a tailored script — before every meeting.',
+  targetBuyer:
+    'Sales managers who want their reps walking into every call prepared without an hour of manual research.',
+  problemSolved:
+    'Reps wing their calls or spend too long prepping. Brief produces the prep automatically from enrichment data.',
+  isPrimary: false,
+  createdAt: ISO('2026-05-10T15:00:00Z'),
+  updatedAt: ISO('2026-05-10T15:00:00Z'),
 };
 
 // --- Deal 1: Globex — critically over-projecting + at-risk ---
@@ -80,6 +124,7 @@ const globexOpp = makeOpportunity({
   knownObjection: 'Buyer keeps deferring decisions back to "the team."',
   dealNotes:
     'Sourced from outbound in March. Two demos to date. CRM stage moved to Negotiation after the rep sent pricing.',
+  crmRecordId: 'HS-4815162342',
   atRisk: true,
   currentReadinessState: 'problem_aware',
   currentReadinessScore: 28,
@@ -89,12 +134,12 @@ const globexOpp = makeOpportunity({
   updatedAt: ISO('2026-05-08T15:00:00Z'),
 });
 
-const globexInteraction = makeInteraction({
+const globexInteraction = makeActivity({
   id: 'int_seed_globex_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: globexOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-05-06T17:00:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-05-06T17:00:00Z'),
   participants: ['Jamie Park (Globex)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'CASEY: Thanks for hopping back on, Jamie. Last time we walked through the readiness scoring; today I wanted to start lining up next steps so we can hit that July renewal date.',
@@ -173,7 +218,7 @@ const globexDiagnosis = makeDiagnosis({
   id: 'dx_seed_globex',
   workspaceId: WORKSPACE_ID,
   opportunityId: globexOpp.id,
-  interactionId: globexInteraction.id,
+  activityId: globexInteraction.id,
   signalExtraction: globexSignals,
   createdAt: ISO('2026-05-06T18:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -264,12 +309,12 @@ const initechOpp = makeOpportunity({
   updatedAt: ISO('2026-05-10T15:00:00Z'),
 });
 
-const initechInteraction = makeInteraction({
+const initechInteraction = makeActivity({
   id: 'int_seed_initech_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: initechOpp.id,
-  interactionType: 'email_thread',
-  interactionDate: ISO('2026-05-10T14:00:00Z'),
+  activityType: 'email_thread',
+  activityDate: ISO('2026-05-10T14:00:00Z'),
   participants: ['Marcus Bennett (Initech)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'From Marcus, 2026-05-10:',
@@ -360,7 +405,7 @@ const initechDiagnosis = makeDiagnosis({
   id: 'dx_seed_initech',
   workspaceId: WORKSPACE_ID,
   opportunityId: initechOpp.id,
-  interactionId: initechInteraction.id,
+  activityId: initechInteraction.id,
   signalExtraction: initechSignals,
   createdAt: ISO('2026-05-10T15:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -439,6 +484,7 @@ const wayneOpp = makeOpportunity({
   knownPain: 'Marketing-attributed pipeline is wildly different across two reporting tools.',
   knownObjection: null,
   dealNotes: 'Discovery and demo went well. Lucia is the strategic owner and asked about pilot scope.',
+  crmRecordId: 'HS-2718281828',
   currentReadinessState: 'solution_curious',
   currentReadinessScore: 58,
   currentAlignmentOutcome: 'aligned',
@@ -447,12 +493,12 @@ const wayneOpp = makeOpportunity({
   updatedAt: ISO('2026-05-09T15:00:00Z'),
 });
 
-const wayneInteraction = makeInteraction({
+const wayneInteraction = makeActivity({
   id: 'int_seed_wayne_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: wayneOpp.id,
-  interactionType: 'demo',
-  interactionDate: ISO('2026-05-09T16:00:00Z'),
+  activityType: 'demo',
+  activityDate: ISO('2026-05-09T16:00:00Z'),
   participants: ['Lucia Ortiz (Wayne)', 'Devon Mills (Wayne, Sales Ops)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'CASEY: So that\'s the readiness scoring layered over your existing pipeline view. Curious what stood out.',
@@ -548,7 +594,7 @@ const wayneDiagnosis = makeDiagnosis({
   id: 'dx_seed_wayne',
   workspaceId: WORKSPACE_ID,
   opportunityId: wayneOpp.id,
-  interactionId: wayneInteraction.id,
+  activityId: wayneInteraction.id,
   signalExtraction: wayneSignals,
   createdAt: ISO('2026-05-09T17:30:00Z'),
   diagnosis: buildDiagnosis({
@@ -625,6 +671,7 @@ const starkOpp = makeOpportunity({
   knownPain: 'Pilot proved Pipeline Reality Check changed 31% of late-stage forecast calls.',
   knownObjection: 'Procurement is pushing for a 2-year term at the 1-year price.',
   dealNotes: 'Pilot ran Q1. CRO Priya is the champion and the economic buyer. Procurement is the last gate.',
+  crmRecordId: 'HS-1123581321',
   currentReadinessState: 'commit_ready',
   currentReadinessScore: 86,
   currentAlignmentOutcome: 'aligned',
@@ -633,12 +680,12 @@ const starkOpp = makeOpportunity({
   updatedAt: ISO('2026-05-12T15:00:00Z'),
 });
 
-const starkInteraction = makeInteraction({
+const starkInteraction = makeActivity({
   id: 'int_seed_stark_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: starkOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-05-12T19:00:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-05-12T19:00:00Z'),
   participants: ['Priya Shah (Stark)', 'Mike Reilly (Stark Procurement)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'PRIYA: Let me cut to it. The pilot results are real — 31% of late-stage calls got changed and we recovered two deals my team was going to lose blind. I want the 200-seat rollout to start June 1.',
@@ -728,7 +775,7 @@ const starkDiagnosis = makeDiagnosis({
   id: 'dx_seed_stark',
   workspaceId: WORKSPACE_ID,
   opportunityId: starkOpp.id,
-  interactionId: starkInteraction.id,
+  activityId: starkInteraction.id,
   signalExtraction: starkSignals,
   createdAt: ISO('2026-05-12T20:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -812,12 +859,12 @@ const hooliOpp = makeOpportunity({
   updatedAt: ISO('2026-05-11T15:00:00Z'),
 });
 
-const hooliInteraction = makeInteraction({
+const hooliInteraction = makeActivity({
   id: 'int_seed_hooli_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: hooliOpp.id,
-  interactionType: 'call',
-  interactionDate: ISO('2026-05-11T15:00:00Z'),
+  activityType: 'call',
+  activityDate: ISO('2026-05-11T15:00:00Z'),
   participants: ['Tomas Vogel (Hooli)', 'Sarah Wu (Hooli, RevOps)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'TOMAS: I\'ve had a chance to actually run Pulse on three of our deals. The readiness scoring matches what my best AE would have said on every one — and it caught two deals that our CRM had at Negotiation but were really at Discovery.',
@@ -900,7 +947,7 @@ const hooliDiagnosis = makeDiagnosis({
   id: 'dx_seed_hooli',
   workspaceId: WORKSPACE_ID,
   opportunityId: hooliOpp.id,
-  interactionId: hooliInteraction.id,
+  activityId: hooliInteraction.id,
   signalExtraction: hooliSignals,
   createdAt: ISO('2026-05-11T16:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -984,12 +1031,12 @@ const piedPiperOpp = makeOpportunity({
   updatedAt: ISO('2026-05-07T15:00:00Z'),
 });
 
-const piedPiperInteraction = makeInteraction({
+const piedPiperInteraction = makeActivity({
   id: 'int_seed_piedpiper_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: piedPiperOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-05-07T17:30:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-05-07T17:30:00Z'),
   participants: ['Harold Voss (Pied Piper)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'HAROLD: Yeah, my CEO read a thing about pipeline scoring and forwarded it to me. He asked me to take a look. I don\'t really know what I\'m looking for.',
@@ -1058,7 +1105,7 @@ const piedPiperDiagnosis = makeDiagnosis({
   id: 'dx_seed_piedpiper',
   workspaceId: WORKSPACE_ID,
   opportunityId: piedPiperOpp.id,
-  interactionId: piedPiperInteraction.id,
+  activityId: piedPiperInteraction.id,
   signalExtraction: piedPiperSignals,
   createdAt: ISO('2026-05-07T18:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -1132,6 +1179,7 @@ const massiveDynamicOpp = makeOpportunity({
   knownPain: 'Enablement programs not landing — manager-coaching adoption stuck at 35%.',
   knownObjection: 'Worried about another tool reps will ignore.',
   dealNotes: 'Renee is bought in; needs to convince the regional VPs before commercial.',
+  crmRecordId: 'HS-3141592653',
   currentReadinessState: 'stakeholder_validation_needed',
   currentReadinessScore: 63,
   currentAlignmentOutcome: 'under_projecting',
@@ -1140,12 +1188,12 @@ const massiveDynamicOpp = makeOpportunity({
   updatedAt: ISO('2026-05-08T15:00:00Z'),
 });
 
-const massiveDynamicInt1 = makeInteraction({
+const massiveDynamicInt1 = makeActivity({
   id: 'int_seed_massivedynamic_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: massiveDynamicOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-04-22T18:00:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-04-22T18:00:00Z'),
   participants: ['Renee Adeyemi (Massive Dynamic)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'RENEE: The manager-coaching note feature is the unlock for us. Our managers don\'t actually do 1:1 coaching consistently because they don\'t know what to coach on.',
@@ -1162,12 +1210,12 @@ const massiveDynamicInt1 = makeInteraction({
   securityDiscussed: false,
 });
 
-const massiveDynamicInt2 = makeInteraction({
+const massiveDynamicInt2 = makeActivity({
   id: 'int_seed_massivedynamic_2',
   workspaceId: WORKSPACE_ID,
   opportunityId: massiveDynamicOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-05-08T17:00:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-05-08T17:00:00Z'),
   participants: [
     'Renee Adeyemi (Massive Dynamic)',
     'Diego Hart (VP Sales, West)',
@@ -1243,7 +1291,7 @@ const massiveDynamicInt1Diagnosis = makeDiagnosis({
   id: 'dx_seed_massivedynamic_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: massiveDynamicOpp.id,
-  interactionId: massiveDynamicInt1.id,
+  activityId: massiveDynamicInt1.id,
   signalExtraction: massiveDynamicInt1Signals,
   createdAt: ISO('2026-04-22T19:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -1346,7 +1394,7 @@ const massiveDynamicDiagnosis = makeDiagnosis({
   id: 'dx_seed_massivedynamic',
   workspaceId: WORKSPACE_ID,
   opportunityId: massiveDynamicOpp.id,
-  interactionId: massiveDynamicInt2.id,
+  activityId: massiveDynamicInt2.id,
   signalExtraction: massiveDynamicSignals,
   createdAt: ISO('2026-05-08T18:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -1429,12 +1477,12 @@ const cyberdyneOpp = makeOpportunity({
   updatedAt: ISO('2026-05-09T15:00:00Z'),
 });
 
-const cyberdyneInteraction = makeInteraction({
+const cyberdyneInteraction = makeActivity({
   id: 'int_seed_cyberdyne_1',
   workspaceId: WORKSPACE_ID,
   opportunityId: cyberdyneOpp.id,
-  interactionType: 'video_meeting',
-  interactionDate: ISO('2026-05-09T18:00:00Z'),
+  activityType: 'video_meeting',
+  activityDate: ISO('2026-05-09T18:00:00Z'),
   participants: [
     'Helena Krause (Cyberdyne)',
     'Nate Brooks (Cyberdyne Procurement)',
@@ -1521,7 +1569,7 @@ const cyberdyneDiagnosis = makeDiagnosis({
   id: 'dx_seed_cyberdyne',
   workspaceId: WORKSPACE_ID,
   opportunityId: cyberdyneOpp.id,
-  interactionId: cyberdyneInteraction.id,
+  activityId: cyberdyneInteraction.id,
   signalExtraction: cyberdyneSignals,
   createdAt: ISO('2026-05-09T19:00:00Z'),
   diagnosis: buildDiagnosis({
@@ -1568,12 +1616,389 @@ const cyberdyneDiagnosis = makeDiagnosis({
   }),
 });
 
+// --- Deal 9: Soylent Corp — at-risk / regression (9th readiness state) ---
+// The deal advanced to Proposal, then the champion left and the buyer went
+// dark. Evidence shows regression — the new `at_risk` readiness state.
+
+const soylentBuyer: MockBuyer = {
+  id: 'buy_seed_soylent',
+  workspaceId: WORKSPACE_ID,
+  firstName: 'Devon',
+  lastName: 'Reyes',
+  title: 'VP of Sales',
+  company: 'Soylent Corp',
+  email: 'devon.reyes@soylent.example',
+  linkedin: null,
+  notes: 'Inherited the eval after the original champion (Marcus) left the company.',
+  createdAt: ISO('2026-02-20T15:00:00Z'),
+  updatedAt: ISO('2026-05-02T15:00:00Z'),
+};
+
+const soylentOpp = makeOpportunity({
+  id: 'opp_seed_soylent',
+  workspaceId: WORKSPACE_ID,
+  buyerId: soylentBuyer.id,
+  productId: PRODUCT_ID,
+  ownerUserId: USER_ID,
+  opportunityName: 'Soylent Corp – forecasting overhaul',
+  currentCrmStage: 'Proposal',
+  opportunityValue: 96000,
+  expectedCloseDate: '2026-06-15',
+  knownPain: 'Forecast accuracy was the board-level driver — but the exec who owned it has left.',
+  knownObjection: 'New VP has not re-committed to the project or the timeline.',
+  dealNotes:
+    'Was tracking well through Demo. Champion Marcus left in April; Devon inherited it and has gone quiet. Two unanswered follow-ups.',
+  crmRecordId: 'HS-2236067977',
+  atRisk: true,
+  currentReadinessState: 'at_risk',
+  currentReadinessScore: 34,
+  currentAlignmentOutcome: 'over_projecting',
+  currentAlignmentLevel: 'high',
+  createdAt: ISO('2026-02-24T15:00:00Z'),
+  updatedAt: ISO('2026-05-02T15:00:00Z'),
+});
+
+const soylentActivity = makeActivity({
+  id: 'act_seed_soylent_1',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: soylentOpp.id,
+  activityType: 'email_thread',
+  activityDate: ISO('2026-04-28T16:00:00Z'),
+  participants: ['Devon Reyes (Soylent)', 'Casey Morgan (Acme)'],
+  transcriptOrNotes: [
+    'CASEY (email 1): Hi Devon — congrats on picking up the forecasting project. Marcus and I had the proposal in good shape; happy to walk you through where things stand. Do you have 20 minutes this week?',
+    'CASEY (email 2, 6 days later): Following up on the above — I know inheriting a project mid-flight is a lot. Even a quick async note on whether this is still a priority would help me support you the right way.',
+    '[No reply to either email.]',
+  ].join('\n\n'),
+  repSubjectiveNotes:
+    'Lost the champion. Devon has not engaged at all. The proposal is technically out but there is no one carrying it internally. This has regressed.',
+  nextStepAgreed: false,
+  stakeholderAdded: false,
+  pricingDiscussed: true,
+  budgetDiscussed: false,
+  competitorDiscussed: false,
+  implementationDiscussed: false,
+  securityDiscussed: false,
+});
+
+const soylentSignals: SignalExtraction = {
+  pain: [
+    {
+      signal: 'Original board-level pain may no longer have an internal owner',
+      evidence: 'Forecast accuracy was the board-level driver — but the exec who owned it has left.',
+      source: 'rep_note',
+      strength: 'medium',
+      dimension: 'pain',
+    },
+  ],
+  trust: [],
+  urgency: [],
+  solution_confidence: [],
+  commitment: [],
+  risk: [
+    {
+      signal: 'Champion departed mid-cycle',
+      evidence: 'Champion Marcus left in April; Devon inherited it and has gone quiet.',
+      source: 'rep_note',
+      strength: 'strong',
+      dimension: 'risk',
+    },
+    {
+      signal: 'Buyer non-responsive across multiple follow-ups',
+      evidence: '[No reply to either email.]',
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'risk',
+    },
+    {
+      signal: 'New decision-maker has not re-committed to the project',
+      evidence: 'New VP has not re-committed to the project or the timeline.',
+      source: 'rep_note',
+      strength: 'strong',
+      dimension: 'risk',
+    },
+  ],
+  missing_evidence: [
+    'No engagement at all from the new decision-maker.',
+    'No confirmation the project survived the leadership change.',
+    'No re-validated timeline or next step.',
+  ],
+};
+
+const soylentDiagnosis = makeDiagnosis({
+  id: 'dx_seed_soylent',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: soylentOpp.id,
+  activityId: soylentActivity.id,
+  signalExtraction: soylentSignals,
+  createdAt: ISO('2026-05-02T16:00:00Z'),
+  diagnosis: buildDiagnosis({
+    readinessState: 'at_risk',
+    readinessScore: 34,
+    confidence: 'medium',
+    dimensionScores: [
+      dim('pain', 40, 'The pain was real, but its internal owner is gone — it may no longer be felt.', [
+        'the exec who owned it has left',
+      ]),
+      dim('trust', 25, 'The relationship was with the departed champion; no trust established with Devon.', [
+        'Devon inherited it and has gone quiet',
+      ]),
+      dim('urgency', 20, 'Any urgency left with the previous owner. No timeline has been re-confirmed.', [
+        'New VP has not re-committed to the project or the timeline',
+      ]),
+      dim('solution_confidence', 30, 'Solution confidence built earlier has not transferred to the new buyer.', [
+        'no one carrying it internally',
+      ]),
+      dim('commitment', 15, 'Commitment has collapsed — the proposal is out but unowned and unanswered.', [
+        '[No reply to either email.]',
+      ]),
+    ],
+    primaryBlocker:
+      'The champion left and the new decision-maker has not engaged. The deal has regressed — it is no longer a live Proposal.',
+    secondaryBlocker: 'No internal owner means the original pain may no longer be a priority.',
+    pipelineRealityCheck: {
+      crmStage: 'Proposal',
+      outcome: 'over_projecting',
+      level: 'high',
+      reason:
+        'CRM Proposal implies an active commercial evaluation, but the champion has left and the buyer has gone dark across two follow-ups. This deal has regressed and is at risk.',
+    },
+    recommendedNextAction:
+      'Treat this as a re-open, not a follow-up. Use a break-up email or a Marcus-referral angle to get one reply from Devon and re-qualify whether the project still exists.',
+    whatNotToDoYet: [
+      'Do not chase the proposal — there is no one to receive it.',
+      'Do not hold the close date; it is no longer real.',
+      'Do not assume the project survived the re-org without confirmation.',
+    ],
+    followUpSubject: 'Should I close the file on the forecasting project?',
+    followUpBody:
+      "Hi Devon,\n\nI haven't heard back, which usually means one of two things — either the forecasting project lost priority when Marcus left, or it's just buried under everything else you inherited. Both are completely understandable.\n\nIf it's no longer a priority, just reply \"closed\" and I'll stop reaching out. If it isn't, I'll send a two-line summary of where Marcus and I left things so you can pick it up with zero ramp.\n\nEither answer helps.\n\nCasey",
+    managerCoachingNote:
+      'Soylent has regressed to at-risk: champion departed, buyer dark, proposal unowned. It should not be forecast at Proposal. Coach the rep to run a re-open play and either revive it with the new VP or close it lost — but stop reporting it as a live commercial deal.',
+  }),
+});
+
+// --- Deal 10: Wayne — second opportunity for an existing buyer ---
+// Lucia (wayneBuyer) already has the marketing-stack deal; this is a second,
+// activity-less opportunity on a different product (Signal). Demonstrates a
+// buyer carrying multiple opportunities + a provisional, undiagnosed deal.
+
+const wayneCopilotOpp = makeOpportunity({
+  id: 'opp_seed_wayne_copilot',
+  workspaceId: WORKSPACE_ID,
+  buyerId: wayneBuyer.id,
+  productId: PRODUCT_SIGNAL_ID,
+  ownerUserId: USER_ID,
+  opportunityName: 'Wayne – live call co-pilot trial',
+  currentCrmStage: 'Qualified',
+  opportunityValue: 24000,
+  expectedCloseDate: null,
+  knownPain: 'Lucia mentioned her SDR team wants in-call coaching after seeing the Pulse pilot.',
+  knownObjection: null,
+  dealNotes: 'Spun out of the Wayne marketing-stack conversation. No discovery call booked yet.',
+  crmRecordId: null,
+  createdAt: ISO('2026-05-11T15:00:00Z'),
+  updatedAt: ISO('2026-05-11T15:00:00Z'),
+});
+
+// --- Unassigned buyers ---
+// People in the workspace with no opportunity yet — typically added by the
+// Daily Workbench import before a product is assigned. They give the workbench
+// "unassigned buyers" banner and the /buyers assignment flow (M13) content.
+
+const unassignedBuyers: MockBuyer[] = [
+  {
+    id: 'buy_seed_unassigned_umbrella',
+    workspaceId: WORKSPACE_ID,
+    firstName: 'Priyanka',
+    lastName: 'Shah',
+    title: 'Head of Revenue Operations',
+    company: 'Umbrella Logistics',
+    email: 'priyanka.shah@umbrella.example',
+    linkedin: null,
+    notes: 'From the May 12 workbench import. No product assigned yet.',
+    createdAt: ISO('2026-05-12T09:00:00Z'),
+    updatedAt: ISO('2026-05-12T09:00:00Z'),
+  },
+  {
+    id: 'buy_seed_unassigned_tyrell',
+    workspaceId: WORKSPACE_ID,
+    firstName: 'Marcus',
+    lastName: 'Webb',
+    title: 'Director of Sales',
+    company: 'Tyrell Systems',
+    email: 'marcus.webb@tyrell.example',
+    linkedin: null,
+    notes: 'From the May 12 workbench import. No product assigned yet.',
+    createdAt: ISO('2026-05-12T09:00:00Z'),
+    updatedAt: ISO('2026-05-12T09:00:00Z'),
+  },
+  {
+    id: 'buy_seed_unassigned_oscorp',
+    workspaceId: WORKSPACE_ID,
+    firstName: 'Tasha',
+    lastName: 'Lin',
+    title: 'VP Sales',
+    company: 'Oscorp Industries',
+    email: 'tasha.lin@oscorp.example',
+    linkedin: null,
+    notes: 'From the May 12 workbench import. No product assigned yet.',
+    createdAt: ISO('2026-05-12T09:00:00Z'),
+    updatedAt: ISO('2026-05-12T09:00:00Z'),
+  },
+];
+
+// --- Script templates ---
+// Reusable, workspace-level call-script templates (managed on the M16 Scripts
+// page). One primary; pre-call scripts are generated from these per opportunity.
+
+const scriptTemplates: MockScriptTemplate[] = [
+  {
+    id: 'scr_seed_discovery',
+    workspaceId: WORKSPACE_ID,
+    name: 'Discovery call — readiness-first',
+    isPrimary: true,
+    content: [
+      'OPEN: Thank them for the time. State the one outcome you want from the call.',
+      '',
+      'DIAGNOSE: Ask what triggered them to look now. Quantify the cost of the status quo.',
+      '',
+      'STAKEHOLDERS: Map who else has to be bought in before a decision.',
+      '',
+      'NEXT STEP: Propose a concrete, dated next step before ending the call.',
+    ].join('\n'),
+    createdAt: ISO('2026-02-02T15:00:00Z'),
+    updatedAt: ISO('2026-04-18T15:00:00Z'),
+  },
+  {
+    id: 'scr_seed_demo_followup',
+    workspaceId: WORKSPACE_ID,
+    name: 'Post-demo follow-up call',
+    isPrimary: false,
+    content: [
+      'RECAP: Restate the specific pain the demo addressed — in their words.',
+      '',
+      'OBJECTIONS: Surface hesitation directly. Ask what would have to be true to move forward.',
+      '',
+      'COMMERCIAL: Only if solution confidence is real — outline pricing and process.',
+    ].join('\n'),
+    createdAt: ISO('2026-03-01T15:00:00Z'),
+    updatedAt: ISO('2026-03-01T15:00:00Z'),
+  },
+];
+
+// --- Pre-call intelligence ---
+// DISC/OCEAN profile + matched sales technique + generated pre-call script,
+// keyed by opportunity. Consumed by the M17 Opportunity Detail Overview tab.
+
+const starkPsychProfile: PsychProfile = {
+  disc: { d: 86, i: 54, s: 22, c: 61, primaryType: 'D' },
+  ocean: { o: 58, c: 79, e: 71, a: 38, n: 24 },
+  summary:
+    'Priya is a decisive, results-driven economic buyer. She values directness and a clear business case over relationship-building. Lead with outcomes and ROI; do not pad the conversation.',
+};
+
+const starkScript: GeneratedScript = {
+  basedOnTemplateId: 'scr_seed_discovery',
+  technique: 'challenger',
+  sections: [
+    {
+      heading: 'Open with a point of view',
+      body: 'Skip the rapport. Open with the 31% forecast-call change the pilot proved, and frame the expansion as protecting that result at scale.',
+    },
+    {
+      heading: 'Reframe the procurement objection',
+      body: 'Acknowledge the 2-year-term ask, then reframe: the risk is not price, it is leaving 150 seats un-coached for another quarter. Tie the term to the outcome, not the discount.',
+    },
+    {
+      heading: 'Close on the gate',
+      body: 'Priya is the economic buyer — confirm procurement is the only remaining gate and agree a dated path through it before ending the call.',
+    },
+  ],
+};
+
+const starkPrecall: MockPrecallIntelligence = {
+  id: 'pci_seed_stark',
+  opportunityId: starkOpp.id,
+  psychProfile: starkPsychProfile,
+  matchedTechnique: {
+    technique: 'challenger',
+    reasoning:
+      'High-D economic buyer in a late-stage expansion. A Challenger approach — teach, tailor, take control — fits a decisive buyer who responds to a strong point of view, not consensus-building.',
+  },
+  generatedScript: starkScript,
+  generatedAt: ISO('2026-05-11T15:00:00Z'),
+};
+
+const waynePsychProfile: PsychProfile = {
+  disc: { d: 34, i: 41, s: 58, c: 83, primaryType: 'C' },
+  ocean: { o: 66, c: 81, e: 44, a: 62, n: 35 },
+  summary:
+    'Lucia is analytical and detail-oriented. She wants evidence, methodology, and a low-risk path. Bring data and a structured plan; rushing her or skipping detail will erode trust.',
+};
+
+const wayneScript: GeneratedScript = {
+  basedOnTemplateId: 'scr_seed_discovery',
+  technique: 'spin',
+  sections: [
+    {
+      heading: 'Situation & Problem',
+      body: 'Walk through the two reporting tools and quantify how often marketing-attributed pipeline disagrees. Let her supply the numbers.',
+    },
+    {
+      heading: 'Implication',
+      body: 'Draw out the downstream cost: which forecast decisions get made on the wrong number, and what that has cost a quarter.',
+    },
+    {
+      heading: 'Need-payoff',
+      body: 'Have her articulate the value of a single trusted readiness number. Then scope a low-risk pilot — she already asked about pilot scope.',
+    },
+  ],
+};
+
+const waynePrecall: MockPrecallIntelligence = {
+  id: 'pci_seed_wayne',
+  opportunityId: wayneOpp.id,
+  psychProfile: waynePsychProfile,
+  matchedTechnique: {
+    technique: 'spin',
+    reasoning:
+      'High-C analytical buyer mid-funnel. SPIN — Situation, Problem, Implication, Need-payoff — fits a buyer who needs to reason her own way to the value before committing.',
+  },
+  generatedScript: wayneScript,
+  generatedAt: ISO('2026-05-09T15:00:00Z'),
+};
+
+// --- Import mappings ---
+// A saved, reusable column-mapping config for the Daily Workbench import (M14).
+
+const importMappings: MockImportMapping[] = [
+  {
+    id: 'imp_seed_hubspot_deals',
+    workspaceId: WORKSPACE_ID,
+    name: 'HubSpot — deal export',
+    crmType: 'hubspot',
+    fields: [
+      { sourceColumn: 'Deal Name', targetField: 'opportunity_name' },
+      { sourceColumn: 'Deal Stage', targetField: 'current_crm_stage' },
+      { sourceColumn: 'Amount', targetField: 'opportunity_value' },
+      { sourceColumn: 'Close Date', targetField: 'expected_close_date' },
+      { sourceColumn: 'Associated Contact', targetField: 'buyer_first_name' },
+      { sourceColumn: 'Company', targetField: 'buyer_company' },
+      { sourceColumn: 'Record ID', targetField: 'crm_record_id' },
+      { sourceColumn: 'Owner', targetField: null },
+    ],
+    createdAt: ISO('2026-05-12T09:00:00Z'),
+    updatedAt: ISO('2026-05-12T09:00:00Z'),
+  },
+];
+
 // --- Compose ---
 
 export function buildSeed(): HydrateInput {
   return {
     workspaces: [workspace],
-    products: [product],
+    products: [product, productSignal, productBrief],
     buyers: [
       globexBuyer,
       initechBuyer,
@@ -1583,6 +2008,8 @@ export function buildSeed(): HydrateInput {
       piedPiperBuyer,
       massiveDynamicBuyer,
       cyberdyneBuyer,
+      soylentBuyer,
+      ...unassignedBuyers,
     ],
     opportunities: [
       globexOpp,
@@ -1593,8 +2020,10 @@ export function buildSeed(): HydrateInput {
       piedPiperOpp,
       massiveDynamicOpp,
       cyberdyneOpp,
+      soylentOpp,
+      wayneCopilotOpp,
     ],
-    interactions: [
+    activities: [
       globexInteraction,
       initechInteraction,
       wayneInteraction,
@@ -1604,6 +2033,7 @@ export function buildSeed(): HydrateInput {
       massiveDynamicInt1,
       massiveDynamicInt2,
       cyberdyneInteraction,
+      soylentActivity,
     ],
     diagnoses: [
       globexDiagnosis,
@@ -1615,7 +2045,11 @@ export function buildSeed(): HydrateInput {
       massiveDynamicInt1Diagnosis,
       massiveDynamicDiagnosis,
       cyberdyneDiagnosis,
+      soylentDiagnosis,
     ],
     outcomes: [],
+    scriptTemplates,
+    precallIntelligence: [starkPrecall, waynePrecall],
+    importMappings,
   };
 }

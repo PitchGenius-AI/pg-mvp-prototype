@@ -1,11 +1,11 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { interactionTypeSchema } from '@pg/shared';
-import { interactions, opportunities, workspaces } from '@pg/db/schema';
+import { activityTypeSchema } from '@pg/shared';
+import { activities, opportunities, workspaces } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
 import { TRPCError } from '@trpc/server';
 
-export const interactionRouter = router({
+export const activityRouter = router({
   listForOpportunity: protectedProcedure
     .input(z.object({ opportunityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -22,9 +22,9 @@ export const interactionRouter = router({
       });
       if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
 
-      return ctx.db.query.interactions.findMany({
-        where: eq(interactions.opportunityId, input.opportunityId),
-        orderBy: [desc(interactions.interactionDate)],
+      return ctx.db.query.activities.findMany({
+        where: eq(activities.opportunityId, input.opportunityId),
+        orderBy: [desc(activities.activityDate)],
       });
     }),
 
@@ -32,8 +32,8 @@ export const interactionRouter = router({
     .input(
       z.object({
         opportunityId: z.string().uuid(),
-        interactionType: interactionTypeSchema,
-        interactionDate: z.string().datetime(),
+        activityType: activityTypeSchema,
+        activityDate: z.string().datetime(),
         participants: z.array(z.string()).optional(),
         transcriptOrNotes: z.string().optional(),
         repSubjectiveNotes: z.string().optional(),
@@ -64,12 +64,12 @@ export const interactionRouter = router({
       if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
 
       const [row] = await ctx.db
-        .insert(interactions)
+        .insert(activities)
         .values({
           workspaceId: opp.workspaceId,
           opportunityId: input.opportunityId,
-          interactionType: input.interactionType,
-          interactionDate: new Date(input.interactionDate),
+          activityType: input.activityType,
+          activityDate: new Date(input.activityDate),
           participants: input.participants,
           transcriptOrNotes: input.transcriptOrNotes,
           repSubjectiveNotes: input.repSubjectiveNotes,

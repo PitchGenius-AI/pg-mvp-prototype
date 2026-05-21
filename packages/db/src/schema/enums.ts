@@ -1,6 +1,10 @@
 import { pgEnum } from 'drizzle-orm/pg-core';
 
-// Buyer readiness states (At-Risk is a flag on opportunities, not a state).
+// MUST mirror packages/shared/src/enums.ts exactly — see CLAUDE.md.
+
+// 9 buyer readiness states — `at_risk` (regression) is a first-class state as
+// of the May-2026 re-scope. The `at_risk` boolean on opportunities is retained
+// as a denormalized convenience until M12/M17.
 export const readinessStateEnum = pgEnum('readiness_state', [
   'unaware',
   'problem_aware',
@@ -10,6 +14,7 @@ export const readinessStateEnum = pgEnum('readiness_state', [
   'stakeholder_validation_needed',
   'commercially_ready',
   'commit_ready',
+  'at_risk',
 ]);
 
 export const alignmentOutcomeEnum = pgEnum('alignment_outcome', [
@@ -41,7 +46,8 @@ export const signalDimensionEnum = pgEnum('signal_dimension', [
 
 export const signalSourceEnum = pgEnum('signal_source', ['transcript', 'rep_note', 'checklist']);
 
-export const interactionTypeEnum = pgEnum('interaction_type', [
+// Activity type — renamed from interaction_type in the May-2026 re-scope.
+export const activityTypeEnum = pgEnum('activity_type', [
   'call',
   'video_meeting',
   'phone_call',
@@ -73,6 +79,18 @@ export const closedStatusEnum = pgEnum('closed_status', [
 ]);
 
 export const crmStageTemplateEnum = pgEnum('crm_stage_template', ['simple_b2b_sales', 'custom']);
+
+// The CRMs the file-based round-trip targets (HubSpot + Pipedrive only).
+export const crmTypeEnum = pgEnum('crm_type', ['hubspot', 'pipedrive']);
+
+// Subscription / paywall state — gates in-shell routes (M11).
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'none',
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+]);
 
 export const intakeMethodEnum = pgEnum('intake_method', [
   'structured_form',
