@@ -44,6 +44,7 @@ export const queryKeys = {
   },
 
   diagnosis: {
+    all: ['diagnosis'] as const,
     byId: (id: string) => ['diagnosis', 'byId', id] as const,
     latestForOpportunity: (opportunityId: string) =>
       ['diagnosis', 'latestForOpportunity', opportunityId] as const,

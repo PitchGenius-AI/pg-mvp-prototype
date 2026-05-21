@@ -35,21 +35,23 @@ Use this script when presenting the Buyer Readiness MVP prototype to a client. F
 
 ---
 
-## 2. Add an opportunity — three intake methods (~3 minutes)
+## 2. Add an opportunity — four intake methods (~3.5 minutes)
 
-The Pitch Genius value prop is that capturing buyer evidence has to feel effortless. Intake is its own page — `/buyers/new` — with three methods as tabs. Show all three so the audience sees the breadth; spend most of the time on the Daily Workbench import (the bulk path).
+The Pitch Genius value prop is that capturing buyer evidence has to feel effortless. Intake is its own page — `/buyers/new` — with four methods as tabs. Show all four so the audience sees the breadth; spend most of the time on the Daily Workbench import and the Activity history import (the two bulk paths).
 
 **Steps:**
 1. Click **Add opportunity** at the top right of the Workbench — it opens the `/buyers/new` intake page.
-2. Walk the three tabs:
+2. Walk the four tabs:
    - **Structured form** — "for the rep who already knows the shape of the deal." One fully-formed opportunity in a single step: buyer fields, a **product** (defaulted to the workspace's primary, changeable when there's more than one), and optional deal context.
    - **Paste** — "paste meeting notes, the parser pulls out buyer + opportunity fields, you review and confirm." Paste a short paragraph, show the fake-AI animation, let it land on the review screen, then switch away without saving. (Paste carries a visible placeholder banner — its final behaviour is a [FLAG] pending Russell.)
-   - **Daily Workbench import** — the bulk path. Talk through the per-CRM **export guidance** panel, then drop a file (use the **Download a sample Daily Workbench file** link). Walk the **adaptive column mapping** — each column auto-mapped with a confidence badge — and the **confirm-mapping gate**. The review screen then shows the **missing-data check**, the **CRM Record ID soft gate** (a per-import acknowledgment when deals lack a Record ID), and the **assign-now vs. decide-later** choice. Confirm the mapping is saved so the next import reuses it.
+   - **Daily Workbench import** — the bulk path. Talk through the per-CRM **export guidance** panel, then drop a file (use the **Download a sample Daily Workbench file** link). Walk the **adaptive column mapping** — each column auto-mapped with a confidence badge — and the **confirm-mapping gate**. The review screen then shows the **missing-data check**, the **CRM Record ID soft gate** (a per-import acknowledgment when deals lack a Record ID), and the **assign-now vs. decide-later** choice. Confirm the mapping is saved so the next import reuses it. On the success screen, follow the **Add activity history** prompt straight into the next tab.
+   - **Activity history** — the optional bulk activity import. "Day one, your deals exist but they have no conversations behind them — readiness is provisional. This backfills the history." Drop the file (use **Download a sample activities file**), walk the adaptive column mapping, then the review screen: activities **auto-join to their deals by CRM Record ID** — no manual assignment — with an **activity-type breakdown** (calls / emails / meetings) and an **unmatched panel** for activities whose Record ID isn't on the workbench. Importing re-scores every matched deal.
 3. Head back to the Workbench — you already have ten seeded deals to work from.
 
 **Talking points:**
 - "We do not replace your CRM. We sit alongside it, ingest the same evidence your reps already produce, and surface diagnoses your CRM cannot."
 - "The Daily Workbench import adapts to whatever your CRM exports — no required column layout — and you only pay the mapping friction once."
+- "Activities auto-join by Record ID — the rep never hand-assigns a call to a deal. That's what turns day-one readiness from a guess into something real."
 
 ---
 
@@ -63,10 +65,12 @@ After sign-in the rep lands on the **Opportunity Workbench** at `/` — the dail
 3. Switch to **List view** with the toggle in the header.
 4. Click **Over-projecting only**. The list narrows to four deals: **Globex (critical)**, **Initech (high)**, **Soylent (high)**, and **Pied Piper (low)** — sorted most-severe-first by default, so Globex sits on top.
 5. Note Soylent's readiness badge: **At risk / regressed** — the buyer has gone backwards, not just stalled.
+6. Point out the blue **no-activity banner** pinned above the views and the orange **No activity** badge on the Wayne Enterprises co-pilot deal — "this deal has no conversations logged, so its readiness is provisional. Add or import activity and the score sharpens." The banner's **Import activity history** button deep-links to the bulk activity import from step 2.
 
 **Talking points:**
 - "Four of ten deals in this pipeline are over-projecting. That's the kind of forecast surprise that costs a quarter."
 - "Notice we are not telling the rep their deal is dead — we are telling them the *stage they have it at* is ahead of what the buyer evidence supports."
+- "A deal with no activity isn't scored on a guess — we flag it as provisional and tell the rep exactly how to firm it up."
 
 ---
 

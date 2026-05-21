@@ -16,6 +16,7 @@ import {
   IconCircleCheck,
   IconDownload,
   IconFileSpreadsheet,
+  IconHistory,
   IconInfoCircle,
   IconUpload,
   IconX,
@@ -379,6 +380,27 @@ export function DailyImport() {
               Import another file
             </Button>
           </Group>
+
+          {!deferred && (result?.opportunitiesCreated ?? 0) > 0 && (
+            <Paper withBorder radius="sm" p="sm" mt="xs" bg="var(--mantine-color-gray-light)">
+              <Group justify="space-between" wrap="wrap" gap="xs">
+                <Text size="xs" c="dimmed" style={{ flex: 1, minWidth: 220 }}>
+                  Optional next step: import your CRM activity history so these
+                  deals score from real conversations instead of provisionally.
+                </Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconHistory size={14} />}
+                  onClick={() =>
+                    navigate({ to: '/buyers/new', search: { method: 'activity' } })
+                  }
+                >
+                  Add activity history
+                </Button>
+              </Group>
+            </Paper>
+          )}
         </Stack>
       </Paper>
     </Center>

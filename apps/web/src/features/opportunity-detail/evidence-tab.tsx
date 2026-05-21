@@ -1,4 +1,5 @@
 import {
+  Anchor,
   Badge,
   Button,
   Card,
@@ -31,6 +32,7 @@ import {
   IconUsers,
   IconVideo,
 } from '@tabler/icons-react';
+import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { activityTypes, type ActivityType } from '@pg/shared';
 import { useAddActivity, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
@@ -58,6 +60,7 @@ const INTERACTION_TYPE_OPTIONS = activityTypes.map((value) => ({
 }));
 
 export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: EvidenceTabProps) {
+  const navigate = useNavigate();
   const [modalOpen, { open, close }] = useDisclosure(false);
   const { data: diagnoses = [] } = useDiagnoses(opportunity.id);
 
@@ -82,11 +85,22 @@ export function EvidenceTab({ opportunity, interactions, onJumpToDiagnosis }: Ev
               <IconScript size={28} color="var(--mantine-color-dimmed)" />
               <Text fw={500}>No interactions yet</Text>
               <Text size="sm" c="dimmed" ta="center">
-                Add a meeting transcript or note to generate a buyer readiness diagnosis.
+                Add a meeting transcript or note to generate a buyer readiness
+                diagnosis — until then, this deal's readiness is provisional.
               </Text>
               <Button leftSection={<IconPlus size={16} />} onClick={open}>
                 Add interaction
               </Button>
+              <Anchor
+                size="xs"
+                c="dimmed"
+                onClick={() =>
+                  navigate({ to: '/buyers/new', search: { method: 'activity' } })
+                }
+                style={{ cursor: 'pointer' }}
+              >
+                or import your activity history from your CRM
+              </Anchor>
             </Stack>
           </Paper>
         </Center>

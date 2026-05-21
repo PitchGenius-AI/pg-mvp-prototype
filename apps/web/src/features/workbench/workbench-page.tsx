@@ -16,6 +16,7 @@ import { useWorkspaceStages } from '../../mock/use-workspace-stages';
 import { BoardView } from './board-view';
 import { ListFilters } from './list-filters';
 import { ListView } from './list-view';
+import { NoActivityBanner } from './no-activity-banner';
 import { UnassignedBanner } from './unassigned-banner';
 import { useWorkbenchView, type WorkbenchView } from './use-workbench-view';
 import { filterRows, sortRows } from './workbench-data';
@@ -59,6 +60,13 @@ export function WorkbenchPage() {
     const assigned = new Set(rows.map((r) => r.opportunity.buyerId));
     return (buyers.data ?? []).filter((b) => !assigned.has(b.id)).length;
   }, [rows, buyers.data]);
+
+  // Opportunities with no activity score only provisionally (M15) — the banner
+  // nudges the rep to add or import activity history.
+  const noActivityCount = useMemo(
+    () => rows.filter((r) => r.activityCount === 0).length,
+    [rows],
+  );
 
   const updateParams = (next: typeof params) => {
     navigate({ search: next, replace: true });
@@ -128,6 +136,7 @@ export function WorkbenchPage() {
         ) : (
           <Stack gap="md">
             <UnassignedBanner count={unassignedCount} />
+            <NoActivityBanner count={noActivityCount} />
 
             {view === 'board' ? (
               <BoardView rows={rows} stages={stages} showProduct={showProduct} />

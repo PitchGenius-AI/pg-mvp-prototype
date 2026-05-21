@@ -10,6 +10,9 @@ export interface WorkbenchRow {
   buyer: MockBuyer | null;
   product: MockProduct | null;
   latestActivityDate: string;
+  // Number of activities logged against the opportunity (M15). Zero means
+  // readiness is provisional — the workbench highlights these for the rep.
+  activityCount: number;
   primaryBlocker: string | null;
   nextAction: string | null;
 }
@@ -21,11 +24,16 @@ export function buildWorkbenchRows(workspaceId: string): WorkbenchRow[] {
   );
 
   const latestActivityByOpp = new Map<string, string>();
+  const activityCountByOpp = new Map<string, number>();
   for (const a of Object.values(state.activities)) {
     const prev = latestActivityByOpp.get(a.opportunityId);
     if (!prev || a.activityDate > prev) {
       latestActivityByOpp.set(a.opportunityId, a.activityDate);
     }
+    activityCountByOpp.set(
+      a.opportunityId,
+      (activityCountByOpp.get(a.opportunityId) ?? 0) + 1,
+    );
   }
 
   const latestDxByOpp = new Map<string, MockDiagnosis>();
@@ -43,6 +51,7 @@ export function buildWorkbenchRows(workspaceId: string): WorkbenchRow[] {
       buyer: state.buyers[opp.buyerId] ?? null,
       product: state.products[opp.productId] ?? null,
       latestActivityDate: latestActivityByOpp.get(opp.id) ?? opp.createdAt,
+      activityCount: activityCountByOpp.get(opp.id) ?? 0,
       primaryBlocker: dx?.primaryBlocker ?? null,
       nextAction: dx?.diagnosis.recommended_next_action ?? null,
     };

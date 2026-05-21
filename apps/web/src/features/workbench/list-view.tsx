@@ -1,5 +1,19 @@
-import { Badge, Group, ScrollArea, Stack, Table, Text, UnstyledButton } from '@mantine/core';
-import { IconArrowsSort, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import {
+  Badge,
+  Group,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
+import {
+  IconArrowsSort,
+  IconChevronDown,
+  IconChevronUp,
+  IconNotesOff,
+} from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { AlignmentBadge } from '../../components/alignment-badge';
 import { relativeTime } from '../../lib/relative-time';
@@ -99,9 +113,27 @@ export function ListView({ rows, sort, dir, onSort, showProduct }: ListViewProps
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {relativeTime(row.latestActivityDate)}
-                  </Text>
+                  {row.activityCount === 0 ? (
+                    <Tooltip
+                      label="No activity logged — add a call, email, or note to sharpen this deal's readiness score."
+                      multiline
+                      w={240}
+                      withArrow
+                    >
+                      <Badge
+                        variant="light"
+                        color="orange"
+                        size="sm"
+                        leftSection={<IconNotesOff size={11} />}
+                      >
+                        No activity
+                      </Badge>
+                    </Tooltip>
+                  ) : (
+                    <Text size="sm" c="dimmed">
+                      {relativeTime(row.latestActivityDate)}
+                    </Text>
+                  )}
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c="dimmed" lineClamp={2} maw={240}>

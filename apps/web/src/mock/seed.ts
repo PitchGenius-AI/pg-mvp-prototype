@@ -1796,7 +1796,10 @@ const wayneCopilotOpp = makeOpportunity({
   knownPain: 'Lucia mentioned her SDR team wants in-call coaching after seeing the Pulse pilot.',
   knownObjection: null,
   dealNotes: 'Spun out of the Wayne marketing-stack conversation. No discovery call booked yet.',
-  crmRecordId: null,
+  // Carries a CRM Record ID but no activity — the M15 demo target: importing
+  // an activity history file auto-joins to this deal and re-scores it from
+  // provisional to a real readiness diagnosis.
+  crmRecordId: 'HS-1618033988',
   createdAt: ISO('2026-05-11T15:00:00Z'),
   updatedAt: ISO('2026-05-11T15:00:00Z'),
 });

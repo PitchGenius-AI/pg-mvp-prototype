@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mockApi } from './mock-api';
 import { queryKeys } from './queries';
-import { useMockStore, type ImportBuyerRow, type ImportResult } from './store';
+import {
+  useMockStore,
+  type ImportActivitiesResult,
+  type ImportActivityRow,
+  type ImportBuyerRow,
+  type ImportResult,
+} from './store';
 import { buildBuyerRows, type BuyerRow } from './buyer-rows';
 import { buildWorkbenchRows, type WorkbenchRow } from './workbench-rows';
 import type {
@@ -546,6 +552,34 @@ export function useImportBuyerRows() {
       qc.invalidateQueries({ queryKey: queryKeys.buyer.all });
       qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
       qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
+    },
+  });
+}
+
+// Bulk Activities import + auto-join (M15, PG-216/217/218). One slow "AI" call:
+// it creates the activities, auto-joins them to opportunities by CRM Record ID,
+// and re-scores every opportunity that gained an activity. Invalidates every
+// read-model the rescoring touches.
+export function useImportActivities() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { rows: ImportActivityRow[] }) =>
+      mockApi<ImportActivitiesResult>(
+        () => {
+          const s = useMockStore.getState();
+          if (!s.session) throw new Error('No active session');
+          return s.importActivities({
+            workspaceId: s.session.workspaceId,
+            rows: input.rows,
+          });
+        },
+        { slow: true },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.opportunity.all });
+      qc.invalidateQueries({ queryKey: queryKeys.workbench.all });
+      qc.invalidateQueries({ queryKey: queryKeys.activity.all });
+      qc.invalidateQueries({ queryKey: queryKeys.diagnosis.all });
     },
   });
 }

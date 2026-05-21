@@ -1,0 +1,8 @@
+Associated Deal ID,Activity Type,Date,Subject,Notes,Attendees
+HS-1618033988,Call,2026-05-13,Discovery call,"Lucia walked us through the problem — her SDR team keeps missing buying signals on live calls and ramp time for new reps is painful. Clear, buyer-stated pain.",Lucia Ortiz
+HS-1618033988,Meeting,2026-05-15,Live co-pilot demo,"Demoed the live co-pilot to Lucia and two SDR leads. They were engaged and asked about the trial process and how it handles their existing call scripts.",Lucia Ortiz;Devin Park
+HS-1618033988,Email,2026-05-18,Trial scoping follow-up,"Sent the trial scoping doc. Lucia replied that she wants her VP of Sales to sign off as the next step before a pilot can start.",Lucia Ortiz
+HS-1618033988,Call,2026-05-20,Pilot planning call,"Agreed a 3-week pilot with 5 SDR seats. Lucia is keen to move quickly — she wants a start date in early June.",Lucia Ortiz
+9900000001,Call,2026-05-11,Quarterly review call,"Activity logged against a deal that isn't in the current workbench.",Jordan Pierce
+9900000002,Email,2026-05-09,Renewal thread,"Email thread on an archived deal that isn't present in the workbench.",Sam Rivera
+,Note,2026-05-12,Unlinked note,"A logged note with no associated deal ID in the export — nothing to join it to.",

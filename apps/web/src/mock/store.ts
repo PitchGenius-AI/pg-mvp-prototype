@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import { computePipelineRealityCheck } from './fake-diagnosis';
+import type { ActivityType } from '@pg/shared';
+import { computePipelineRealityCheck, fakeGenerateDiagnosis } from './fake-diagnosis';
 import { createInitialOnboardingDraft } from './types';
 import type {
   MockActivity,
@@ -46,6 +47,27 @@ export interface ImportResult {
   buyersCreated: number;
   buyersLinked: number;
   opportunitiesCreated: number;
+}
+
+// One activity row produced by the bulk Activities import (M15, PG-216) — the
+// confirmed column mapping applied to a source row, ready for auto-join.
+export interface ImportActivityRow {
+  // The auto-join key (PG-217). Null when the file row carried no Record ID.
+  crmRecordId: string | null;
+  activityType: ActivityType;
+  activityDate: string;
+  subject: string | null;
+  body: string | null;
+  participants: string[];
+}
+
+// Outcome of a bulk Activities import (M15) — drives the import's done-step.
+export interface ImportActivitiesResult {
+  activitiesImported: number;
+  activitiesUnmatched: number;
+  opportunitiesRescored: number;
+  // Record IDs (or "(no Record ID)") of rows that joined to nothing.
+  unmatchedRecordIds: string[];
 }
 
 interface MockState {
@@ -194,6 +216,17 @@ interface MockActions {
     productId: string | null;
     rows: ImportBuyerRow[];
   }) => ImportResult;
+
+  // Bulk Activities import + auto-join (M15, PG-216/217/218). Activities whose
+  // CRM Record ID matches an opportunity attach automatically — no manual
+  // assignment; unmatched rows are reported back, not created. Every opportunity
+  // that gains an activity is re-scored (a fresh diagnosis per imported
+  // activity) so day-one readiness reflects real conversations instead of
+  // staying provisional. One transactional write.
+  importActivities: (input: {
+    workspaceId: string;
+    rows: ImportActivityRow[];
+  }) => ImportActivitiesResult;
 }
 
 const emptyState: Omit<MockState, 'onboardingDraft'> = {
@@ -876,6 +909,144 @@ export const useMockStore = create<MockState & MockActions>()(
         }
         return { buyersCreated, buyersLinked, opportunitiesCreated };
       },
+
+      importActivities: ({ workspaceId, rows }) => {
+        const state = get();
+
+        // Index the workspace's opportunities by CRM Record ID (case- and
+        // whitespace-insensitive) — the auto-join key (PG-217). An opportunity
+        // with no Record ID can't be matched.
+        const oppByRecordId = new Map<string, MockOpportunity>();
+        for (const opp of Object.values(state.opportunities)) {
+          if (opp.workspaceId !== workspaceId || !opp.crmRecordId) continue;
+          oppByRecordId.set(opp.crmRecordId.trim().toLowerCase(), opp);
+        }
+
+        const matched: { row: ImportActivityRow; opportunity: MockOpportunity }[] = [];
+        const unmatchedRecordIds: string[] = [];
+        for (const row of rows) {
+          const key = row.crmRecordId?.trim().toLowerCase();
+          const opp = key ? oppByRecordId.get(key) : undefined;
+          if (opp) matched.push({ row, opportunity: opp });
+          else unmatchedRecordIds.push(row.crmRecordId?.trim() || '(no Record ID)');
+        }
+
+        if (matched.length === 0) {
+          return {
+            activitiesImported: 0,
+            activitiesUnmatched: unmatchedRecordIds.length,
+            opportunitiesRescored: 0,
+            unmatchedRecordIds,
+          };
+        }
+
+        // Create activities oldest-first so each opportunity's newest activity
+        // is also its newest diagnosis — the denormalized readiness then agrees
+        // with the latest-by-createdAt diagnosis lookup.
+        matched.sort((a, b) => a.row.activityDate.localeCompare(b.row.activityDate));
+
+        const createdActivities: MockActivity[] = [];
+        const createdDiagnoses: MockDiagnosis[] = [];
+        // matched is sorted ascending, so the last write per opportunity is its
+        // chronologically-latest activity — the one that drives current readiness.
+        const latestDxByOpp = new Map<string, MockDiagnosis>();
+        const base = Date.now();
+
+        matched.forEach(({ row, opportunity }, i) => {
+          const activity: MockActivity = {
+            id: newId('act'),
+            workspaceId,
+            opportunityId: opportunity.id,
+            activityType: row.activityType,
+            activityDate: row.activityDate,
+            participants: row.participants,
+            transcriptOrNotes:
+              [row.subject, row.body].filter(Boolean).join('\n\n') || null,
+            repSubjectiveNotes: null,
+            nextStepAgreed: false,
+            stakeholderAdded: false,
+            pricingDiscussed: false,
+            budgetDiscussed: false,
+            competitorDiscussed: false,
+            implementationDiscussed: false,
+            securityDiscussed: false,
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          };
+          createdActivities.push(activity);
+
+          // Re-score from this activity (PG-218). Monotonic createdAt keeps the
+          // chronologically-newest activity = the newest diagnosis.
+          const { signalExtraction, diagnosis } = fakeGenerateDiagnosis({
+            opportunity,
+            buyer: state.buyers[opportunity.buyerId] ?? null,
+            product: state.products[opportunity.productId] ?? null,
+            activity,
+            repName: state.session?.user.name,
+          });
+          const dx: MockDiagnosis = {
+            id: newId('dx'),
+            workspaceId,
+            opportunityId: opportunity.id,
+            activityId: activity.id,
+            signalExtraction,
+            diagnosis,
+            readinessState: diagnosis.readiness_state,
+            readinessScore: diagnosis.readiness_score,
+            confidenceLevel: diagnosis.confidence_level,
+            alignmentOutcome: diagnosis.pipeline_reality_check.outcome,
+            alignmentLevel: diagnosis.pipeline_reality_check.level,
+            alignmentReason: diagnosis.pipeline_reality_check.reason,
+            primaryBlocker: diagnosis.primary_blocker,
+            secondaryBlocker: diagnosis.secondary_blocker,
+            crmNoteText: '',
+            followUpSubject: diagnosis.follow_up_email.subject,
+            followUpBody: diagnosis.follow_up_email.body,
+            managerCoachingNote: diagnosis.manager_coaching_note,
+            createdAt: new Date(base + i).toISOString(),
+          };
+          createdDiagnoses.push(dx);
+          latestDxByOpp.set(opportunity.id, dx);
+        });
+
+        set(
+          (s) => {
+            const opportunities = { ...s.opportunities };
+            for (const [oppId, dx] of latestDxByOpp) {
+              const opp = opportunities[oppId];
+              if (!opp) continue;
+              opportunities[oppId] = {
+                ...opp,
+                currentReadinessState: dx.readinessState,
+                currentReadinessScore: dx.readinessScore,
+                currentAlignmentOutcome: dx.alignmentOutcome,
+                currentAlignmentLevel: dx.alignmentLevel,
+                updatedAt: nowIso(),
+              };
+            }
+            return {
+              activities: {
+                ...s.activities,
+                ...Object.fromEntries(createdActivities.map((a) => [a.id, a])),
+              },
+              diagnoses: {
+                ...s.diagnoses,
+                ...Object.fromEntries(createdDiagnoses.map((d) => [d.id, d])),
+              },
+              opportunities,
+            };
+          },
+          undefined,
+          'mock/importActivities',
+        );
+
+        return {
+          activitiesImported: createdActivities.length,
+          activitiesUnmatched: unmatchedRecordIds.length,
+          opportunitiesRescored: latestDxByOpp.size,
+          unmatchedRecordIds,
+        };
+      },
     }),
     { name: 'pg-mock-store', enabled: import.meta.env.DEV },
   ),
@@ -1068,6 +1239,8 @@ export const mockActions = {
   ) => useMockStore.getState().addImportMapping(workspaceId, input),
   importBuyerRows: (input: Parameters<MockActions['importBuyerRows']>[0]) =>
     useMockStore.getState().importBuyerRows(input),
+  importActivities: (input: Parameters<MockActions['importActivities']>[0]) =>
+    useMockStore.getState().importActivities(input),
 };
 
 // --- Read-only helpers ---

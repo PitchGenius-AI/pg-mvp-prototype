@@ -5,8 +5,10 @@ import {
   IconClipboardText,
   IconFileSpreadsheet,
   IconForms,
+  IconHistory,
 } from '@tabler/icons-react';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
+import { ActivityImport } from './activity-import';
 import { DailyImport } from './daily-import';
 import { DEFAULT_INTAKE_METHOD, type IntakeMethod } from './intake-search';
 import { PasteMethod } from './paste-method';
@@ -14,9 +16,10 @@ import { StructuredForm } from './structured-form';
 
 const routeApi = getRouteApi('/_authed/buyers/new');
 
-// The /buyers/new intake surface (M14, PG-209) — reached from the Workbench
-// "Add opportunity" button and the Buyers "Add buyer" button. Three methods as
-// tabs, all converging on the same mock-store insert. Supersedes the M4 modal.
+// The /buyers/new intake surface (M14, PG-209; +M15 PG-216) — reached from the
+// Workbench "Add opportunity" button and the Buyers "Add buyer" button. Four
+// methods as tabs: the first three bring buyers/opportunities in; the fourth
+// (M15) backfills activity history onto deals that already exist.
 export function BuyersIntakePage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
@@ -57,8 +60,9 @@ export function BuyersIntakePage() {
           </Group>
           <Title order={2}>Add to your workbench</Title>
           <Text size="sm" c="dimmed">
-            Three ways to bring buyers in — one fully-formed deal, a quick paste, or a bulk
-            import from your CRM.
+            Bring buyers in — one fully-formed deal, a quick paste, or a bulk import
+            from your CRM — then backfill their activity history so readiness scores
+            from real conversations.
           </Text>
         </Stack>
 
@@ -73,6 +77,9 @@ export function BuyersIntakePage() {
             <Tabs.Tab value="import" leftSection={<IconFileSpreadsheet size={16} />}>
               Daily Workbench import
             </Tabs.Tab>
+            <Tabs.Tab value="activity" leftSection={<IconHistory size={16} />}>
+              Activity history
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="structured">
@@ -85,6 +92,9 @@ export function BuyersIntakePage() {
           </Tabs.Panel>
           <Tabs.Panel value="import">
             <DailyImport />
+          </Tabs.Panel>
+          <Tabs.Panel value="activity">
+            <ActivityImport />
           </Tabs.Panel>
         </Tabs>
       </Stack>

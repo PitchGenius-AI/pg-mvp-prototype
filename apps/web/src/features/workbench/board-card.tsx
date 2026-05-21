@@ -1,6 +1,6 @@
 import type { DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
-import { Paper, Stack, Text, Group, Tooltip } from '@mantine/core';
-import { IconAlertTriangleFilled } from '@tabler/icons-react';
+import { Badge, Paper, Stack, Text, Group, Tooltip } from '@mantine/core';
+import { IconAlertTriangleFilled, IconNotesOff } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { AlignmentBadge } from '../../components/alignment-badge';
 import { relativeTime } from '../../lib/relative-time';
@@ -63,6 +63,22 @@ export function BoardCard({ row, showProduct, provided, snapshot }: BoardCardPro
             score={opportunity.currentReadinessScore}
             size="xs"
           />
+          {row.activityCount === 0 && (
+            <Tooltip
+              label="No activity yet — add a call, email, or note to sharpen this deal's readiness."
+              multiline
+              w={220}
+            >
+              <Badge
+                variant="light"
+                color="orange"
+                size="xs"
+                leftSection={<IconNotesOff size={10} />}
+              >
+                No activity
+              </Badge>
+            </Tooltip>
+          )}
         </Group>
 
         <AlignmentBadge
