@@ -1,6 +1,7 @@
 import { NavLink, Stack } from '@mantine/core';
 import {
   IconBox,
+  IconFileExport,
   IconLayoutKanban,
   IconScript,
   IconSettings,
@@ -40,6 +41,13 @@ export function Sidebar() {
         label="Scripts"
         leftSection={<IconScript size={18} />}
         active={pathname.startsWith('/scripts')}
+      />
+      <NavLink
+        component={Link}
+        to="/export"
+        label="CRM Update Pack"
+        leftSection={<IconFileExport size={18} />}
+        active={pathname.startsWith('/export')}
       />
       <NavLink
         component={Link}

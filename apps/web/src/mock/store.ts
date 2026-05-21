@@ -208,6 +208,12 @@ interface MockActions {
   // not touch readiness, stage, or outcome.
   recordExport: (opportunityId: string) => void;
 
+  // Bulk variant for the M18 CRM Update Pack (PG-232) — stamps every exported
+  // opportunity with one shared timestamp in a single write. Like recordExport,
+  // pure bookkeeping: no readiness/stage/outcome mutation. The timestamp drives
+  // the next day's "new activity since last export" default.
+  recordExportPack: (opportunityIds: string[]) => void;
+
   addImportMapping: (
     workspaceId: string,
     input: Omit<MockImportMapping, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>,
@@ -800,6 +806,19 @@ export const useMockStore = create<MockState & MockActions>()(
           'mock/recordExport',
         ),
 
+      recordExportPack: (opportunityIds) =>
+        set(
+          (state) => {
+            if (opportunityIds.length === 0) return state;
+            const ts = nowIso();
+            const exportTimestamps = { ...state.exportTimestamps };
+            for (const id of opportunityIds) exportTimestamps[id] = ts;
+            return { exportTimestamps };
+          },
+          undefined,
+          'mock/recordExportPack',
+        ),
+
       addImportMapping: (workspaceId, input) => {
         const mapping: MockImportMapping = {
           ...input,
@@ -1253,6 +1272,8 @@ export const mockActions = {
     useMockStore.getState().setPrecallIntelligence(input),
   recordExport: (opportunityId: string) =>
     useMockStore.getState().recordExport(opportunityId),
+  recordExportPack: (opportunityIds: string[]) =>
+    useMockStore.getState().recordExportPack(opportunityIds),
   addImportMapping: (
     workspaceId: string,
     input: Parameters<MockActions['addImportMapping']>[1],

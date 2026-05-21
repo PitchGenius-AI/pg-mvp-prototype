@@ -69,8 +69,16 @@ export const queryKeys = {
 
   // Per-opportunity last-export timestamp (M17 Export tab, PG-226).
   exportRecord: {
+    all: ['exportRecord'] as const,
     forOpportunity: (opportunityId: string) =>
       ['exportRecord', 'forOpportunity', opportunityId] as const,
+  },
+
+  // Read-model for the M18 CRM Update Pack (`/export`): every opportunity with
+  // buyer activity, joined with what changed since the rep last exported it.
+  exportPack: {
+    all: ['exportPack'] as const,
+    rows: () => ['exportPack', 'rows'] as const,
   },
 
   importMapping: {

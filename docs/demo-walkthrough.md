@@ -123,9 +123,9 @@ This is a deeper second example. Pick **Massive Dynamic – sales enablement ref
 
 ---
 
-## 7. Export the CRM note (~30 seconds — close on this)
+## 7. Export the CRM note (~30 seconds)
 
-End on something tangible the rep would actually do.
+A single deal's export — the per-opportunity artifact.
 
 **Steps:**
 1. Go to the **Export** tab on the Massive Dynamic detail (or Globex — either works).
@@ -134,6 +134,30 @@ End on something tangible the rep would actually do.
 
 **Talking points:**
 - "This is the artifact the rep drops into their CRM activity log. The whole flow takes a minute. The intelligence behind it took the buyer evidence and four prompt chains we ran in the background."
+
+---
+
+## 8. The CRM Update Pack — end-of-day bulk export (~1.5 minutes — close on this)
+
+The Export tab in step 7 handles one deal. The **CRM Update Pack** is the bookend to the morning Daily Workbench import (step 2): at the end of the day the rep pushes everything they learned back to the CRM in a single file.
+
+**Steps:**
+1. In the sidebar, click **CRM Update Pack** (`/export`).
+2. The working set loads pre-checked: **nine deals** — every opportunity with logged activity. (The tenth, *Wayne – live call co-pilot trial*, has no activity yet, so there's nothing to write back — it isn't in the pack.) The line above the list reads *"Showing every opportunity with logged activity — you haven't exported before."*
+3. Point at the **export-tier badges**: five deals are **CRM note** (they carry a HubSpot Record ID) and four are **Copy only** (no Record ID — they can't be matched to a record automatically). The toolbar tallies it: *"9 deals in your pack · 5 as CRM notes, 4 copy-only."* Nothing is silently dropped — a copy-only deal stays on the list, just out of the file.
+4. Expand any row with the chevron to **preview the exact note** that will export — the same note as that deal's Export tab.
+5. Click **Download update pack (5)**. Watch the brief *"Assembling your update pack…"* state, then the file downloads — named for HubSpot and today's date.
+6. The confirmation panel makes two things explicit:
+   - The file **still has to be imported into HubSpot** — "Pitch Genius doesn't write to your CRM; it stays your system of record."
+   - The **four copy-only deals weren't in the file** — they're listed with per-row **Copy note** buttons so the rep resolves each by hand.
+7. Click **Done** and note the page is now bookkeeping-aware: the five exported deals drop out of the "new activity" working set, because export stamps each one with a timestamp. Tomorrow's pack will default to whatever has *new* activity since today.
+
+**Talking points:**
+- "Morning: import the workbench. All day: log conversations. End of day: one file back to the CRM. The round-trip is file-based — no API integration, no IT project."
+- "Export is read-only on the deal — it records what you sent, it never changes a readiness score or a stage. The CRM stays the system of record."
+- "The pack only ever shows you what *changed*. The rep isn't re-exporting their whole pipeline every night — just the deals they actually worked."
+
+> **Note on flags:** the note template wording, notes-only vs. dual output, and the exact per-CRM file layout are all [FLAG] items pending Russell and real sample CRM exports — the file here is a representative two-column (Record ID + Note) CSV.
 
 ---
 

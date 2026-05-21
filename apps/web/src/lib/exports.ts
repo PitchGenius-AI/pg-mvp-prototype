@@ -87,6 +87,15 @@ export function exportTier(opportunity: MockOpportunity): ExportTier {
   return opportunity.crmRecordId ? 'crm_import' : 'copy_only';
 }
 
+// The CRM Update Pack's tier (M18, PG-231/232) is stricter than the
+// per-opportunity Export tab's: a deal joins the import file only when it
+// carries a CRM Record ID AND the workspace has a CRM selected — a note-import
+// file needs a CRM to import into. With no CRM, every row degrades to
+// `copy_only` and the rep copies each note by hand.
+export function packExportTier(opportunity: MockOpportunity, crmType: string | null): ExportTier {
+  return opportunity.crmRecordId && crmType ? 'crm_import' : 'copy_only';
+}
+
 // Build the CRM note-import file — a two-column CSV (Record ID + Note) the CRM
 // can ingest to attach the note to the matching record. Only valid for the
 // `crm_import` tier; the caller gates on a non-null crmRecordId.
@@ -98,6 +107,23 @@ export function buildCrmNoteImportFile(args: {
   const headers = ['Record ID', 'Note'];
   const row = [recordId, args.note];
   return [headers.map(csvEscape).join(','), row.map(csvEscape).join(',')].join('\n');
+}
+
+// One opportunity's contribution to the batched CRM Update Pack file (M18).
+export interface CrmNotePackEntry {
+  recordId: string;
+  note: string;
+}
+
+// Build the batched CRM note-import file for the Update Pack (PG-231) — a
+// two-column CSV (Record ID + Note), one row per exported opportunity, that the
+// CRM ingests to attach each note to its matching record. Only `crm_import`-tier
+// opportunities belong here; the caller filters copy-only deals out (they
+// surface as per-row copy buttons instead).
+export function buildCrmNotePackFile(entries: CrmNotePackEntry[]): string {
+  const headers = ['Record ID', 'Note'];
+  const rows = entries.map((e) => [e.recordId, e.note].map(csvEscape).join(','));
+  return [headers.map(csvEscape).join(','), ...rows].join('\n');
 }
 
 function csvEscape(value: string | number): string {

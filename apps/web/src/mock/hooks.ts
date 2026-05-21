@@ -9,6 +9,7 @@ import {
   type ImportResult,
 } from './store';
 import { buildBuyerRows, type BuyerRow } from './buyer-rows';
+import { buildExportPackRows, type ExportPackRow } from './export-pack-rows';
 import { buildWorkbenchRows, type WorkbenchRow } from './workbench-rows';
 import type {
   MockActivity,
@@ -300,6 +301,24 @@ export function useExportTimestamp(opportunityId: string | undefined) {
   });
 }
 
+// The CRM Update Pack read-model (M18) — every opportunity with buyer activity,
+// joined with what changed since the rep's last export. One fetch backs the
+// whole `/export` surface.
+export function useExportPack() {
+  return useQuery({
+    queryKey: queryKeys.exportPack.rows(),
+    // No retry: the injected-error demo path (window.__mockApi.setErrorRate)
+    // should surface the error state immediately, not after backoff.
+    retry: false,
+    queryFn: () =>
+      mockApi<ExportPackRow[]>(() => {
+        const s = useMockStore.getState();
+        if (!s.session) return [];
+        return buildExportPackRows(s.session.workspaceId);
+      }),
+  });
+}
+
 // --- Mutations ---
 
 type Actions = ReturnType<typeof useMockStore.getState>;
@@ -548,6 +567,24 @@ export function useRecordExport() {
       qc.invalidateQueries({
         queryKey: queryKeys.exportRecord.forOpportunity(opportunityId),
       });
+    },
+  });
+}
+
+// Stamp a batch of opportunities as exported by the M18 CRM Update Pack
+// (PG-232). Synchronous local bookkeeping — no mockApi latency window.
+export function useRecordExportPack() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (opportunityIds: string[]) => {
+      useMockStore.getState().recordExportPack(opportunityIds);
+      return opportunityIds;
+    },
+    onSuccess: () => {
+      // The pack list re-derives its "new activity since last export" default;
+      // each per-opportunity Export tab re-derives its "last exported" line.
+      qc.invalidateQueries({ queryKey: queryKeys.exportPack.all });
+      qc.invalidateQueries({ queryKey: queryKeys.exportRecord.all });
     },
   });
 }
