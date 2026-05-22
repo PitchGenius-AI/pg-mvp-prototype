@@ -218,7 +218,12 @@ export function ActivityImport() {
             {error}
           </Alert>
         )}
-        <Anchor href="/sample-activities.csv" download size="sm" c="dimmed">
+        <Anchor
+          href={`${import.meta.env.BASE_URL}sample-activities.csv`}
+          download
+          size="sm"
+          c="dimmed"
+        >
           <Group gap={4}>
             <IconDownload size={14} />
             Download a sample activities file

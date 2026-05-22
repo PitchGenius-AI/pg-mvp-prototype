@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+# Builds the mock-backed web prototype (apps/web) and publishes it to GitHub
+# Pages. The app has no backend — it's a static SPA over a Zustand mock store —
+# so this is a plain build + upload. PAGES_BASE makes Vite emit asset and route
+# paths under the repo sub-path the Pages site is served from.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let an in-progress one finish.
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @pg/web build
+        env:
+          PAGES_BASE: /pg-mvp-prototype/
+
+      - name: Add SPA fallback for deep links
+        # GitHub Pages serves 404.html for any unknown path; making it a copy of
+        # index.html lets the SPA boot and the router resolve the deep link.
+        run: cp apps/web/dist/index.html apps/web/dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

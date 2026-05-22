@@ -98,7 +98,11 @@ export function ImportCrmGuidance({ crmType }: ImportCrmGuidanceProps) {
           )}
           <Text size="xs" c="dimmed" mt="sm">
             Not sure? Download a{' '}
-            <Anchor href="/sample-daily-workbench.csv" download size="xs">
+            <Anchor
+              href={`${import.meta.env.BASE_URL}sample-daily-workbench.csv`}
+              download
+              size="xs"
+            >
               sample Daily Workbench file
             </Anchor>{' '}
             to see the shape Pitch Genius expects.

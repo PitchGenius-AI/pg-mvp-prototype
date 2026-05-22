@@ -23,6 +23,9 @@ const router = createRouter({
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
+  // Matches Vite's `base` — '/' locally, '/<repo>/' on GitHub Pages — so client
+  // routing works whether the app is mounted at the domain root or a sub-path.
+  basepath: import.meta.env.BASE_URL,
 });
 
 declare module '@tanstack/react-router' {

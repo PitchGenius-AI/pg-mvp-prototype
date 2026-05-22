@@ -232,7 +232,12 @@ export function DailyImport() {
             {error}
           </Alert>
         )}
-        <Anchor href="/sample-daily-workbench.csv" download size="sm" c="dimmed">
+        <Anchor
+          href={`${import.meta.env.BASE_URL}sample-daily-workbench.csv`}
+          download
+          size="sm"
+          c="dimmed"
+        >
           <Group gap={4}>
             <IconDownload size={14} />
             Download a sample Daily Workbench file
