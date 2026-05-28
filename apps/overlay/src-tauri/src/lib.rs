@@ -3,41 +3,70 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager,
 };
-
-/// Apply the macOS-only overlay window behaviors that Tauri does not expose in
-/// `tauri.conf.json`: the window level (to beat fullscreen apps) and the
-/// collection behavior (to appear on every Space). Done via AppKit through the
-/// raw `NSWindow` handle.
 #[cfg(target_os = "macos")]
-fn apply_overlay_window_behaviors(window: &tauri::WebviewWindow) {
-    use cocoa::appkit::{NSWindow, NSWindowCollectionBehavior};
-    use cocoa::base::id;
-    use cocoa::foundation::NSInteger;
+use tauri_nspanel::{
+    tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
+};
 
-    let Ok(handle) = window.ns_window() else {
+// A plain NSWindow — even at screen-saver level with `canJoinAllSpaces` — cannot
+// be drawn over OTHER apps' fullscreen Spaces on macOS; only an NSPanel can
+// (tauri-apps/tauri#11488). This subclass converts our window into an NSPanel in
+// place, preserving its vibrancy/transparency. `is_floating_panel` keeps it
+// above ordinary windows; `can_become_key_window` lets the rep click its
+// controls. The window level + collection behavior are applied in
+// `promote_to_overlay_panel`.
+#[cfg(target_os = "macos")]
+tauri_panel! {
+    panel!(OverlayPanel {
+        config: {
+            can_become_key_window: true,
+            is_floating_panel: true,
+            // CRITICAL: NSPanel.hidesOnDeactivate defaults to TRUE (unlike an
+            // NSWindow). Left at the default, the overlay vanishes the moment
+            // another app takes focus — e.g. when it goes fullscreen — which is
+            // precisely the float-over-fullscreen failure. Must be false.
+            hides_on_deactivate: false
+        }
+    })
+}
+
+/// Promote the "main" window to a floating overlay panel that draws over other
+/// apps' fullscreen Spaces (PG-244 FR1/FR2) and appears on every Space (FR3).
+/// Mirrors tauri-nspanel's own `examples/fullscreen` recipe.
+#[cfg(target_os = "macos")]
+fn promote_to_overlay_panel(window: &tauri::WebviewWindow) {
+    let Ok(panel) = window.to_panel::<OverlayPanel>() else {
         return;
     };
-    let ns_window = handle as id;
 
-    unsafe {
-        // PG-244 (FR1/FR2): float above EVERYTHING, including other apps'
-        // fullscreen Spaces. NSScreenSaverWindowLevel == 1000. Plain `.floating`
-        // (what Tauri's `alwaysOnTop` sets) is not enough to beat fullscreen.
-        ns_window.setLevel_(1000 as NSInteger);
+    // Float above ordinary windows.
+    panel.set_level(PanelLevel::Floating.value());
 
-        // PG-244 (FR3): show on every Space and over other apps' fullscreen
-        // Spaces without forcing our app into fullscreen, and don't slide
-        // between Spaces with the user.
-        let behavior = NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorStationary;
-        ns_window.setCollectionBehavior_(behavior);
-    }
+    // The crux: a non-activating panel does not activate the app when shown or
+    // clicked. This is REQUIRED for the panel to display over another app's
+    // fullscreen Space — an activating window forces a Space switch instead of
+    // floating over the fullscreen one.
+    panel.set_style_mask(StyleMask::empty().nonactivating_panel().into());
+
+    // canJoinAllSpaces -> present on every Space; fullScreenAuxiliary -> allowed
+    // to coexist on another app's fullscreen Space.
+    panel.set_collection_behavior(
+        CollectionBehavior::new()
+            .full_screen_auxiliary()
+            .can_join_all_spaces()
+            .into(),
+    );
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // The NSPanel subclass + manager (macOS only).
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    builder
         .setup(|app| {
             // PG-245 (FR10): menu-bar-only — no Dock tile, no Cmd+Tab entry.
             // Set at runtime so it also holds in `tauri dev`, where the bundled
@@ -45,10 +74,11 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // PG-244: float-above-fullscreen + join-all-Spaces.
+            // PG-244: convert to a floating NSPanel so it floats above
+            // fullscreen apps and joins all Spaces.
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
-                apply_overlay_window_behaviors(&window);
+                promote_to_overlay_panel(&window);
             }
 
             // PG-245 (FR7/FR8/FR9): persistent menu-bar status item with a menu
@@ -67,15 +97,18 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    // Drive the panel (not the window) so Show re-asserts the
+                    // panel ordering/level after a Hide.
                     "show" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
+                        #[cfg(target_os = "macos")]
+                        if let Ok(panel) = app.get_webview_panel("main") {
+                            panel.show();
                         }
                     }
                     "hide" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.hide();
+                        #[cfg(target_os = "macos")]
+                        if let Ok(panel) = app.get_webview_panel("main") {
+                            panel.hide();
                         }
                     }
                     "quit" => app.exit(0),

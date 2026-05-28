@@ -18,12 +18,13 @@ tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# AppKit interop for the macOS-only window behaviors that Tauri does not expose
-# (NSWindow level + collectionBehavior in PG-244). Declared now so the interop
-# path compiles as part of the scaffold; used in later M21 issues.
+# The overlay must draw over OTHER apps' fullscreen Spaces. A plain NSWindow
+# can't on macOS — even at screen-saver level with canJoinAllSpaces
+# (tauri-apps/tauri#11488); only an NSPanel can. tauri-nspanel subclasses our
+# window into an NSPanel in place and re-exports objc2/objc2-app-kit for the
+# level + collection-behavior calls (PG-244).
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26"
-objc = "0.2"
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 
 [profile.release]
 # Small release binary for the bundle-size NFR (PG-246).
