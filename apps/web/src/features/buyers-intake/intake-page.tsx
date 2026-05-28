@@ -2,7 +2,6 @@ import { Button, Container, Group, Stack, Tabs, Text, Title } from '@mantine/cor
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
-  IconClipboardText,
   IconFileSpreadsheet,
   IconForms,
   IconHistory,
@@ -11,15 +10,16 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { ActivityImport } from './activity-import';
 import { DailyImport } from './daily-import';
 import { DEFAULT_INTAKE_METHOD, type IntakeMethod } from './intake-search';
-import { PasteMethod } from './paste-method';
 import { StructuredForm } from './structured-form';
 
 const routeApi = getRouteApi('/_authed/buyers/new');
 
-// The /buyers/new intake surface (M14, PG-209; +M15 PG-216) — reached from the
-// Workbench "Add opportunity" button and the Buyers "Add buyer" button. Four
-// methods as tabs: the first three bring buyers/opportunities in; the fourth
-// (M15) backfills activity history onto deals that already exist.
+// The /buyers/new intake surface (M14, PG-209; +M15 PG-216; reworked PG-241) —
+// reached from the Workbench "Add opportunity" button and the Buyers
+// "Add buyer" button. Three methods as tabs: Daily Workbench import (bulk
+// onboarding from the rep's CRM, default), Manual Entry (one fully-formed
+// deal), and Activity history (M15 — backfills evidence onto deals that
+// already exist).
 export function BuyersIntakePage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
@@ -60,38 +60,32 @@ export function BuyersIntakePage() {
           </Group>
           <Title order={2}>Add to your workbench</Title>
           <Text size="sm" c="dimmed">
-            Bring buyers in — one fully-formed deal, a quick paste, or a bulk import
-            from your CRM — then backfill their activity history so readiness scores
-            from real conversations.
+            Bring buyers in — a bulk import from your CRM or one fully-formed
+            deal at a time — then backfill their activity history so readiness
+            scores from real conversations.
           </Text>
         </Stack>
 
         <Tabs value={method} onChange={setMethod} keepMounted={false}>
           <Tabs.List grow mb="lg">
-            <Tabs.Tab value="structured" leftSection={<IconForms size={16} />}>
-              Structured form
-            </Tabs.Tab>
-            <Tabs.Tab value="paste" leftSection={<IconClipboardText size={16} />}>
-              Paste
-            </Tabs.Tab>
             <Tabs.Tab value="import" leftSection={<IconFileSpreadsheet size={16} />}>
               Daily Workbench import
+            </Tabs.Tab>
+            <Tabs.Tab value="structured" leftSection={<IconForms size={16} />}>
+              Manual Entry
             </Tabs.Tab>
             <Tabs.Tab value="activity" leftSection={<IconHistory size={16} />}>
               Activity history
             </Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value="structured">
-            <StructuredForm
-              onSuccess={(id) => handleSingleSuccess(id, 'the structured form')}
-            />
-          </Tabs.Panel>
-          <Tabs.Panel value="paste">
-            <PasteMethod onSuccess={(id) => handleSingleSuccess(id, 'paste')} />
-          </Tabs.Panel>
           <Tabs.Panel value="import">
             <DailyImport />
+          </Tabs.Panel>
+          <Tabs.Panel value="structured">
+            <StructuredForm
+              onSuccess={(id) => handleSingleSuccess(id, 'manual entry')}
+            />
           </Tabs.Panel>
           <Tabs.Panel value="activity">
             <ActivityImport />
