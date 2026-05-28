@@ -38,7 +38,8 @@
       "mcp__linear-server__get_milestone",
       "mcp__chrome-devtools__upload_file",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "mcp__linear-server__list_teams"
     ]
   }
 }
