@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    overlay_lib::run()
+    desktop_copilot_lib::run()
 }

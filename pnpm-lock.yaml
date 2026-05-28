@@ -70,7 +70,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  apps/overlay:
+  apps/desktop-copilot:
     dependencies:
       '@tauri-apps/api':
         specifier: ^2.0.0

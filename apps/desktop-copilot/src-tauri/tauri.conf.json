@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PG Overlay",
+  "productName": "PG Desktop Co-pilot",
   "version": "0.0.0",
-  "identifier": "com.pitchgenius.overlay",
+  "identifier": "com.pitchgenius.desktop-copilot",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -15,7 +15,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "PG Overlay",
+        "title": "PG Desktop Co-pilot",
         "width": 360,
         "height": 420,
         "resizable": true,

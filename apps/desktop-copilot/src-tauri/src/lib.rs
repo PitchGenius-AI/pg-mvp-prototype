@@ -93,7 +93,7 @@ pub fn run() {
                 // Template image (black + alpha); macOS tints it for light/dark.
                 .icon(tauri::include_image!("icons/tray.png"))
                 .icon_as_template(true)
-                .tooltip("PG Overlay")
+                .tooltip("PG Desktop Co-pilot")
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id.as_ref() {
