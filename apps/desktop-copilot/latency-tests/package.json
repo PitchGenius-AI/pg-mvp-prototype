@@ -1,0 +1,22 @@
+{
+  "name": "@pg/latency-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Live Co-pilot latency-validation harness (PG-247..262). Real provider calls only.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "fixtures:audio": "tsx fixtures/generate-audio.ts",
+    "baseline": "tsx baselines/naive-serial.ts",
+    "summary": "tsx src/summary.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "openai": "^4.77.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

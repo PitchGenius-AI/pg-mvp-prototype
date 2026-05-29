@@ -1,0 +1,5 @@
+node_modules/
+.turbo/
+*.tsbuildinfo
+# Generated TTS audio — regenerate from transcript-chunks.json via `pnpm fixtures:audio`.
+fixtures/audio/

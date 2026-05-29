@@ -1,0 +1,242 @@
+[
+  {
+    "id": "chunk-01",
+    "category": "objection",
+    "text": "Okay, so I looked at the numbers you sent over last night, and I'll be honest with you, it's a lot more than I was budgeting for. We're a small team. When I see a figure like that, my first instinct is that this is built for companies way bigger than us. Help me understand what I'm actually paying for here, because right now it feels like I'd be paying enterprise pricing for a problem I'm not even sure is an enterprise-sized problem yet.",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "solution_confident",
+      "readinessStateGoal": "commercially_ready",
+      "lastPrompt": "Reframe the cost as the price of staying with the status quo, then anchor to a missed-quarter figure.",
+      "evidenceSummary": "Confirmed budget owner; pain around two missed-forecast quarters; small team; sticker shock on the proposal."
+    }
+  },
+  {
+    "id": "chunk-02",
+    "category": "objection",
+    "text": "Here's my hesitation. We already pay for HubSpot, and the team just got comfortable in it. Every time I bring a new tool to them there's this collective groan, you know? So even if what you're showing me is genuinely better, I have to weigh that against the very real pain of asking eleven people to change how they work all over again. What would actually make this worth that kind of disruption to us?",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "diagnosis_aligned",
+      "readinessStateGoal": "solution_curious",
+      "lastPrompt": "Ask what specifically is missing in HubSpot that prompted them to take this call at all.",
+      "evidenceSummary": "Incumbent: HubSpot; 11-person team; change-fatigue concern; frustrated with forecast accuracy."
+    }
+  },
+  {
+    "id": "chunk-03",
+    "category": "objection",
+    "text": "Look, I believe you that it works. My problem isn't whether it's good, it's that my team is completely underwater right now. We're in the middle of our Q3 ramp, I've got two reps onboarding, and the idea of layering anything new on top of that this month genuinely stresses me out. Realistically, when would we even have the bandwidth to set this up properly without it becoming another half-finished project?",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "solution_confident",
+      "lastPrompt": "Acknowledge the bandwidth concern, then quantify the hours-per-rep this gives back each week.",
+      "evidenceSummary": "Three-person team mid Q3 ramp; two reps onboarding; worried about implementation lift."
+    }
+  },
+  {
+    "id": "chunk-04",
+    "category": "objection",
+    "text": "I want to be straight with you so I'm not wasting your time. Our budget for the year is basically locked. I don't have a line item for this, and going back to my CFO mid-year to ask for new spend is a really hard conversation unless I can show her something undeniable. The new fiscal starts in a couple of months. Is there any version of this where we don't have to fight that budget battle right now?",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "solution_confident",
+      "readinessStateGoal": "commercially_ready",
+      "lastPrompt": "Probe whether a pilot could start in the new fiscal so the budget fight is deferred, not lost.",
+      "evidenceSummary": "Annual budget locked; CFO approval needed for new spend; new fiscal in ~2 months; champion engaged."
+    }
+  },
+  {
+    "id": "chunk-05",
+    "category": "question",
+    "text": "Can we get practical for a second? Walk me through what the integration actually looks like. We run everything through Pipedrive, that's our source of truth. If your tool and Pipedrive disagree about a deal's stage, which one wins? And is this a real two-way sync, or is someone on my team going to be exporting CSVs every Friday afternoon? Because honestly that last one would be a dealbreaker for me.",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "problem_aware",
+      "readinessStateGoal": "diagnosis_aligned",
+      "lastPrompt": "Clarify which system stays the source of record before describing the sync model.",
+      "evidenceSummary": "Pipedrive shop; ops-led evaluation; wary of manual CSV work; cares about source-of-truth conflicts."
+    }
+  },
+  {
+    "id": "chunk-06",
+    "category": "question",
+    "text": "Before we go any deeper, I need to understand your security situation, because my IT group will kill this in five minutes if the answer's wrong. Are you SOC 2? Where does our data actually live? And if my security team sends over their standard questionnaire, that forty-page thing, is that something you can turn around quickly, or does that become a months-long back-and-forth that stalls the whole thing out?",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "stakeholder_validation_needed",
+      "lastPrompt": "Offer the security one-pager, name the SOC 2 status plainly, and pull IT in early.",
+      "evidenceSummary": "Security gate flagged; mid-market; IT has veto power; standard vendor questionnaire incoming."
+    }
+  },
+  {
+    "id": "chunk-07",
+    "category": "question",
+    "text": "Help me understand how the pricing scales. Right now we're eight reps, but if this works the plan is to be at twenty by next year. So I don't just care about today's price, I care about what happens to my bill as I grow. Does it step up smoothly, or is there some cliff at a certain seat count where it suddenly gets a lot more expensive? I've been burned by that exact thing before.",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "solution_confident",
+      "readinessStateGoal": "commercially_ready",
+      "lastPrompt": "Tie seat scaling to their hiring plan rather than quoting a list price.",
+      "evidenceSummary": "Eight reps now, plan to reach twenty; price-sensitive; previously burned by a pricing cliff."
+    }
+  },
+  {
+    "id": "chunk-08",
+    "category": "question",
+    "text": "Say we signed today. Realistically, how long until my reps actually feel a difference? I ask because the last platform we rolled out took four months before anyone got value out of it, and by then half the team had quietly stopped logging in. I genuinely can't go through that again. What does the first two weeks look like, concretely, not the polished version?",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "solution_confident",
+      "lastPrompt": "Anchor on first-value in days, not full rollout; contrast with their slow prior rollout.",
+      "evidenceSummary": "Burned by a four-month CRM rollout; low adoption scar tissue; wants a fast, concrete first win."
+    }
+  },
+  {
+    "id": "chunk-09",
+    "category": "hedging",
+    "text": "This is genuinely interesting, and I appreciate you walking me through it. I think I just need to sit with it a bit. There's a lot here, and I want to make sure I'm not getting caught up in the demo shine and missing something important. Let me chew on it and circle back to you. I really don't want to give you a yes today that I end up walking back next week, that helps nobody.",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "solution_confident",
+      "lastPrompt": "Surface the cost of indecision with a gentle consequence question, then propose a concrete next step.",
+      "evidenceSummary": "Interested but non-committal; no clear timeline; risk of stalling into the long grass."
+    }
+  },
+  {
+    "id": "chunk-10",
+    "category": "hedging",
+    "text": "So, I'll be honest about how decisions actually work here. I really like what I'm seeing, but I'm not the one who can sign off on something like this on my own. My VP of Sales owns this budget, and she's going to have her own opinions, trust me. I'd want to bring her in before we go much further. I'm a fan, I'm just genuinely not the final word on it.",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "solution_confident",
+      "readinessStateGoal": "stakeholder_validation_needed",
+      "lastPrompt": "Map the decision process and offer to help the champion sell internally to the VP.",
+      "evidenceSummary": "Champion, not economic buyer; VP Sales owns budget and decision; positive sentiment."
+    }
+  },
+  {
+    "id": "chunk-11",
+    "category": "hedging",
+    "text": "You know what, this has been helpful. Why don't you just send me over a deck or a one-pager, and I'll share it around internally and see if there's any appetite for it? No promises, but if people are into it I'll come back to you. That's honestly probably the easiest next step from where I'm sitting right now, I've got a lot on.",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "problem_aware",
+      "readinessStateGoal": "diagnosis_aligned",
+      "lastPrompt": "Trade the deck for one specific next conversation rather than letting it go cold.",
+      "evidenceSummary": "Low urgency; gathering options passively; early stage; wants to defer with a deck."
+    }
+  },
+  {
+    "id": "chunk-12",
+    "category": "hedging",
+    "text": "I'll be candid with you, when we first talked I was pretty fired up about this, but things have shifted on my end. We've got a big platform migration eating all of our attention, and this has kind of slid down the list. It's not that the problem went away, it's that I've got three louder fires right now. I don't want to string you along and pretend otherwise.",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "at_risk",
+      "readinessStateGoal": "diagnosis_aligned",
+      "lastPrompt": "Re-anchor on the original pain's cost and reframe why it outranks the migration noise.",
+      "evidenceSummary": "Previously engaged, now cooling; competing migration project; deal regressing; honesty signal."
+    }
+  },
+  {
+    "id": "chunk-13",
+    "category": "commit_signal",
+    "text": "Okay. I think I'm there. Conceptually you've sold me, this solves a real problem we have and I trust that it works. So let's talk brass tacks. What does getting started actually look like? Who do you need from my side, how long is setup, and what's the very first thing we'd do together? I'd rather move while I've still got the momentum and the team's attention on it.",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "commercially_ready",
+      "readinessStateGoal": "commit_ready",
+      "lastPrompt": "Confirm fit in one line, then lay out a simple two-step start to convert momentum.",
+      "evidenceSummary": "Budget confirmed; champion and VP aligned; explicit verbal buy-in; asking about onboarding."
+    }
+  },
+  {
+    "id": "chunk-14",
+    "category": "commit_signal",
+    "text": "Let's talk terms then. What do your contracts typically look like, are we talking an annual commitment, or is there a month-to-month option while we prove it out internally? And how does pricing lock work if we expand mid-term and add seats? I just want to know exactly what I'm signing up for before I take this to the people who actually hold the pen around here.",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "commercially_ready",
+      "readinessStateGoal": "commit_ready",
+      "lastPrompt": "Answer terms plainly; default to annual with a pilot ramp and a clear expansion-pricing rule.",
+      "evidenceSummary": "Procurement-aware; annual contract cycles; planning seat expansion; asking commercial-terms questions."
+    }
+  },
+  {
+    "id": "chunk-15",
+    "category": "commit_signal",
+    "text": "Alright, so the next real hurdle on my side is procurement. They've got a whole vendor onboarding process, a security review, a couple of forms, sometimes a call with legal. I'd much rather get ahead of all that than have it stall us right at the finish line. What do you usually need to provide them, and how fast can your side actually move once they reach out to you?",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "stakeholder_validation_needed",
+      "readinessStateGoal": "commercially_ready",
+      "lastPrompt": "Get the procurement checklist now to pre-empt a finish-line stall; name your turnaround.",
+      "evidenceSummary": "Mid-market vendor onboarding; security review + legal call; buyer proactively de-risking the close."
+    }
+  },
+  {
+    "id": "chunk-16",
+    "category": "commit_signal",
+    "text": "Good. Let's put something on the calendar. I want to get my VP and probably someone from ops on a call with you next week so we're all hearing the exact same thing at once. If that goes the way I think it will, we're really talking about how we move forward, not whether we do. Can you send a few times that work and I'll get the right people in the room?",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "commit_ready",
+      "readinessStateGoal": "commit_ready",
+      "lastPrompt": "Lock the multi-stakeholder call to a specific date and confirm the attendee list.",
+      "evidenceSummary": "VP buy-in expected; verbal yes; scheduling a closing call with VP + ops; high intent."
+    }
+  },
+  {
+    "id": "chunk-17",
+    "category": "generic",
+    "text": "Sorry, give me one sec, it has been an absolutely insane morning. Back-to-back since seven, someone double-booked me, the usual chaos. Okay. I'm here, I'm focused now. Thanks for being flexible on the timing, by the way, I know we pushed this twice already. Alright, so, where did we want to start today? Remind me what you wanted to cover.",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "diagnosis_aligned",
+      "readinessStateGoal": "solution_curious",
+      "lastPrompt": "Mirror the energy briefly, then bridge straight into the agreed agenda.",
+      "evidenceSummary": "Warm rapport; busy distracted buyer; meeting rescheduled twice; needs a quick re-grounding."
+    }
+  },
+  {
+    "id": "chunk-18",
+    "category": "generic",
+    "text": "Before we dive in, let me just frame what I'm hoping to get out of the next half hour, so we actually use the time well. Mainly I want to understand whether this genuinely moves the needle on our forecast accuracy, and roughly what it costs. If we get through those two and there's time left, I'm also curious about the live-call coaching piece. Does that work as a plan for you?",
+    "state": {
+      "matchedTechnique": "challenger",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "solution_confident",
+      "lastPrompt": "Use the buyer's own agenda to insert the forecast-accuracy reframe.",
+      "evidenceSummary": "Structured buyer; wants ROI and price clarity; interested in the live co-pilot feature."
+    }
+  },
+  {
+    "id": "chunk-19",
+    "category": "generic",
+    "text": "This kind of reminds me, a couple of years back we brought in this tool that promised basically the same thing. Looked great in the demo, everybody was excited, and then six months later nobody touched it and we quietly stopped paying for it. So I'll admit I'm a little scar-tissue-y about this whole category. Not your fault at all, just being honest about where my head's at going into this.",
+    "state": {
+      "matchedTechnique": "nepq",
+      "readinessState": "solution_curious",
+      "readinessStateGoal": "solution_confident",
+      "lastPrompt": "Validate the past failure, then differentiate on the adoption mechanism specifically.",
+      "evidenceSummary": "Prior failed tool in-category; adoption skepticism; needs proof this won't go shelfware."
+    }
+  },
+  {
+    "id": "chunk-20",
+    "category": "generic",
+    "text": "Oh, quick logistics thing before I forget, what timezone are you in? I'm on the East Coast, and I want to make sure when we set up the next call we're not doing that thing where someone's joining at six in the morning. Also, is it usually you I'd be coordinating with directly, or is there someone else on your side I should be looping in?",
+    "state": {
+      "matchedTechnique": "spin",
+      "readinessState": "problem_aware",
+      "readinessStateGoal": "diagnosis_aligned",
+      "lastPrompt": "Handle the logistics fast, then steer back into discovery without losing the thread.",
+      "evidenceSummary": "Early discovery; coordinating scheduling; East Coast buyer; clarifying points of contact."
+    }
+  }
+]
