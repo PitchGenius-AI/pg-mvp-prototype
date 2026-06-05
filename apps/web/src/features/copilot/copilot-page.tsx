@@ -51,7 +51,7 @@ export function CopilotPage() {
     <Container size="md" py="lg">
       <Stack gap="lg">
         <Stack gap={2}>
-          <Title order={2}>Live Co-pilot</Title>
+          <Title order={2}>PG.AI PILOT</Title>
           <Text size="sm" c="dimmed">
             Real-time coaching on your sales calls — live transcription, buyer-readiness cues,
             and the next question to ask, right when you're on the phone.
@@ -133,7 +133,7 @@ function CopilotExplainer() {
   return (
     <Paper withBorder radius="md" p="lg">
       <Stack gap="md">
-        <Text fw={600}>What the Live Co-pilot does</Text>
+        <Text fw={600}>What PG.AI PILOT does</Text>
         {FEATURES.map((feature) => (
           <Group key={feature.title} gap="sm" wrap="nowrap" align="flex-start">
             <ThemeIcon size={32} radius="md" variant="light" color="indigo">
@@ -163,7 +163,7 @@ function SubscriptionRequired() {
         <ThemeIcon size={48} radius="xl" variant="light" color="gray">
           <IconLock size={26} />
         </ThemeIcon>
-        <Text fw={600}>The Live Co-pilot needs an active subscription</Text>
+        <Text fw={600}>PG.AI PILOT needs an active subscription</Text>
         <Text size="sm" c="dimmed" ta="center" maw={420}>
           The desktop app runs on your Pitch Genius subscription — the same account, the same
           plan. Activate your subscription to download and connect it.

@@ -1,7 +1,5 @@
 import type { GeneratedScript, PsychProfile, SignalExtraction } from '@pg/shared';
-import type {
-  HydrateInput,
-} from './store';
+import type { HydrateInput } from './store';
 import type {
   MockBuyer,
   MockImportMapping,
@@ -17,20 +15,33 @@ import { buildDiagnosis, dim, makeDiagnosis } from './factories/diagnosis-factor
 
 const WORKSPACE_ID = 'ws_seed_acme';
 const USER_ID = 'user_seed_casey';
-const PRODUCT_ID = 'prod_seed_pulse';
+const PRODUCT_ID = 'prod_seed_mvp';
 const ISO = (d: string) => new Date(d).toISOString();
+
+// Recency stamps for the demo working set, anchored to whenever the prototype is
+// run so the Workbench / Co-pilot "Today · Yesterday · This week · All" filters
+// always have deals to show (both surfaces default to Today). Only drives the
+// open opportunities' `updatedAt` — the recency signal the period filter reads.
+// Created-at and the activity / diagnosis narrative dates stay absolute, so a
+// deal can read "created in March, last worked today".
+const recentIso = (daysAgo: number, hour = 15): string => {
+  const d = new Date();
+  d.setHours(hour, 0, 0, 0);
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString();
+};
 
 export const SEED_USER: MockUser = {
   id: USER_ID,
   name: 'Casey Morgan',
-  email: 'casey@acmesales.co',
+  email: 'casey@launchpadstudio.co',
 };
 
 const workspace: MockWorkspace = {
   id: WORKSPACE_ID,
-  name: 'Acme Sales Co',
-  website: 'https://acmesales.co',
-  industry: 'SaaS — Sales Intelligence',
+  name: 'Launchpad Studio',
+  website: 'https://launchpadstudio.co',
+  industry: 'Product Studio — MVP development for early-stage startups',
   crmStageTemplate: 'simple_b2b_sales',
   customCrmStages: null,
   crmType: 'hubspot',
@@ -41,54 +52,89 @@ const workspace: MockWorkspace = {
   updatedAt: ISO('2026-05-12T15:00:00Z'),
 };
 
-// Multiple products per workspace, one primary (Pulse). The primary is the
-// default product context for new opportunities.
+const PRODUCT_SPRINT_ID = 'prod_seed_sprint';
+const PRODUCT_TECHPLAN_ID = 'prod_seed_techplan';
+const PRODUCT_STRATEGY_ID = 'prod_seed_strategy';
+const PRODUCT_SHIPIT_ID = 'prod_seed_shipit';
+
+// The studio's productized service offerings — one primary (6-Week MVP), the
+// default product context for new opportunities. The shared ICP across all of
+// them: pre-seed / seed-stage, non-technical B2B SaaS founders who want a
+// market-ready MVP as fast as possible.
 const product: MockProduct = {
   id: PRODUCT_ID,
   workspaceId: WORKSPACE_ID,
-  name: 'Pulse',
+  name: '6-Week MVP',
   description:
-    'Pulse is a pipeline-intelligence platform that scores every B2B deal on buyer readiness using meeting evidence (transcripts, notes, checklists) and flags the deals reps are over-calling before forecast day.',
+    'A fixed-scope, fixed-timeline engagement that takes a non-technical founder from validated idea to a market-ready, revenue-capable MVP in six weeks — design, build, and launch handled end to end.',
   targetBuyer:
-    'VP of Sales, Head of RevOps, and Sales Operations leaders at 100-1,000 person SaaS companies with multi-rep teams and unreliable forecasting.',
+    'Pre-seed and seed-stage B2B SaaS founders without a technical co-founder who need a real product in front of paying customers fast.',
   problemSolved:
-    'Reps habitually advance deals through CRM stages without enough buyer-side evidence, which inflates the forecast. Pulse compares CRM stage to evidence-based readiness and surfaces dangerous mismatches before they cost the quarter.',
+    'Non-technical founders can’t ship without a slow, expensive engineering hire or an unreliable freelancer. The 6-Week MVP delivers a launch-ready product on a fixed timeline and budget.',
   isPrimary: true,
   createdAt: ISO('2026-02-01T15:00:00Z'),
   updatedAt: ISO('2026-02-01T15:00:00Z'),
 };
 
-const PRODUCT_SIGNAL_ID = 'prod_seed_signal';
-const PRODUCT_BRIEF_ID = 'prod_seed_brief';
-
-// A second product — same workspace, not primary. Gives the multi-product
-// surfaces (M16 Products page, intake product picker) real content.
-const productSignal: MockProduct = {
-  id: PRODUCT_SIGNAL_ID,
+// A fast, low-commitment entry offering — validates direction before the build.
+const productSprint: MockProduct = {
+  id: PRODUCT_SPRINT_ID,
   workspaceId: WORKSPACE_ID,
-  name: 'Signal',
+  name: '1-Week Design Sprint',
   description:
-    'Signal is a real-time call co-pilot that transcribes live sales conversations and surfaces the next question a rep should ask, matched to the buyer.',
+    'A one-week sprint that turns a fuzzy idea into a clickable, user-tested prototype and a concrete build plan — the fastest way to de-risk an MVP before committing to the full build.',
   targetBuyer:
-    'Individual account executives and SDRs who run a high volume of discovery and demo calls and want in-the-moment coaching.',
+    'Early-stage founders still shaping the product who want validated direction and a costed plan before spending on engineering.',
   problemSolved:
-    'Reps miss buying signals and forget to ask the qualifying questions that decide a deal. Signal listens to the live call and prompts the rep in real time.',
+    'Founders burn months and budget building the wrong thing. The Design Sprint pressure-tests the concept with real users in five days.',
+  isPrimary: false,
+  createdAt: ISO('2026-02-20T15:00:00Z'),
+  updatedAt: ISO('2026-02-20T15:00:00Z'),
+};
+
+// An advisory engagement for founders who are raising or hiring.
+const productTechPlan: MockProduct = {
+  id: PRODUCT_TECHPLAN_ID,
+  workspaceId: WORKSPACE_ID,
+  name: 'Technical Investment Planning',
+  description:
+    'An advisory engagement that gives non-technical founders a clear technical roadmap, architecture, and build-vs-buy plan they can take to investors and early hires with confidence.',
+  targetBuyer:
+    'Seed-stage founders raising a round or making their first technical hires who need a credible technical plan but have no CTO.',
+  problemSolved:
+    'Non-technical founders can’t evaluate technical trade-offs, scope, or cost — so they over-build, under-budget, or get steered by vendors. This produces an investor-ready technical plan.',
   isPrimary: false,
   createdAt: ISO('2026-03-15T15:00:00Z'),
   updatedAt: ISO('2026-03-15T15:00:00Z'),
 };
 
-// A third product — added recently, no opportunities yet.
-const productBrief: MockProduct = {
-  id: PRODUCT_BRIEF_ID,
+// The strategic groundwork session that precedes any design or build.
+const productStrategy: MockProduct = {
+  id: PRODUCT_STRATEGY_ID,
   workspaceId: WORKSPACE_ID,
-  name: 'Brief',
+  name: 'Strategy Workshop',
   description:
-    'Brief generates a one-page pre-call intelligence sheet — buyer psychology, matched technique, and a tailored script — before every meeting.',
+    'A facilitated working session that aligns founders on product scope, target customer, and the shortest path to a market-ready MVP — the groundwork before any design or build begins.',
   targetBuyer:
-    'Sales managers who want their reps walking into every call prepared without an hour of manual research.',
+    'Founding teams who need to narrow scope and agree on what the MVP must (and must not) include before they start building.',
   problemSolved:
-    'Reps wing their calls or spend too long prepping. Brief produces the prep automatically from enrichment data.',
+    'Founders try to build everything at once and stall. The workshop forces ruthless prioritization down to a shippable v1.',
+  isPrimary: false,
+  createdAt: ISO('2026-04-10T15:00:00Z'),
+  updatedAt: ISO('2026-04-10T15:00:00Z'),
+};
+
+// A finishing engagement — added recently, no opportunities yet.
+const productShipIt: MockProduct = {
+  id: PRODUCT_SHIPIT_ID,
+  workspaceId: WORKSPACE_ID,
+  name: 'Ship It Session',
+  description:
+    'A focused engagement that takes a stalled or 90%-done product across the finish line — the final fixes, polish, and launch steps that get it in front of paying customers.',
+  targetBuyer:
+    'Founders sitting on an almost-done build that never quite ships — often after a freelancer or first attempt stalled out.',
+  problemSolved:
+    'Products stall at 90% and never launch. The Ship It Session closes the gap and gets the product live.',
   isPrimary: false,
   createdAt: ISO('2026-05-10T15:00:00Z'),
   updatedAt: ISO('2026-05-10T15:00:00Z'),
@@ -105,6 +151,7 @@ const globexBuyer: MockBuyer = {
   company: 'Globex Industries',
   email: 'jamie.park@globex.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-03-01T15:00:00Z'),
   updatedAt: ISO('2026-03-01T15:00:00Z'),
@@ -131,7 +178,7 @@ const globexOpp = makeOpportunity({
   currentAlignmentOutcome: 'over_projecting',
   currentAlignmentLevel: 'critical',
   createdAt: ISO('2026-03-04T15:00:00Z'),
-  updatedAt: ISO('2026-05-08T15:00:00Z'),
+  updatedAt: recentIso(0), // worked today — at-risk, critically over-projecting
 });
 
 const globexInteraction = makeActivity({
@@ -143,14 +190,14 @@ const globexInteraction = makeActivity({
   participants: ['Jamie Park (Globex)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'CASEY: Thanks for hopping back on, Jamie. Last time we walked through the readiness scoring; today I wanted to start lining up next steps so we can hit that July renewal date.',
-    'JAMIE: Yeah, about that. I want to be straight with you — I haven\'t actually pulled the team together yet on whether we\'re replacing or just renegotiating the current contract. So I\'m not sure what next step looks like on my side.',
+    "JAMIE: Yeah, about that. I want to be straight with you — I haven't actually pulled the team together yet on whether we're replacing or just renegotiating the current contract. So I'm not sure what next step looks like on my side.",
     'CASEY: Got it. Who needs to be in that room?',
-    'JAMIE: Probably me, our VP of Marketing, and someone from Finance. We haven\'t talked about budget for this; I assumed if it came in under what we pay today it\'d be a no-brainer.',
+    "JAMIE: Probably me, our VP of Marketing, and someone from Finance. We haven't talked about budget for this; I assumed if it came in under what we pay today it'd be a no-brainer.",
     'CASEY: Makes sense. Want me to send the comparison deck so you can share it ahead of that conversation?',
-    'JAMIE: Sure. No promises on timing — we\'re also dealing with a re-org so this might slip a month.',
+    "JAMIE: Sure. No promises on timing — we're also dealing with a re-org so this might slip a month.",
   ].join('\n\n'),
   repSubjectiveNotes:
-    'Feels stuck. Jamie is friendly but I don\'t think she has authority. Need to get marketing VP in the room.',
+    "Feels stuck. Jamie is friendly but I don't think she has authority. Need to get marketing VP in the room.",
   nextStepAgreed: false,
   stakeholderAdded: false,
   pricingDiscussed: true,
@@ -230,7 +277,7 @@ const globexDiagnosis = makeDiagnosis({
         'finance flagged the cost',
       ]),
       dim('trust', 50, 'Rapport is fine; buyer is candid about uncertainty.', [
-        "I want to be straight with you",
+        'I want to be straight with you',
       ]),
       dim('urgency', 30, 'External July deadline exists but buyer signals it can slip.', [
         'this might slip a month',
@@ -239,11 +286,16 @@ const globexDiagnosis = makeDiagnosis({
         'solution_confidence',
         20,
         'No solution-confidence signals — buyer has not even decided to replace vs renegotiate.',
-        ["I haven't actually pulled the team together yet on whether we're replacing or just renegotiating"],
+        [
+          "I haven't actually pulled the team together yet on whether we're replacing or just renegotiating",
+        ],
       ),
-      dim('commitment', 10, 'Zero commitment evidence. No next step, no stakeholders, no decision date.', [
-        'No promises on timing',
-      ]),
+      dim(
+        'commitment',
+        10,
+        'Zero commitment evidence. No next step, no stakeholders, no decision date.',
+        ['No promises on timing'],
+      ),
     ],
     primaryBlocker:
       'Buyer has not made the internal decision to replace; the deal is in Negotiation without a buying team or budget conversation.',
@@ -281,6 +333,7 @@ const initechBuyer: MockBuyer = {
   company: 'Initech',
   email: 'marcus.b@initech.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-03-14T15:00:00Z'),
   updatedAt: ISO('2026-03-14T15:00:00Z'),
@@ -306,7 +359,7 @@ const initechOpp = makeOpportunity({
   currentAlignmentOutcome: 'over_projecting',
   currentAlignmentLevel: 'high',
   createdAt: ISO('2026-03-15T15:00:00Z'),
-  updatedAt: ISO('2026-05-10T15:00:00Z'),
+  updatedAt: recentIso(1), // worked yesterday
 });
 
 const initechInteraction = makeActivity({
@@ -318,11 +371,11 @@ const initechInteraction = makeActivity({
   participants: ['Marcus Bennett (Initech)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
     'From Marcus, 2026-05-10:',
-    'Hey Casey — sorry for the radio silence. We got your proposal and the other vendor\'s side by side last week. Honestly the team has been pulled into the new ERP rollout so this hasn\'t been front of mind. I\'ll be straight: I like Pulse better but I haven\'t had the bandwidth to put together a recommendation for the CFO yet, and procurement hasn\'t opened a ticket on our side.',
+    "Hey Casey — sorry for the radio silence. We got your proposal and the other vendor's side by side last week. Honestly the team has been pulled into the new ERP rollout so this hasn't been front of mind. I'll be straight: I like Pulse better but I haven't had the bandwidth to put together a recommendation for the CFO yet, and procurement hasn't opened a ticket on our side.",
     'Can we push the close target back two weeks while I get this in front of the right people?',
   ].join('\n\n'),
   repSubjectiveNotes:
-    'Good news he prefers us. Bad news: no procurement, no CFO ask, no real next step. I marked it Proposal because we sent the proposal but he\'s not actually evaluating.',
+    "Good news he prefers us. Bad news: no procurement, no CFO ask, no real next step. I marked it Proposal because we sent the proposal but he's not actually evaluating.",
   nextStepAgreed: false,
   stakeholderAdded: false,
   pricingDiscussed: true,
@@ -345,7 +398,7 @@ const initechSignals: SignalExtraction = {
   trust: [
     {
       signal: 'Buyer explicitly prefers our product over alternative',
-      evidence: "I like Pulse better",
+      evidence: 'I like Pulse better',
       source: 'transcript',
       strength: 'strong',
       dimension: 'trust',
@@ -354,7 +407,8 @@ const initechSignals: SignalExtraction = {
   urgency: [
     {
       signal: 'Competing internal initiative (ERP rollout) is consuming bandwidth',
-      evidence: 'the team has been pulled into the new ERP rollout so this hasn\'t been front of mind',
+      evidence:
+        "the team has been pulled into the new ERP rollout so this hasn't been front of mind",
       source: 'transcript',
       strength: 'strong',
       dimension: 'urgency',
@@ -363,7 +417,8 @@ const initechSignals: SignalExtraction = {
   solution_confidence: [
     {
       signal: 'Preference stated, but no decision-confidence language',
-      evidence: "I like Pulse better but I haven't had the bandwidth to put together a recommendation",
+      evidence:
+        "I like Pulse better but I haven't had the bandwidth to put together a recommendation",
       source: 'transcript',
       strength: 'medium',
       dimension: 'solution_confidence',
@@ -413,14 +468,17 @@ const initechDiagnosis = makeDiagnosis({
     readinessScore: 42,
     confidence: 'high',
     dimensionScores: [
-      dim('pain', 70, 'Real, recurring pain (late board reporting) and it lives in Marcus\' world.', [
-        'Quarterly board reporting has been late three quarters running.',
-      ]),
+      dim(
+        'pain',
+        70,
+        "Real, recurring pain (late board reporting) and it lives in Marcus' world.",
+        ['Quarterly board reporting has been late three quarters running.'],
+      ),
       dim('trust', 75, 'Marcus is candid and explicitly prefers us — trust is healthy.', [
-        "I like Pulse better",
+        'I like Pulse better',
       ]),
       dim('urgency', 30, 'ERP rollout is crowding out this work; no internal urgency.', [
-        "the team has been pulled into the new ERP rollout",
+        'the team has been pulled into the new ERP rollout',
       ]),
       dim('solution_confidence', 55, 'Preference exists but is not yet recommendation-grade.', [
         "I like Pulse better but I haven't had the bandwidth to put together a recommendation",
@@ -431,8 +489,7 @@ const initechDiagnosis = makeDiagnosis({
     ],
     primaryBlocker:
       'No CFO recommendation has been drafted and procurement is not engaged. The deal is in Proposal but no decision motion exists on the buyer side.',
-    secondaryBlocker:
-      'ERP rollout is the buyer\'s real priority for the next few weeks.',
+    secondaryBlocker: "ERP rollout is the buyer's real priority for the next few weeks.",
     pipelineRealityCheck: {
       crmStage: 'Proposal',
       outcome: 'over_projecting',
@@ -466,6 +523,7 @@ const wayneBuyer: MockBuyer = {
   company: 'Wayne Industries',
   email: 'lucia.ortiz@wayne.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-04-02T15:00:00Z'),
   updatedAt: ISO('2026-04-02T15:00:00Z'),
@@ -483,14 +541,15 @@ const wayneOpp = makeOpportunity({
   expectedCloseDate: '2026-07-31',
   knownPain: 'Marketing-attributed pipeline is wildly different across two reporting tools.',
   knownObjection: null,
-  dealNotes: 'Discovery and demo went well. Lucia is the strategic owner and asked about pilot scope.',
+  dealNotes:
+    'Discovery and demo went well. Lucia is the strategic owner and asked about pilot scope.',
   crmRecordId: 'HS-2718281828',
   currentReadinessState: 'solution_curious',
   currentReadinessScore: 58,
   currentAlignmentOutcome: 'aligned',
   currentAlignmentLevel: 'none',
   createdAt: ISO('2026-04-03T15:00:00Z'),
-  updatedAt: ISO('2026-05-09T15:00:00Z'),
+  updatedAt: recentIso(2), // earlier this week
 });
 
 const wayneInteraction = makeActivity({
@@ -501,10 +560,10 @@ const wayneInteraction = makeActivity({
   activityDate: ISO('2026-05-09T16:00:00Z'),
   participants: ['Lucia Ortiz (Wayne)', 'Devon Mills (Wayne, Sales Ops)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
-    'CASEY: So that\'s the readiness scoring layered over your existing pipeline view. Curious what stood out.',
-    'LUCIA: The dimension breakdown is exactly the conversation I keep trying to have with our reps — they\'ll say a deal is "almost there" and I can\'t articulate what\'s missing. This puts a name on it.',
-    'DEVON: How disruptive is implementation? We\'re mid-quarter and I can\'t pull engineering for anything heavy.',
-    'CASEY: Light. We\'re a Chrome extension plus a Salesforce package. Most teams are running in under two days, no engineering needed.',
+    "CASEY: So that's the readiness scoring layered over your existing pipeline view. Curious what stood out.",
+    "LUCIA: The dimension breakdown is exactly the conversation I keep trying to have with our reps — they'll say a deal is \"almost there\" and I can't articulate what's missing. This puts a name on it.",
+    "DEVON: How disruptive is implementation? We're mid-quarter and I can't pull engineering for anything heavy.",
+    "CASEY: Light. We're a Chrome extension plus a Salesforce package. Most teams are running in under two days, no engineering needed.",
     'LUCIA: OK. What does a pilot look like — say, my AE team of six for a quarter?',
     'CASEY: We can scope a 6-seat pilot for 90 days, free of charge, success metric tied to how often the Pipeline Reality Check changes a forecast call. Want me to put a one-pager together?',
     'LUCIA: Yes — and loop in Devon so we have the technical lens too.',
@@ -602,21 +661,33 @@ const wayneDiagnosis = makeDiagnosis({
     readinessScore: 58,
     confidence: 'medium',
     dimensionScores: [
-      dim('pain', 75, 'Pain is articulated in the buyer\'s own words and tied to a recurring frustration.', [
-        "they'll say a deal is \"almost there\" and I can't articulate what's missing",
-      ]),
+      dim(
+        'pain',
+        75,
+        "Pain is articulated in the buyer's own words and tied to a recurring frustration.",
+        ["they'll say a deal is \"almost there\" and I can't articulate what's missing"],
+      ),
       dim('trust', 70, 'Lucia is enthusiastic; trust is healthy and growing.', [
         'exactly the conversation I keep trying to have with our reps',
       ]),
-      dim('urgency', 45, 'No external forcing function; quarter-end is a constraint, not a deadline.', [
-        "We're mid-quarter and I can't pull engineering",
-      ]),
-      dim('solution_confidence', 60, 'Pilot framing emerged and implementation concern was answered.', [
-        'a 6-seat pilot for 90 days',
-      ]),
-      dim('commitment', 55, 'Concrete next step + new stakeholder added — early commitment evidence.', [
-        'loop in Devon so we have the technical lens too',
-      ]),
+      dim(
+        'urgency',
+        45,
+        'No external forcing function; quarter-end is a constraint, not a deadline.',
+        ["We're mid-quarter and I can't pull engineering"],
+      ),
+      dim(
+        'solution_confidence',
+        60,
+        'Pilot framing emerged and implementation concern was answered.',
+        ['a 6-seat pilot for 90 days'],
+      ),
+      dim(
+        'commitment',
+        55,
+        'Concrete next step + new stakeholder added — early commitment evidence.',
+        ['loop in Devon so we have the technical lens too'],
+      ),
     ],
     primaryBlocker:
       'No economic buyer in the conversation yet. Pilot momentum is real but the eventual commercial gate has not been opened.',
@@ -638,7 +709,7 @@ const wayneDiagnosis = makeDiagnosis({
     followUpBody:
       "Hi Lucia and Devon,\n\nAttached is the 90-day pilot scope we discussed — six AE seats, success metric tied to forecast-call changes from the Pipeline Reality Check, no engineering lift on your side.\n\nOne ask: Lucia, who on your side signs off when the pilot moves to paid? Want to make sure that person sees this early so we don't lose time later.\n\nHappy to do a 15-minute kickoff once you've had a chance to review.\n\nCasey",
     managerCoachingNote:
-      'Healthy mid-funnel deal. Rep should focus on getting the economic buyer named before the pilot starts — common trap is letting the pilot run, succeed, and then discovering there\'s no commercial path.',
+      "Healthy mid-funnel deal. Rep should focus on getting the economic buyer named before the pilot starts — common trap is letting the pilot run, succeed, and then discovering there's no commercial path.",
   }),
 });
 
@@ -653,6 +724,7 @@ const starkBuyer: MockBuyer = {
   company: 'Stark Labs',
   email: 'priya.shah@starklabs.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-01-20T15:00:00Z'),
   updatedAt: ISO('2026-01-20T15:00:00Z'),
@@ -670,14 +742,15 @@ const starkOpp = makeOpportunity({
   expectedCloseDate: '2026-05-30',
   knownPain: 'Pilot proved Pipeline Reality Check changed 31% of late-stage forecast calls.',
   knownObjection: 'Procurement is pushing for a 2-year term at the 1-year price.',
-  dealNotes: 'Pilot ran Q1. CRO Priya is the champion and the economic buyer. Procurement is the last gate.',
+  dealNotes:
+    'Pilot ran Q1. CRO Priya is the champion and the economic buyer. Procurement is the last gate.',
   crmRecordId: 'HS-1123581321',
   currentReadinessState: 'commit_ready',
   currentReadinessScore: 86,
   currentAlignmentOutcome: 'aligned',
   currentAlignmentLevel: 'none',
   createdAt: ISO('2026-01-22T15:00:00Z'),
-  updatedAt: ISO('2026-05-12T15:00:00Z'),
+  updatedAt: recentIso(0), // worked today — late-stage, commit-ready
 });
 
 const starkInteraction = makeActivity({
@@ -690,10 +763,10 @@ const starkInteraction = makeActivity({
   transcriptOrNotes: [
     'PRIYA: Let me cut to it. The pilot results are real — 31% of late-stage calls got changed and we recovered two deals my team was going to lose blind. I want the 200-seat rollout to start June 1.',
     'MIKE: Our ask is the 1-year price held for a 2-year term, and we want a quarterly opt-out for the second year.',
-    'CASEY: I can do the 2-year at the 1-year price if there\'s no opt-out — that\'s how we model the discount. Happy to write a 30-day mutual termination for cause if that helps.',
+    "CASEY: I can do the 2-year at the 1-year price if there's no opt-out — that's how we model the discount. Happy to write a 30-day mutual termination for cause if that helps.",
     'MIKE: Let me take that back. If you can have paper to us by Friday we can be signed by month-end.',
     'PRIYA: Casey, what does kickoff look like? I want to make sure the wider team is using this within two weeks of signature.',
-    'CASEY: Two-day onboarding workshop, then weekly office hours for the first month. I\'ll send the rollout plan with the paper.',
+    "CASEY: Two-day onboarding workshop, then weekly office hours for the first month. I'll send the rollout plan with the paper.",
   ].join('\n\n'),
   repSubjectiveNotes:
     'Real deal. Champion is the economic buyer. Only thing between us and signed paper is the 2-year terms language.',
@@ -792,9 +865,12 @@ const starkDiagnosis = makeDiagnosis({
       dim('urgency', 80, 'Buyer-driven start date and signature target.', [
         'I want the 200-seat rollout to start June 1',
       ]),
-      dim('solution_confidence', 90, 'Pilot evidence is the strongest possible confidence signal.', [
-        'we recovered two deals my team was going to lose blind',
-      ]),
+      dim(
+        'solution_confidence',
+        90,
+        'Pilot evidence is the strongest possible confidence signal.',
+        ['we recovered two deals my team was going to lose blind'],
+      ),
       dim('commitment', 85, 'Procurement, terms, rollout planning, signature date.', [
         'If you can have paper to us by Friday we can be signed by month-end',
       ]),
@@ -807,7 +883,7 @@ const starkDiagnosis = makeDiagnosis({
       outcome: 'aligned',
       level: 'none',
       reason:
-        'CRM Negotiation implies commit-ready, which matches the buyer\'s state exactly. The forecast call is sound.',
+        "CRM Negotiation implies commit-ready, which matches the buyer's state exactly. The forecast call is sound.",
     },
     recommendedNextAction:
       'Send paper by Thursday EOD with the mutual-termination-for-cause language. Confirm kickoff dates in the cover email.',
@@ -833,6 +909,7 @@ const hooliBuyer: MockBuyer = {
   company: 'Hooli',
   email: 'tomas.vogel@hooli.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-04-25T15:00:00Z'),
   updatedAt: ISO('2026-04-25T15:00:00Z'),
@@ -850,13 +927,14 @@ const hooliOpp = makeOpportunity({
   expectedCloseDate: '2026-09-30',
   knownPain: 'Forecast accuracy at 41% last quarter; CFO has asked Tomas to fix it.',
   knownObjection: null,
-  dealNotes: 'Tomas ran his own POC with the trial. Already loops in his RevOps team without prompting.',
+  dealNotes:
+    'Tomas ran his own POC with the trial. Already loops in his RevOps team without prompting.',
   currentReadinessState: 'solution_confident',
   currentReadinessScore: 71,
   currentAlignmentOutcome: 'under_projecting',
   currentAlignmentLevel: 'medium',
   createdAt: ISO('2026-04-27T15:00:00Z'),
-  updatedAt: ISO('2026-05-11T15:00:00Z'),
+  updatedAt: recentIso(1), // worked yesterday
 });
 
 const hooliInteraction = makeActivity({
@@ -867,15 +945,15 @@ const hooliInteraction = makeActivity({
   activityDate: ISO('2026-05-11T15:00:00Z'),
   participants: ['Tomas Vogel (Hooli)', 'Sarah Wu (Hooli, RevOps)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
-    'TOMAS: I\'ve had a chance to actually run Pulse on three of our deals. The readiness scoring matches what my best AE would have said on every one — and it caught two deals that our CRM had at Negotiation but were really at Discovery.',
-    'CASEY: That\'s the use case. How do you want to take it from here?',
-    'TOMAS: I want to roll it to the full team. Sarah and I have a meeting with the CFO on the 21st — that\'s the budget approval. Before that I need a one-pager on year-one ROI and a 90-day rollout plan I can hand him.',
-    'SARAH: And what does security want from us? We\'re mid-SOC2 audit, can\'t blow that up.',
+    "TOMAS: I've had a chance to actually run Pulse on three of our deals. The readiness scoring matches what my best AE would have said on every one — and it caught two deals that our CRM had at Negotiation but were really at Discovery.",
+    "CASEY: That's the use case. How do you want to take it from here?",
+    "TOMAS: I want to roll it to the full team. Sarah and I have a meeting with the CFO on the 21st — that's the budget approval. Before that I need a one-pager on year-one ROI and a 90-day rollout plan I can hand him.",
+    "SARAH: And what does security want from us? We're mid-SOC2 audit, can't blow that up.",
     'CASEY: SOC2 Type II report and DPA, both in our trust center. Want me to send links?',
     'TOMAS: Send them and copy our security lead. If the CFO meeting goes well on the 21st I want to be in paper the following week.',
   ].join('\n\n'),
   repSubjectiveNotes:
-    'Tomas is way further along than I marked him. He\'s already done the eval; this is a commercial conversation. CRM stage is wrong.',
+    "Tomas is way further along than I marked him. He's already done the eval; this is a commercial conversation. CRM stage is wrong.",
   nextStepAgreed: true,
   stakeholderAdded: true,
   pricingDiscussed: false,
@@ -907,7 +985,7 @@ const hooliSignals: SignalExtraction = {
   urgency: [
     {
       signal: 'Hard date for budget approval named',
-      evidence: 'we have a meeting with the CFO on the 21st — that\'s the budget approval',
+      evidence: "we have a meeting with the CFO on the 21st — that's the budget approval",
       source: 'transcript',
       strength: 'strong',
       dimension: 'urgency',
@@ -915,7 +993,7 @@ const hooliSignals: SignalExtraction = {
   ],
   solution_confidence: [
     {
-      signal: 'Buyer\'s own validation: scoring matched expert judgment + caught real misses',
+      signal: "Buyer's own validation: scoring matched expert judgment + caught real misses",
       evidence: 'caught two deals that our CRM had at Negotiation but were really at Discovery',
       source: 'transcript',
       strength: 'strong',
@@ -959,7 +1037,7 @@ const hooliDiagnosis = makeDiagnosis({
         'CFO has asked Tomas to fix it',
       ]),
       dim('trust', 85, 'Buyer ran his own POC and is bringing positive results back.', [
-        'I\'ve had a chance to actually run Pulse on three of our deals',
+        "I've had a chance to actually run Pulse on three of our deals",
       ]),
       dim('urgency', 75, 'Named budget meeting date drives a hard commercial timeline.', [
         'we have a meeting with the CFO on the 21st',
@@ -984,169 +1062,13 @@ const hooliDiagnosis = makeDiagnosis({
     recommendedNextAction:
       'Send the year-one ROI 1-pager + 90-day rollout plan by Monday so Tomas has it in time for the CFO meeting on the 21st. Send SOC2 + DPA links to the security lead in parallel.',
     whatNotToDoYet: [
-      'Do not push paper until the CFO meeting concludes — that\'s the gate, not the deal.',
+      "Do not push paper until the CFO meeting concludes — that's the gate, not the deal.",
     ],
     followUpSubject: 'For your CFO meeting on the 21st',
     followUpBody:
       "Tomas, Sarah,\n\nAttaching: year-one ROI 1-pager and the 90-day rollout plan, both ready to hand to the CFO.\n\nSeparately, I'll send our SOC2 Type II report and DPA to Sarah and your security lead in a separate thread so that work can happen in parallel and not block the commercial side.\n\nQuick ask: if the CFO meeting goes how you expect, what's the fastest path to paper your team has done before?\n\nCasey",
     managerCoachingNote:
-      'This is the textbook under-call. Rep marked it Discovery because that\'s when the discovery call happened, but the buyer has already run his own POC and named a budget date. CRM stage should advance to Proposal or Negotiation. The forecast is leaving money on the table.',
-  }),
-});
-
-// --- Deal 6: Pied Piper — over-projecting (low), unaware ---
-
-const piedPiperBuyer: MockBuyer = {
-  id: 'buy_seed_piedpiper',
-  workspaceId: WORKSPACE_ID,
-  firstName: 'Harold',
-  lastName: 'Voss',
-  title: 'Director of Marketing Operations',
-  company: 'Pied Piper',
-  email: 'hvoss@piedpiper.example',
-  linkedin: null,
-  notes: null,
-  createdAt: ISO('2026-05-02T15:00:00Z'),
-  updatedAt: ISO('2026-05-02T15:00:00Z'),
-};
-
-const piedPiperOpp = makeOpportunity({
-  id: 'opp_seed_piedpiper',
-  workspaceId: WORKSPACE_ID,
-  buyerId: piedPiperBuyer.id,
-  productId: PRODUCT_ID,
-  ownerUserId: USER_ID,
-  opportunityName: 'Pied Piper – inbound eval',
-  currentCrmStage: 'Qualified',
-  opportunityValue: 38000,
-  expectedCloseDate: '2026-08-31',
-  knownPain: null,
-  knownObjection: null,
-  dealNotes: 'Inbound demo request. First call was an intro; Harold is friendly but exploring.',
-  currentReadinessState: 'unaware',
-  currentReadinessScore: 18,
-  currentAlignmentOutcome: 'over_projecting',
-  currentAlignmentLevel: 'low',
-  createdAt: ISO('2026-05-03T15:00:00Z'),
-  updatedAt: ISO('2026-05-07T15:00:00Z'),
-});
-
-const piedPiperInteraction = makeActivity({
-  id: 'int_seed_piedpiper_1',
-  workspaceId: WORKSPACE_ID,
-  opportunityId: piedPiperOpp.id,
-  activityType: 'video_meeting',
-  activityDate: ISO('2026-05-07T17:30:00Z'),
-  participants: ['Harold Voss (Pied Piper)', 'Casey Morgan (Acme)'],
-  transcriptOrNotes: [
-    'HAROLD: Yeah, my CEO read a thing about pipeline scoring and forwarded it to me. He asked me to take a look. I don\'t really know what I\'m looking for.',
-    'CASEY: What does forecasting look like at Pied Piper today?',
-    'HAROLD: Honestly I don\'t touch the sales forecast — that\'s sales ops. I run marketing ops. I think he wants me to evaluate it for the sales team but I\'d be a weird buyer for that.',
-    'CASEY: Got it — would it make sense to get the head of sales ops on the next call?',
-    'HAROLD: Probably. Let me see if I can rope her in next week.',
-  ].join('\n\n'),
-  repSubjectiveNotes:
-    'CEO-forwarded inbound. Harold isn\'t the buyer and doesn\'t own the problem. Need to pivot to whoever does.',
-  nextStepAgreed: false,
-  stakeholderAdded: false,
-  pricingDiscussed: false,
-  budgetDiscussed: false,
-  competitorDiscussed: false,
-  implementationDiscussed: false,
-  securityDiscussed: false,
-});
-
-const piedPiperSignals: SignalExtraction = {
-  pain: [],
-  trust: [
-    {
-      signal: 'Buyer is candid about not owning the problem',
-      evidence: "I'd be a weird buyer for that",
-      source: 'transcript',
-      strength: 'medium',
-      dimension: 'trust',
-    },
-  ],
-  urgency: [],
-  solution_confidence: [],
-  commitment: [
-    {
-      signal: 'Buyer agrees to try to find the right person',
-      evidence: 'Let me see if I can rope her in next week',
-      source: 'transcript',
-      strength: 'weak',
-      dimension: 'commitment',
-    },
-  ],
-  risk: [
-    {
-      signal: 'No pain articulated; deal originated from CEO forward without context',
-      evidence: "my CEO read a thing about pipeline scoring and forwarded it to me",
-      source: 'transcript',
-      strength: 'strong',
-      dimension: 'risk',
-    },
-    {
-      signal: 'Wrong functional buyer',
-      evidence: "I run marketing ops",
-      source: 'transcript',
-      strength: 'strong',
-      dimension: 'risk',
-    },
-  ],
-  missing_evidence: [
-    'No pain articulated.',
-    'No sales-org stakeholder engaged.',
-    'No timeline, no budget, no decision criteria.',
-  ],
-};
-
-const piedPiperDiagnosis = makeDiagnosis({
-  id: 'dx_seed_piedpiper',
-  workspaceId: WORKSPACE_ID,
-  opportunityId: piedPiperOpp.id,
-  activityId: piedPiperInteraction.id,
-  signalExtraction: piedPiperSignals,
-  createdAt: ISO('2026-05-07T18:00:00Z'),
-  diagnosis: buildDiagnosis({
-    readinessState: 'unaware',
-    readinessScore: 18,
-    confidence: 'high',
-    dimensionScores: [
-      dim('pain', 10, 'No pain articulated — buyer does not own the workflow.', [
-        "I don't really know what I'm looking for",
-      ]),
-      dim('trust', 55, 'Friendly, candid — early trust but no relationship yet.', [
-        "I'd be a weird buyer for that",
-      ]),
-      dim('urgency', 5, 'No urgency at all — pure exploratory inbound.', []),
-      dim('solution_confidence', 10, 'No confidence yet — buyer hasn\'t seen anything meaningful.', []),
-      dim('commitment', 20, 'Soft commitment to try to find the right person.', [
-        'rope her in next week',
-      ]),
-    ],
-    primaryBlocker:
-      'Wrong buyer in the room. Deal cannot progress until someone from sales ops is the primary contact.',
-    secondaryBlocker: null,
-    pipelineRealityCheck: {
-      crmStage: 'Qualified',
-      outcome: 'over_projecting',
-      level: 'low',
-      reason:
-        'CRM Qualified implies problem-aware, but the buyer explicitly says he does not own the problem. One stage of over-call — this is still a New Lead until the right person is engaged.',
-    },
-    recommendedNextAction:
-      'Send Harold a short forwardable note he can use to introduce you to the head of sales ops. Move the CRM stage back to New Lead until then.',
-    whatNotToDoYet: [
-      'Do not run another demo with Harold.',
-      'Do not send pricing or proposal materials.',
-      'Do not include in the Q2 or Q3 forecast.',
-    ],
-    followUpSubject: 'A note you can forward to your sales ops lead',
-    followUpBody:
-      "Hi Harold,\n\nGreat meeting today, and thanks for being honest about the org fit. Below is a short note you can drop into an email or Slack to introduce me to whoever runs sales ops:\n\n---\n\nHey [name] — Harold here. My CEO forwarded me Pulse — a pipeline-readiness scoring tool. Looked relevant for what you do on forecasting, not really my world. Mind if I make an intro to Casey at Acme so you two can take it from there?\n\n---\n\nThanks Harold, I owe you one.\n\nCasey",
-    managerCoachingNote:
-      'This deal should be moved back to New Lead and removed from any forecast roll-up. Rep marked it Qualified prematurely. Coach to use the "wrong buyer" disqualifier explicitly in the qualification rubric.',
+      "This is the textbook under-call. Rep marked it Discovery because that's when the discovery call happened, but the buyer has already run his own POC and named a budget date. CRM stage should advance to Proposal or Negotiation. The forecast is leaving money on the table.",
   }),
 });
 
@@ -1161,6 +1083,7 @@ const massiveDynamicBuyer: MockBuyer = {
   company: 'Massive Dynamic',
   email: 'renee.a@massivedynamic.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-04-08T15:00:00Z'),
   updatedAt: ISO('2026-04-08T15:00:00Z'),
@@ -1185,7 +1108,7 @@ const massiveDynamicOpp = makeOpportunity({
   currentAlignmentOutcome: 'under_projecting',
   currentAlignmentLevel: 'medium',
   createdAt: ISO('2026-04-10T15:00:00Z'),
-  updatedAt: ISO('2026-05-08T15:00:00Z'),
+  updatedAt: recentIso(4), // earlier this week
 });
 
 const massiveDynamicInt1 = makeActivity({
@@ -1196,9 +1119,9 @@ const massiveDynamicInt1 = makeActivity({
   activityDate: ISO('2026-04-22T18:00:00Z'),
   participants: ['Renee Adeyemi (Massive Dynamic)', 'Casey Morgan (Acme)'],
   transcriptOrNotes: [
-    'RENEE: The manager-coaching note feature is the unlock for us. Our managers don\'t actually do 1:1 coaching consistently because they don\'t know what to coach on.',
+    "RENEE: The manager-coaching note feature is the unlock for us. Our managers don't actually do 1:1 coaching consistently because they don't know what to coach on.",
     'CASEY: Good. What does the path to "yes" look like on your side?',
-    'RENEE: I have to get the three regional VPs on board. They\'re skeptical of new tools after a CRM migration that didn\'t land last year. If they say yes, the rest is easy.',
+    "RENEE: I have to get the three regional VPs on board. They're skeptical of new tools after a CRM migration that didn't land last year. If they say yes, the rest is easy.",
   ].join('\n\n'),
   repSubjectiveNotes: 'Renee is the internal champion. VPs are the real gate.',
   nextStepAgreed: true,
@@ -1222,12 +1145,12 @@ const massiveDynamicInt2 = makeActivity({
     'Casey Morgan (Acme)',
   ],
   transcriptOrNotes: [
-    'DIEGO: I\'ll be honest — I\'m tired of getting handed tools my reps are supposed to use. So my question is just: what\'s different here, and how do we know my managers will actually use it?',
-    'CASEY: Fair. Two things: the manager-coaching note is generated for them after every diagnosis, so they\'re not creating it from scratch. And we\'d run a 4-week pilot where the metric is coaching-note opens per manager. If it\'s low, you have your answer.',
+    "DIEGO: I'll be honest — I'm tired of getting handed tools my reps are supposed to use. So my question is just: what's different here, and how do we know my managers will actually use it?",
+    "CASEY: Fair. Two things: the manager-coaching note is generated for them after every diagnosis, so they're not creating it from scratch. And we'd run a 4-week pilot where the metric is coaching-note opens per manager. If it's low, you have your answer.",
     'DIEGO: A 4-week pilot I could actually defend. Renee, can you set that up with the East and Central VPs too?',
-    'RENEE: Yeah, I\'ll have them on by next Friday.',
+    "RENEE: Yeah, I'll have them on by next Friday.",
   ].join('\n\n'),
-  repSubjectiveNotes: 'Diego is the first VP. He\'s leaning in. Need East and Central next.',
+  repSubjectiveNotes: "Diego is the first VP. He's leaning in. Need East and Central next.",
   nextStepAgreed: true,
   stakeholderAdded: true,
   pricingDiscussed: false,
@@ -1313,8 +1236,7 @@ const massiveDynamicInt1Diagnosis = makeDiagnosis({
     ],
     primaryBlocker:
       'The three regional VPs have not been engaged yet. The champion cannot move the deal alone.',
-    secondaryBlocker:
-      'Prior failed tool rollout means the VPs will arrive skeptical by default.',
+    secondaryBlocker: 'Prior failed tool rollout means the VPs will arrive skeptical by default.',
     pipelineRealityCheck: {
       crmStage: 'Discovery',
       outcome: 'aligned',
@@ -1340,7 +1262,7 @@ const massiveDynamicSignals: SignalExtraction = {
   pain: [
     {
       signal: 'Manager coaching is the named pain point and is concretely measured',
-      evidence: 'Our managers don\'t actually do 1:1 coaching consistently',
+      evidence: "Our managers don't actually do 1:1 coaching consistently",
       source: 'transcript',
       strength: 'strong',
       dimension: 'pain',
@@ -1359,7 +1281,7 @@ const massiveDynamicSignals: SignalExtraction = {
   solution_confidence: [
     {
       signal: 'First VP validates the proof structure (4-week pilot, defendable metric)',
-      evidence: "A 4-week pilot I could actually defend",
+      evidence: 'A 4-week pilot I could actually defend',
       source: 'transcript',
       strength: 'strong',
       dimension: 'solution_confidence',
@@ -1410,7 +1332,7 @@ const massiveDynamicDiagnosis = makeDiagnosis({
       ]),
       dim('urgency', 35, 'No external timeline; pace is set by internal VP availability.', []),
       dim('solution_confidence', 70, 'First VP validated the pilot structure.', [
-        "A 4-week pilot I could actually defend",
+        'A 4-week pilot I could actually defend',
       ]),
       dim('commitment', 55, 'Champion committed to bringing in the remaining stakeholders.', [
         "I'll have them on by next Friday",
@@ -1418,7 +1340,8 @@ const massiveDynamicDiagnosis = makeDiagnosis({
     ],
     primaryBlocker:
       'East and Central VPs have not validated. The deal cannot move to commercial until all three regional VPs are bought in.',
-    secondaryBlocker: 'Prior failed tool rollout creates skepticism that must be addressed proactively.',
+    secondaryBlocker:
+      'Prior failed tool rollout creates skepticism that must be addressed proactively.',
     pipelineRealityCheck: {
       crmStage: 'Discovery',
       outcome: 'under_projecting',
@@ -1430,7 +1353,7 @@ const massiveDynamicDiagnosis = makeDiagnosis({
       'Pre-brief Renee on a 1-page artifact she can share with East and Central VPs ahead of the next-Friday session so the meeting starts from "is the pilot a yes" instead of from scratch.',
     whatNotToDoYet: [
       'Do not introduce pricing until all three VPs have validated.',
-      'Do not assume the East and Central conversations will go like Diego\'s — prepare for skepticism.',
+      "Do not assume the East and Central conversations will go like Diego's — prepare for skepticism.",
     ],
     followUpSubject: 'Pre-brief for the East / Central VP session',
     followUpBody:
@@ -1451,6 +1374,7 @@ const cyberdyneBuyer: MockBuyer = {
   company: 'Cyberdyne Systems',
   email: 'helena.krause@cyberdyne.example',
   linkedin: null,
+  website: null,
   notes: null,
   createdAt: ISO('2026-02-18T15:00:00Z'),
   updatedAt: ISO('2026-02-18T15:00:00Z'),
@@ -1474,7 +1398,7 @@ const cyberdyneOpp = makeOpportunity({
   currentAlignmentOutcome: 'under_projecting',
   currentAlignmentLevel: 'low',
   createdAt: ISO('2026-02-20T15:00:00Z'),
-  updatedAt: ISO('2026-05-09T15:00:00Z'),
+  updatedAt: recentIso(3), // earlier this week
 });
 
 const cyberdyneInteraction = makeActivity({
@@ -1491,10 +1415,10 @@ const cyberdyneInteraction = makeActivity({
   ],
   transcriptOrNotes: [
     'HELENA: To set context — the CRO has approved expansion to 80 seats. So the decision is made on our side, this conversation is about clearing security and procurement.',
-    'REEMA: I have the SOC2 Type II. I need the DPA updated with our subprocessor language and confirmation that customer data isn\'t leaving the EU.',
-    'CASEY: DPA edit is two-day turnaround on our side. Data residency — yes, EU-only is supported, I\'ll confirm in writing.',
+    "REEMA: I have the SOC2 Type II. I need the DPA updated with our subprocessor language and confirmation that customer data isn't leaving the EU.",
+    "CASEY: DPA edit is two-day turnaround on our side. Data residency — yes, EU-only is supported, I'll confirm in writing.",
     'NATE: Once those are done, our standard MSA amendment process is 7-10 business days. Helena wants this signed by mid-July.',
-    'HELENA: Yes, mid-July is the target. Casey, your team has been good to work with — let\'s get this done.',
+    "HELENA: Yes, mid-July is the target. Casey, your team has been good to work with — let's get this done.",
   ].join('\n\n'),
   repSubjectiveNotes:
     'Decision is made. This is execution-only. Security + DPA + MSA amendment, then signature.',
@@ -1520,7 +1444,7 @@ const cyberdyneSignals: SignalExtraction = {
   trust: [
     {
       signal: 'Buyer compliments the working relationship at the close',
-      evidence: "your team has been good to work with",
+      evidence: 'your team has been good to work with',
       source: 'transcript',
       strength: 'medium',
       dimension: 'trust',
@@ -1612,7 +1536,7 @@ const cyberdyneDiagnosis = makeDiagnosis({
     followUpBody:
       "Helena, Reema, Nate,\n\nThanks for the time today. Two-day commitment from us on the DPA subprocessor edit; data-residency confirmation (EU-only) will come in writing in the same email. Once those land, Nate, happy to kick off the MSA amendment whenever you're ready.\n\nMid-July signature target noted — we're set up to hit it.\n\nCasey",
     managerCoachingNote:
-      'Healthy late-funnel renewal-expansion. Rep should advance to Negotiation in the CRM; Proposal is under-calling. Watch the DPA turnaround — that\'s the only thing that can slip the date.',
+      "Healthy late-funnel renewal-expansion. Rep should advance to Negotiation in the CRM; Proposal is under-calling. Watch the DPA turnaround — that's the only thing that can slip the date.",
   }),
 });
 
@@ -1629,6 +1553,7 @@ const soylentBuyer: MockBuyer = {
   company: 'Soylent Corp',
   email: 'devon.reyes@soylent.example',
   linkedin: null,
+  website: null,
   notes: 'Inherited the eval after the original champion (Marcus) left the company.',
   createdAt: ISO('2026-02-20T15:00:00Z'),
   updatedAt: ISO('2026-05-02T15:00:00Z'),
@@ -1655,7 +1580,7 @@ const soylentOpp = makeOpportunity({
   currentAlignmentOutcome: 'over_projecting',
   currentAlignmentLevel: 'high',
   createdAt: ISO('2026-02-24T15:00:00Z'),
-  updatedAt: ISO('2026-05-02T15:00:00Z'),
+  updatedAt: recentIso(11), // last week — regressed, not in this week's set
 });
 
 const soylentActivity = makeActivity({
@@ -1685,7 +1610,8 @@ const soylentSignals: SignalExtraction = {
   pain: [
     {
       signal: 'Original board-level pain may no longer have an internal owner',
-      evidence: 'Forecast accuracy was the board-level driver — but the exec who owned it has left.',
+      evidence:
+        'Forecast accuracy was the board-level driver — but the exec who owned it has left.',
       source: 'rep_note',
       strength: 'medium',
       dimension: 'pain',
@@ -1737,21 +1663,36 @@ const soylentDiagnosis = makeDiagnosis({
     readinessScore: 34,
     confidence: 'medium',
     dimensionScores: [
-      dim('pain', 40, 'The pain was real, but its internal owner is gone — it may no longer be felt.', [
-        'the exec who owned it has left',
-      ]),
-      dim('trust', 25, 'The relationship was with the departed champion; no trust established with Devon.', [
-        'Devon inherited it and has gone quiet',
-      ]),
-      dim('urgency', 20, 'Any urgency left with the previous owner. No timeline has been re-confirmed.', [
-        'New VP has not re-committed to the project or the timeline',
-      ]),
-      dim('solution_confidence', 30, 'Solution confidence built earlier has not transferred to the new buyer.', [
-        'no one carrying it internally',
-      ]),
-      dim('commitment', 15, 'Commitment has collapsed — the proposal is out but unowned and unanswered.', [
-        '[No reply to either email.]',
-      ]),
+      dim(
+        'pain',
+        40,
+        'The pain was real, but its internal owner is gone — it may no longer be felt.',
+        ['the exec who owned it has left'],
+      ),
+      dim(
+        'trust',
+        25,
+        'The relationship was with the departed champion; no trust established with Devon.',
+        ['Devon inherited it and has gone quiet'],
+      ),
+      dim(
+        'urgency',
+        20,
+        'Any urgency left with the previous owner. No timeline has been re-confirmed.',
+        ['New VP has not re-committed to the project or the timeline'],
+      ),
+      dim(
+        'solution_confidence',
+        30,
+        'Solution confidence built earlier has not transferred to the new buyer.',
+        ['no one carrying it internally'],
+      ),
+      dim(
+        'commitment',
+        15,
+        'Commitment has collapsed — the proposal is out but unowned and unanswered.',
+        ['[No reply to either email.]'],
+      ),
     ],
     primaryBlocker:
       'The champion left and the new decision-maker has not engaged. The deal has regressed — it is no longer a live Proposal.',
@@ -1780,20 +1721,22 @@ const soylentDiagnosis = makeDiagnosis({
 
 // --- Deal 10: Wayne — second opportunity for an existing buyer ---
 // Lucia (wayneBuyer) already has the marketing-stack deal; this is a second,
-// activity-less opportunity on a different product (Signal). Demonstrates a
-// buyer carrying multiple opportunities + a provisional, undiagnosed deal.
+// activity-less opportunity on a different product (1-Week Design Sprint).
+// Demonstrates a buyer carrying multiple opportunities + a provisional,
+// undiagnosed deal.
 
 const wayneCopilotOpp = makeOpportunity({
   id: 'opp_seed_wayne_copilot',
   workspaceId: WORKSPACE_ID,
   buyerId: wayneBuyer.id,
-  productId: PRODUCT_SIGNAL_ID,
+  productId: PRODUCT_SPRINT_ID,
   ownerUserId: USER_ID,
-  opportunityName: 'Wayne – live call co-pilot trial',
+  opportunityName: 'Wayne – design sprint trial',
   currentCrmStage: 'Qualified',
   opportunityValue: 24000,
   expectedCloseDate: null,
-  knownPain: 'Lucia mentioned her SDR team wants in-call coaching after seeing the Pulse pilot.',
+  knownPain:
+    'Lucia wants to validate a new product direction with users before committing to a full build.',
   knownObjection: null,
   dealNotes: 'Spun out of the Wayne marketing-stack conversation. No discovery call booked yet.',
   // Carries a CRM Record ID but no activity — the M15 demo target: importing
@@ -1801,8 +1744,486 @@ const wayneCopilotOpp = makeOpportunity({
   // provisional to a real readiness diagnosis.
   crmRecordId: 'HS-1618033988',
   createdAt: ISO('2026-05-11T15:00:00Z'),
-  updatedAt: ISO('2026-05-11T15:00:00Z'),
+  updatedAt: recentIso(9), // last week — provisional, awaiting an activity import
 });
+
+// --- Deal 11: Tendril (Jessie Roesch) — returning 6-Week MVP client ---
+// A two-opportunity story for one buyer: a past 6-Week MVP engagement that was
+// delivered (Closed Won, ~6 months ago), and a brand-new opportunity she opened
+// by reaching out to book a scoping call about a second product. The new call is
+// upcoming — the only genuinely new activity is her re-engagement email — so the
+// new deal's readiness is "warm but early": high trust from the proven
+// relationship, but little concrete readiness on the new scope yet. The old
+// engagement's activity history is mirrored onto the new deal so its Activity tab
+// shows the whole relationship in one place (activities are per-opportunity).
+
+const jessieBuyer: MockBuyer = {
+  id: 'buy_seed_jessie',
+  workspaceId: WORKSPACE_ID,
+  firstName: 'Jessie',
+  lastName: 'Roesch',
+  title: 'Founder & CEO',
+  company: 'Tendril',
+  email: 'jessie@tendril.io',
+  linkedin: 'https://linkedin.com/in/jessie-roesch',
+  website: 'https://tendril.io',
+  notes:
+    'Past 6-Week MVP client — delivered Dec 2025, launched to her design partners. Strong reference relationship. Returning for a second product build.',
+  createdAt: ISO('2025-10-12T15:00:00Z'),
+  updatedAt: ISO('2026-05-28T15:00:00Z'),
+};
+
+// The original engagement's activity history. Defined as a builder so the exact
+// same four interactions can be attached to both the past Closed Won deal and
+// (mirrored) the new returning-client deal.
+function jessieHistoryActivities(opportunityId: string, idPrefix: string) {
+  return [
+    makeActivity({
+      id: `${idPrefix}_discovery`,
+      workspaceId: WORKSPACE_ID,
+      opportunityId,
+      activityType: 'video_meeting',
+      activityDate: ISO('2025-10-14T16:00:00Z'),
+      participants: ['Jessie Roesch (Tendril)', 'Casey Morgan (Launchpad Studio)'],
+      transcriptOrNotes: [
+        "JESSIE: I've got three design partners who've already told me they'll pay — but I'm non-technical and I have literally no way to build the thing they want.",
+        'CASEY: So the demand is validated. The gap is purely getting a working product in front of them.',
+        "JESSIE: Exactly. And I don't want to hire a dev shop that disappears for six months. I need something real in market fast, before these partners cool off.",
+        "CASEY: That's what the 6-Week MVP is built for — fixed scope, fixed timeline, a launch-ready product at the end. Let me put a scope together.",
+      ].join('\n\n'),
+      repSubjectiveNotes:
+        'Textbook fit for the 6-Week MVP: validated demand, non-technical founder, urgency from waiting design partners.',
+      nextStepAgreed: true,
+      stakeholderAdded: false,
+      pricingDiscussed: false,
+      budgetDiscussed: false,
+      competitorDiscussed: false,
+      implementationDiscussed: false,
+      securityDiscussed: false,
+    }),
+    makeActivity({
+      id: `${idPrefix}_scoping`,
+      workspaceId: WORKSPACE_ID,
+      opportunityId,
+      activityType: 'video_meeting',
+      activityDate: ISO('2025-10-21T16:00:00Z'),
+      participants: ['Jessie Roesch (Tendril)', 'Casey Morgan (Launchpad Studio)'],
+      transcriptOrNotes: [
+        "CASEY: Here's the scope — core workflow, auth, and a billing hook, shipped in six weeks for a fixed $36,000.",
+        'JESSIE: That timeline is exactly what I need. The fixed price is what sold me — I can take that number to the bank without a surprise.',
+        'CASEY: And you own the code at the end, no lock-in.',
+        "JESSIE: Let's do it. Send the agreement.",
+      ].join('\n\n'),
+      repSubjectiveNotes: 'Scope and fixed price accepted on the call. Sending the agreement.',
+      nextStepAgreed: true,
+      stakeholderAdded: false,
+      pricingDiscussed: true,
+      budgetDiscussed: true,
+      competitorDiscussed: false,
+      implementationDiscussed: true,
+      securityDiscussed: false,
+    }),
+    makeActivity({
+      id: `${idPrefix}_kickoff`,
+      workspaceId: WORKSPACE_ID,
+      opportunityId,
+      activityType: 'call',
+      activityDate: ISO('2025-11-06T16:00:00Z'),
+      participants: ['Jessie Roesch (Tendril)', 'Casey Morgan (Launchpad Studio)'],
+      transcriptOrNotes: [
+        'JESSIE: Signed and sent the deposit this morning. When can we start?',
+        "CASEY: Monday. Week one is design, you'll see clickable screens by Friday.",
+        "JESSIE: Perfect. My partners are expecting a demo before the holidays — let's hit that.",
+      ].join('\n\n'),
+      repSubjectiveNotes: 'Signed, deposit in, kickoff Monday. Committed and motivated.',
+      nextStepAgreed: true,
+      stakeholderAdded: false,
+      pricingDiscussed: false,
+      budgetDiscussed: false,
+      competitorDiscussed: false,
+      implementationDiscussed: true,
+      securityDiscussed: false,
+    }),
+    makeActivity({
+      id: `${idPrefix}_delivery`,
+      workspaceId: WORKSPACE_ID,
+      opportunityId,
+      activityType: 'video_meeting',
+      activityDate: ISO('2025-12-19T16:00:00Z'),
+      participants: ['Jessie Roesch (Tendril)', 'Casey Morgan (Launchpad Studio)'],
+      transcriptOrNotes: [
+        "CASEY: That's the full MVP — live, on your domain, billing connected.",
+        "JESSIE: This is exactly what I pitched my design partners. We're launching to them Monday.",
+        "CASEY: Everything's documented and the code is in your repo. You're free to take it from here or bring us back when you need to.",
+        "JESSIE: Honestly this was the best money I've spent as a founder. I'll be back.",
+      ].join('\n\n'),
+      repSubjectiveNotes:
+        'Delivered on time. Jessie thrilled — explicit reference + repeat-business intent. Strong relationship to maintain.',
+      nextStepAgreed: false,
+      stakeholderAdded: false,
+      pricingDiscussed: false,
+      budgetDiscussed: false,
+      competitorDiscussed: false,
+      implementationDiscussed: true,
+      securityDiscussed: false,
+    }),
+  ];
+}
+
+// Past engagement — Closed Won, delivered Dec 2025.
+const jessieMvpOpp = makeOpportunity({
+  id: 'opp_seed_jessie_mvp',
+  workspaceId: WORKSPACE_ID,
+  buyerId: jessieBuyer.id,
+  productId: PRODUCT_ID,
+  ownerUserId: USER_ID,
+  opportunityName: 'Tendril – 6-Week MVP build',
+  currentCrmStage: 'Closed Won',
+  opportunityValue: 36000,
+  expectedCloseDate: '2025-11-07',
+  knownPain:
+    'Non-technical founder with validated demand (three paying design partners waiting) but no way to ship a product.',
+  knownObjection: null,
+  dealNotes:
+    'Delivered the MVP on 2025-12-19 and launched to her first design partners. Strong reference relationship.',
+  crmRecordId: 'HS-3141592653',
+  currentReadinessState: 'commit_ready',
+  currentReadinessScore: 92,
+  currentAlignmentOutcome: 'aligned',
+  currentAlignmentLevel: 'none',
+  closedStatus: 'closed_won',
+  createdAt: ISO('2025-10-12T15:00:00Z'),
+  updatedAt: ISO('2025-12-19T15:00:00Z'),
+});
+
+const jessieMvpHistory = jessieHistoryActivities(jessieMvpOpp.id, 'act_seed_jessie_mvp');
+
+const jessieMvpSignals: SignalExtraction = {
+  pain: [
+    {
+      signal: 'Validated demand the founder cannot fulfill without a product',
+      evidence: "three design partners who've already told me they'll pay — but I'm non-technical",
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'pain',
+    },
+  ],
+  trust: [
+    {
+      signal: 'Founder names the engagement her best founder spend',
+      evidence: "this was the best money I've spent as a founder. I'll be back.",
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'trust',
+    },
+  ],
+  urgency: [
+    {
+      signal: 'Waiting design partners create a real launch deadline',
+      evidence: 'My partners are expecting a demo before the holidays',
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'urgency',
+    },
+  ],
+  solution_confidence: [
+    {
+      signal: 'Fixed scope + fixed price removed the perceived risk',
+      evidence: 'The fixed price is what sold me — I can take that number to the bank',
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'solution_confidence',
+    },
+  ],
+  commitment: [
+    {
+      signal: 'Signed, deposit paid, kickoff scheduled',
+      evidence: 'Signed and sent the deposit this morning. When can we start?',
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'commitment',
+    },
+  ],
+  risk: [],
+  missing_evidence: [],
+};
+
+const jessieMvpDiagnosis = makeDiagnosis({
+  id: 'dx_seed_jessie_mvp',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: jessieMvpOpp.id,
+  activityId: 'act_seed_jessie_mvp_delivery',
+  signalExtraction: jessieMvpSignals,
+  createdAt: ISO('2025-12-19T17:30:00Z'),
+  diagnosis: buildDiagnosis({
+    readinessState: 'commit_ready',
+    readinessScore: 92,
+    confidence: 'high',
+    dimensionScores: [
+      dim(
+        'pain',
+        90,
+        'Validated, acute pain — paying partners waiting on a product she could not build.',
+        ["three design partners who've already told me they'll pay"],
+      ),
+      dim(
+        'trust',
+        95,
+        'Trust fully earned through delivery; explicit reference and repeat intent.',
+        ["best money I've spent as a founder. I'll be back."],
+      ),
+      dim('urgency', 80, 'A real launch deadline drove the timeline throughout.', [
+        'My partners are expecting a demo before the holidays',
+      ]),
+      dim('solution_confidence', 92, 'Fixed scope + fixed price gave her confidence to commit.', [
+        'The fixed price is what sold me',
+      ]),
+      dim('commitment', 95, 'Signed, paid, delivered, launched — full commitment realized.', [
+        'Signed and sent the deposit this morning',
+      ]),
+    ],
+    primaryBlocker: null,
+    secondaryBlocker: null,
+    pipelineRealityCheck: {
+      crmStage: 'Closed Won',
+      outcome: 'aligned',
+      level: 'none',
+      reason:
+        'Closed Won implies commit-ready, and the deal was signed, delivered, and launched. Fully aligned — a completed, delivered engagement.',
+    },
+    recommendedNextAction:
+      'Keep the relationship warm post-delivery: check in after her launch and stay top-of-mind for the next build.',
+    whatNotToDoYet: [],
+    followUpSubject: 'Congrats on the launch — here when you need the next build',
+    followUpBody:
+      "Hi Jessie,\n\nHuge congrats on getting this in front of your design partners — you earned it.\n\nEverything's documented and the code is yours. When you're ready for the next thing — a v2, a new module, whatever's next — I'd love to run it back.\n\nGo enjoy the launch.\n\nCasey",
+    managerCoachingNote:
+      'Model engagement: clean fit, fixed-scope sell, delivered on time, delighted reference customer. This is exactly the relationship to mine for repeat business.',
+  }),
+});
+
+// New engagement — she reached out 2026-05-28 to book a scoping call about a
+// second product. Call is upcoming (not held yet). Stage: Qualified.
+const jessieReturnOpp = makeOpportunity({
+  id: 'opp_seed_jessie_return',
+  workspaceId: WORKSPACE_ID,
+  buyerId: jessieBuyer.id,
+  productId: PRODUCT_ID,
+  ownerUserId: USER_ID,
+  opportunityName: 'Tendril – second product MVP (returning client)',
+  currentCrmStage: 'Qualified',
+  opportunityValue: 42000,
+  expectedCloseDate: '2026-07-15',
+  knownPain:
+    'Tendril is expanding into a second product line; Jessie wants to run the same 6-Week MVP playbook for the new module.',
+  knownObjection: null,
+  dealNotes:
+    'Returning 6-Week MVP client. Emailed 2026-05-28 to book a scoping call about a new project — call upcoming, not held yet. Moved straight to Qualified given the proven relationship.',
+  crmRecordId: 'HS-2653589793',
+  currentReadinessState: 'diagnosis_aligned',
+  currentReadinessScore: 52,
+  currentAlignmentOutcome: 'aligned',
+  currentAlignmentLevel: 'none',
+  createdAt: ISO('2026-05-28T15:00:00Z'),
+  updatedAt: recentIso(5), // earlier this week — returning client re-engaged
+});
+
+// Mirrored copies of the original engagement's history (new IDs, pointing at the
+// returning deal) so the new opportunity's Activity tab shows the full relationship.
+const jessieReturnHistory = jessieHistoryActivities(jessieReturnOpp.id, 'act_seed_jessie_rtn_hist');
+
+// The one genuinely new activity on the returning deal — her inbound re-engagement.
+const jessieReturnEmail = makeActivity({
+  id: 'act_seed_jessie_rtn_email',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: jessieReturnOpp.id,
+  activityType: 'email_thread',
+  activityDate: ISO('2026-05-28T14:00:00Z'),
+  participants: ['Jessie Roesch (Tendril)', 'Casey Morgan (Launchpad Studio)'],
+  transcriptOrNotes: [
+    'JESSIE: Casey! The MVP you built has been carrying us — we closed our seed round on the back of it, partly thanks to that product.',
+    "JESSIE: We've validated a second module our customers are asking for, and I want to run the exact same playbook. Same fixed-scope, fixed-timeline approach.",
+    "JESSIE: I don't have the scope nailed down yet — that's what I want to work through with you. Can we grab time next week?",
+    "CASEY: Congrats on the round! Absolutely — booked us for next Tuesday. I'll come with a few questions to shape the scope.",
+  ].join('\n\n'),
+  repSubjectiveNotes:
+    'Warm inbound from a delighted past client. Booked a scoping call for next week. New scope is undefined — discovery still to come.',
+  nextStepAgreed: true,
+  stakeholderAdded: false,
+  pricingDiscussed: false,
+  budgetDiscussed: false,
+  competitorDiscussed: false,
+  implementationDiscussed: false,
+  securityDiscussed: false,
+});
+
+const jessieReturnSignals: SignalExtraction = {
+  pain: [
+    {
+      signal: 'A validated second product line, but scope not yet defined',
+      evidence: "We've validated a second module our customers are asking for",
+      source: 'transcript',
+      strength: 'medium',
+      dimension: 'pain',
+    },
+  ],
+  trust: [
+    {
+      signal: 'Proven delivery relationship; credits the prior MVP for the seed round',
+      evidence: 'we closed our seed round on the back of it',
+      source: 'transcript',
+      strength: 'strong',
+      dimension: 'trust',
+    },
+  ],
+  urgency: [
+    {
+      signal: 'No deadline or forcing function on the new build yet',
+      evidence: "I don't have the scope nailed down yet",
+      source: 'transcript',
+      strength: 'weak',
+      dimension: 'urgency',
+    },
+  ],
+  solution_confidence: [
+    {
+      signal: 'Wants to repeat the proven fixed-scope playbook',
+      evidence: 'I want to run the exact same playbook',
+      source: 'transcript',
+      strength: 'medium',
+      dimension: 'solution_confidence',
+    },
+  ],
+  commitment: [
+    {
+      signal: 'Booked a scoping call, but no scope, terms, or timeline agreed',
+      evidence: "that's what I want to work through with you. Can we grab time next week?",
+      source: 'transcript',
+      strength: 'weak',
+      dimension: 'commitment',
+    },
+  ],
+  risk: [
+    {
+      signal: 'Scope undefined — the discovery call has not happened yet',
+      evidence: 'Scope not yet defined',
+      source: 'checklist',
+      strength: 'medium',
+      dimension: 'risk',
+    },
+  ],
+  missing_evidence: [
+    'New project scope is undefined pending the upcoming scoping call.',
+    'No budget or timeline confirmed for the new build.',
+    'No commercial terms discussed yet.',
+  ],
+};
+
+const jessieReturnDiagnosis = makeDiagnosis({
+  id: 'dx_seed_jessie_return',
+  workspaceId: WORKSPACE_ID,
+  opportunityId: jessieReturnOpp.id,
+  activityId: jessieReturnEmail.id,
+  signalExtraction: jessieReturnSignals,
+  createdAt: ISO('2026-05-28T15:00:00Z'),
+  diagnosis: buildDiagnosis({
+    readinessState: 'diagnosis_aligned',
+    readinessScore: 52,
+    confidence: 'medium',
+    dimensionScores: [
+      dim(
+        'pain',
+        55,
+        'A real, validated need for a second product — but the problem is not yet scoped.',
+        ["We've validated a second module our customers are asking for"],
+      ),
+      dim(
+        'trust',
+        88,
+        'Exceptional trust from a delivered prior engagement she credits for her seed round.',
+        ['we closed our seed round on the back of it'],
+      ),
+      dim('urgency', 30, 'No deadline or forcing function on the new build; exploratory timing.', [
+        "I don't have the scope nailed down yet",
+      ]),
+      dim(
+        'solution_confidence',
+        60,
+        'High confidence in the studio specifically — wants to repeat the playbook.',
+        ['I want to run the exact same playbook'],
+      ),
+      dim('commitment', 35, 'Booked a scoping call only; no scope, budget, or terms agreed yet.', [
+        'Can we grab time next week?',
+      ]),
+    ],
+    primaryBlocker:
+      'New project scope is undefined — the discovery/scoping call has not happened yet. Readiness rests almost entirely on relationship trust, not on the new deal.',
+    secondaryBlocker: 'No timeline or commercial terms for the new build.',
+    pipelineRealityCheck: {
+      crmStage: 'Qualified',
+      outcome: 'aligned',
+      level: 'none',
+      reason:
+        'Qualified implies problem-aware; she sits a notch higher at diagnosis-aligned thanks to the proven relationship — comfortably within range, no over- or under-call.',
+    },
+    recommendedNextAction:
+      'Run the scoping call as a proper discovery: pin down the second-product scope, the customer demand behind it, and any launch timeline before reusing the fixed-price model.',
+    whatNotToDoYet: [
+      'Do not send a fixed price before the new scope is defined — last time the scope justified the number.',
+      'Do not assume the prior urgency carries over; this build has no deadline yet.',
+    ],
+    followUpSubject: 'Looking forward to Tuesday — a few scoping questions',
+    followUpBody:
+      "Hi Jessie,\n\nSo glad the first build helped get the round done — that's the best outcome I could ask for.\n\nBefore Tuesday, a couple of things to mull so we make the most of the call: who's asking for the second module and how loudly, and is there any date you're trying to hit? That'll let us scope tightly and, if it fits, reuse the same fixed-price model.\n\nTalk soon,\nCasey",
+    managerCoachingNote:
+      'Warm returning client — trust is sky-high but the new deal is barely scoped. Coach the rep not to coast on the relationship: treat the scoping call as real discovery, or risk under-scoping a fixed-price build on goodwill alone.',
+  }),
+});
+
+// Pre-call intelligence for the upcoming scoping call — the highlight while the
+// new deal has no held conversation yet.
+const jessiePsychProfile: PsychProfile = {
+  disc: { d: 68, i: 81, s: 47, c: 35, primaryType: 'I' },
+  ocean: { o: 82, c: 64, e: 76, a: 70, n: 31 },
+  summary:
+    'Jessie is a warm, visionary founder who buys on relationship and momentum. She is decisive and enthusiastic, not process-heavy — she already trusts you. Lead with shared excitement about the new product, then gently steer her into the specifics; her instinct is to skip scoping because she trusts the outcome.',
+};
+
+const jessieScript: GeneratedScript = {
+  basedOnTemplateId: 'scr_seed_discovery',
+  technique: 'nepq',
+  sections: [
+    {
+      heading: 'Connect on the win',
+      body: 'Open on the seed round and the first launch — genuine, brief. The relationship is the asset; acknowledge it, then pivot to what is new.',
+    },
+    {
+      heading: 'Diagnose the new problem',
+      body: 'Ask who is asking for the second module and how loudly. Draw out the real customer demand rather than accepting "we should build it" — she trusts you enough to skip this, so you have to insist gently.',
+    },
+    {
+      heading: 'Surface the consequence + timeline',
+      body: 'Ask what happens if it slips a quarter, and whether anything external is forcing a date. This is the urgency the email is missing — find it or confirm there is not one.',
+    },
+    {
+      heading: 'Frame the next step',
+      body: 'Only once scope and demand are clear, reuse the fixed-scope, fixed-price model she already loves. Agree a dated path to a written scope — do not quote a price on the call.',
+    },
+  ],
+};
+
+const jessieReturnPrecall: MockPrecallIntelligence = {
+  id: 'pci_seed_jessie_return',
+  opportunityId: jessieReturnOpp.id,
+  psychProfile: jessiePsychProfile,
+  matchedTechnique: {
+    technique: 'nepq',
+    reasoning:
+      'High-I, relationship-driven returning buyer with sky-high trust but an undefined new scope. NEPQ — neuro-emotional, question-led, low-pressure — fits a warm client who will happily skip discovery; its diagnostic questions force the scoping the deal actually needs without straining the relationship.',
+  },
+  generatedScript: jessieScript,
+  generatedAt: ISO('2026-05-28T16:00:00Z'),
+};
 
 // --- Unassigned buyers ---
 // People in the workspace with no opportunity yet — typically added by the
@@ -1819,6 +2240,7 @@ const unassignedBuyers: MockBuyer[] = [
     company: 'Umbrella Logistics',
     email: 'priyanka.shah@umbrella.example',
     linkedin: null,
+    website: null,
     notes: 'From the May 12 workbench import. No product assigned yet.',
     createdAt: ISO('2026-05-12T09:00:00Z'),
     updatedAt: ISO('2026-05-12T09:00:00Z'),
@@ -1832,6 +2254,7 @@ const unassignedBuyers: MockBuyer[] = [
     company: 'Tyrell Systems',
     email: 'marcus.webb@tyrell.example',
     linkedin: null,
+    website: null,
     notes: 'From the May 12 workbench import. No product assigned yet.',
     createdAt: ISO('2026-05-12T09:00:00Z'),
     updatedAt: ISO('2026-05-12T09:00:00Z'),
@@ -1845,6 +2268,7 @@ const unassignedBuyers: MockBuyer[] = [
     company: 'Oscorp Industries',
     email: 'tasha.lin@oscorp.example',
     linkedin: null,
+    website: null,
     notes: 'From the May 12 workbench import. No product assigned yet.',
     createdAt: ISO('2026-05-12T09:00:00Z'),
     updatedAt: ISO('2026-05-12T09:00:00Z'),
@@ -2001,17 +2425,17 @@ const importMappings: MockImportMapping[] = [
 export function buildSeed(): HydrateInput {
   return {
     workspaces: [workspace],
-    products: [product, productSignal, productBrief],
+    products: [product, productSprint, productTechPlan, productStrategy, productShipIt],
     buyers: [
       globexBuyer,
       initechBuyer,
       wayneBuyer,
       starkBuyer,
       hooliBuyer,
-      piedPiperBuyer,
       massiveDynamicBuyer,
       cyberdyneBuyer,
       soylentBuyer,
+      jessieBuyer,
       ...unassignedBuyers,
     ],
     opportunities: [
@@ -2020,11 +2444,12 @@ export function buildSeed(): HydrateInput {
       wayneOpp,
       starkOpp,
       hooliOpp,
-      piedPiperOpp,
       massiveDynamicOpp,
       cyberdyneOpp,
       soylentOpp,
       wayneCopilotOpp,
+      jessieMvpOpp,
+      jessieReturnOpp,
     ],
     activities: [
       globexInteraction,
@@ -2032,11 +2457,13 @@ export function buildSeed(): HydrateInput {
       wayneInteraction,
       starkInteraction,
       hooliInteraction,
-      piedPiperInteraction,
       massiveDynamicInt1,
       massiveDynamicInt2,
       cyberdyneInteraction,
       soylentActivity,
+      ...jessieMvpHistory,
+      ...jessieReturnHistory,
+      jessieReturnEmail,
     ],
     diagnoses: [
       globexDiagnosis,
@@ -2044,15 +2471,16 @@ export function buildSeed(): HydrateInput {
       wayneDiagnosis,
       starkDiagnosis,
       hooliDiagnosis,
-      piedPiperDiagnosis,
       massiveDynamicInt1Diagnosis,
       massiveDynamicDiagnosis,
       cyberdyneDiagnosis,
       soylentDiagnosis,
+      jessieMvpDiagnosis,
+      jessieReturnDiagnosis,
     ],
     outcomes: [],
     scriptTemplates,
-    precallIntelligence: [starkPrecall, waynePrecall],
+    precallIntelligence: [starkPrecall, waynePrecall, jessieReturnPrecall],
     importMappings,
   };
 }

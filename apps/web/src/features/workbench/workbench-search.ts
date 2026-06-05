@@ -1,5 +1,6 @@
 import { alignmentOutcomeSchema, readinessStateSchema } from '@pg/shared';
 import { z } from 'zod';
+import { workbenchPeriodSchema } from '../../lib/period';
 
 // Sortable List-view columns. The Board view is always grouped by CRM stage, so
 // this only governs the List table.
@@ -28,6 +29,10 @@ export const DEFAULT_DIR: SortDir = 'desc';
 // so filtered views are bookmarkable and bad params get stripped. The Board/List
 // toggle itself is a per-user preference (localStorage), not URL state.
 export const workbenchSearchSchema = z.object({
+  // Top-level recency scope (Today by default — omitted from the URL when
+  // default). Gates the rows feeding *both* Board and List, unlike the
+  // secondary filters below which only narrow the List table.
+  period: workbenchPeriodSchema.optional(),
   q: z.string().optional(),
   stage: z.string().optional(),
   readiness: z.array(readinessStateSchema).optional(),

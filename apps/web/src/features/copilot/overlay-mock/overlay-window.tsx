@@ -1,10 +1,10 @@
-import { Badge, Box, Group, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Box, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
   IconAlertTriangle,
   IconChevronRight,
   IconMinus,
 } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import { OVERLAY, TECHNIQUE_COLOR, TECHNIQUE_LABEL } from './mock-data';
 
 // Shared chrome + primitives for the in-call overlay design mock (M20). Every
@@ -48,11 +48,23 @@ interface OverlayHeaderProps {
   // for the post-call windows.
   mode?: 'live' | 'ended';
   timer?: string;
+  // When provided (interactive demo), the collapse control becomes a real
+  // button that folds the window down to a pill. Omitted in the static gallery.
+  onCollapse?: () => void;
+  // When provided, the header acts as the window's drag handle — the demo
+  // wires this to its pointer-drag so the rep can move the overlay around.
+  onDragStart?: (e: PointerEvent) => void;
 }
 
 // The window's top strip: a recording indicator, the product name, the call
-// timer, and a (non-functional) collapse control.
-export function OverlayHeader({ mode = 'live', timer }: OverlayHeaderProps) {
+// timer, and a collapse control. In the static gallery the collapse control is
+// inert; the interactive demo passes `onCollapse`/`onDragStart` to light it up.
+export function OverlayHeader({
+  mode = 'live',
+  timer,
+  onCollapse,
+  onDragStart,
+}: OverlayHeaderProps) {
   const live = mode === 'live';
   return (
     <Group
@@ -60,9 +72,13 @@ export function OverlayHeader({ mode = 'live', timer }: OverlayHeaderProps) {
       wrap="nowrap"
       px="sm"
       py={8}
+      onPointerDown={onDragStart}
       style={{
         background: OVERLAY.headerBg,
         borderBottom: `1px solid ${OVERLAY.border}`,
+        cursor: onDragStart ? 'grab' : undefined,
+        touchAction: onDragStart ? 'none' : undefined,
+        userSelect: onDragStart ? 'none' : undefined,
       }}
     >
       <Group gap={6} wrap="nowrap">
@@ -84,7 +100,7 @@ export function OverlayHeader({ mode = 'live', timer }: OverlayHeaderProps) {
           lts={0.8}
           c={live ? OVERLAY.textSecondary : OVERLAY.textMuted}
         >
-          {live ? 'Live Co-pilot' : 'Call ended'}
+          {live ? 'PG.AI PILOT' : 'Call ended'}
         </Text>
       </Group>
       <Group gap={8} wrap="nowrap">
@@ -93,7 +109,19 @@ export function OverlayHeader({ mode = 'live', timer }: OverlayHeaderProps) {
             {timer}
           </Text>
         )}
-        <IconMinus size={13} color={OVERLAY.textMuted} />
+        {onCollapse ? (
+          <UnstyledButton
+            onClick={onCollapse}
+            // Stop the drag handler on the header from also firing on the button.
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Collapse to a pill"
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
+            <IconMinus size={13} color={OVERLAY.textSecondary} />
+          </UnstyledButton>
+        ) : (
+          <IconMinus size={13} color={OVERLAY.textMuted} />
+        )}
       </Group>
     </Group>
   );

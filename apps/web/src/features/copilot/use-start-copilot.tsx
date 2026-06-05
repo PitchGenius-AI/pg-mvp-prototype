@@ -25,7 +25,7 @@ export function useStartCopilot() {
       }
       const link = copilotDeepLink(opportunityId);
       notifications.show({
-        title: 'Launching the Live Co-pilot',
+        title: 'Launching PG.AI PILOT',
         message:
           copilot.installState === 'connected'
             ? `Handing the session to your desktop app — ${link}`

@@ -11,6 +11,7 @@ export interface PreSaveBuyer {
   company: string;
   email: string | null;
   linkedin: string | null;
+  website: string | null;
 }
 
 export interface PreSaveOpportunity {
@@ -79,6 +80,7 @@ export function buildAddOpportunityArgs(
           company: draft.buyer.company,
           email: draft.buyer.email,
           linkedin: draft.buyer.linkedin,
+          website: draft.buyer.website,
           notes: null,
         }
       : undefined;

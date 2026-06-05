@@ -53,7 +53,7 @@ export function Sidebar() {
       <NavLink
         component={Link}
         to="/copilot"
-        label="Live Co-pilot"
+        label="PG.AI PILOT"
         leftSection={<IconBroadcast size={18} />}
         active={pathname.startsWith('/copilot')}
       />

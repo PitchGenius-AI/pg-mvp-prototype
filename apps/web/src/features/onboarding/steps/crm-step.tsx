@@ -1,12 +1,14 @@
 import { Alert, Paper, Radio, Stack, Text, TextInput } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import type { OnboardingCrmChoice } from '../../../mock/types';
+import { crmSupportsExport } from '@pg/shared';
+import { crmTypeFromOnboardingChoice, type OnboardingCrmChoice } from '../../../mock/types';
 import { OnboardingShell } from '../onboarding-shell';
 import type { OnboardingStepProps } from '../types';
 
-// Step 9 (PG-195): pick the CRM the workspace round-trips against. HubSpot and
-// Pipedrive get a CRM-importable Update Pack; None/Other degrade export to
-// copy-ready notes.
+// Step 9 (PG-195, PG-263): record the CRM the workspace uses. HubSpot,
+// Pipedrive, and HighLevel get a CRM-importable Update Pack; Salesforce is
+// captured for context but degrades export to copy-ready notes, same as
+// None/Other.
 
 const CRM_OPTIONS: Array<{
   value: OnboardingCrmChoice;
@@ -22,6 +24,17 @@ const CRM_OPTIONS: Array<{
     value: 'pipedrive',
     label: 'Pipedrive',
     description: 'Your end-of-day Update Pack exports as a Pipedrive-importable file.',
+  },
+  {
+    value: 'highlevel',
+    label: 'HighLevel',
+    description: 'Your end-of-day Update Pack exports as a HighLevel-importable file.',
+  },
+  {
+    value: 'salesforce',
+    label: 'Salesforce',
+    description:
+      'We’ll record this. A Salesforce-importable export isn’t ready yet, so your Update Pack exports as copy-ready notes for now.',
   },
   {
     value: 'none',
@@ -46,7 +59,8 @@ export function crmStepValid(
 
 export function CrmStep({ step, draft, update, onBack, onContinue }: OnboardingStepProps) {
   const { crmChoice, crmOtherText } = draft;
-  const degradesExport = crmChoice === 'none' || crmChoice === 'other';
+  const degradesExport =
+    crmChoice !== null && !crmSupportsExport(crmTypeFromOnboardingChoice(crmChoice));
 
   return (
     <OnboardingShell

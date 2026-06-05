@@ -1,121 +1,108 @@
-import { Anchor, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
-import {
-  IconBuilding,
-  IconCalendarEvent,
-  IconCoin,
-  IconUser,
-} from '@tabler/icons-react';
+import { Divider, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import type { MockBuyer, MockDiagnosis, MockOpportunity } from '../../mock/types';
+import type { ReadinessVm } from './badges';
+import {
+  FollowUpEmailCard,
+  PipelineRealityCheck,
+  ProvisionalDiagnosis,
+  RecommendedAction,
+  WhatNotToDoCard,
+} from './diagnosis-tab';
 import { PrecallIntelligence } from './precall-intelligence';
 
 interface OverviewTabProps {
   opportunity: MockOpportunity;
   buyer: MockBuyer | null;
   latestDiagnosis: MockDiagnosis | null;
+  vm: ReadinessVm;
+  onAddActivity: () => void;
+  onViewDiagnosis: () => void;
 }
 
-// The Overview tab (M17, PG-222/PG-223) — pre-call intelligence up top, then the
-// opportunity context the rep captured. Readiness + alignment moved to the
-// persistent score header, so this tab is prep-focused.
-export function OverviewTab({ opportunity, buyer, latestDiagnosis }: OverviewTabProps) {
+// The Overview tab (M17, PG-222/PG-223) — the deal's prep surface. Leads with the
+// Pipeline Reality Check (the flagship insight), which links into the Diagnosis
+// tab for the full supporting detail; before any activity it shows a provisional
+// read instead. Then pre-call intelligence, then the qualitative context the rep
+// captured. The headline score/state live in the persistent score header above;
+// value/close/CRM stage moved there too, so the context card here is notes-only.
+export function OverviewTab({
+  opportunity,
+  buyer,
+  latestDiagnosis,
+  vm,
+  onAddActivity,
+  onViewDiagnosis,
+}: OverviewTabProps) {
   return (
-    <Stack gap="lg">
+    <Stack gap="xl">
+      {latestDiagnosis ? (
+        <Stack gap="md">
+          <PipelineRealityCheck
+            opportunity={opportunity}
+            diagnosis={latestDiagnosis}
+            onViewDiagnosis={onViewDiagnosis}
+          />
+          {/* Copies of the action guidance from the Diagnosis tab, surfaced here
+              so the rep gets next-step direction without leaving the Overview. */}
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <RecommendedAction diagnosis={latestDiagnosis} />
+            <WhatNotToDoCard items={latestDiagnosis.diagnosis.what_not_to_do_yet} />
+          </SimpleGrid>
+          <FollowUpEmailCard
+            subject={latestDiagnosis.diagnosis.follow_up_email.subject}
+            body={latestDiagnosis.diagnosis.follow_up_email.body}
+          />
+        </Stack>
+      ) : (
+        <ProvisionalDiagnosis
+          opportunity={opportunity}
+          vm={vm}
+          onAddActivity={onAddActivity}
+        />
+      )}
+      <Divider />
       <PrecallIntelligence
         opportunity={opportunity}
         buyer={buyer}
         latestDiagnosis={latestDiagnosis}
       />
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-        <OpportunityContextCard opportunity={opportunity} />
-        <BuyerContactCard buyer={buyer} />
-      </SimpleGrid>
+      <Divider />
+      <OpportunityContextCard opportunity={opportunity} buyer={buyer} />
     </Stack>
   );
 }
 
-function OpportunityContextCard({ opportunity }: { opportunity: MockOpportunity }) {
+// Notes-only now — the structured deal facts (value, close, CRM stage) live in
+// the persistent score header, so this card holds just the qualitative context
+// the rep captured.
+function OpportunityContextCard({
+  opportunity,
+  buyer,
+}: {
+  opportunity: MockOpportunity;
+  buyer: MockBuyer | null;
+}) {
   const hasNotes =
     !!opportunity.knownPain || !!opportunity.knownObjection || !!opportunity.dealNotes;
   return (
     <Section title="Opportunity context">
       <Stack gap="sm">
-        <Field
-          icon={<IconCoin size={14} />}
-          label="Value"
-          value={
-            opportunity.opportunityValue != null
-              ? `$${opportunity.opportunityValue.toLocaleString()}`
-              : null
-          }
-        />
-        <Field
-          icon={<IconCalendarEvent size={14} />}
-          label="Expected close"
-          value={opportunity.expectedCloseDate}
-        />
-        <Field
-          icon={<IconBuilding size={14} />}
-          label="CRM stage"
-          value={opportunity.currentCrmStage}
-        />
-        {hasNotes && (
-          <Stack gap="sm" mt={4}>
+        {hasNotes ? (
+          <Stack gap="sm">
             <LongField label="Known pain" value={opportunity.knownPain} />
             <LongField label="Known objection" value={opportunity.knownObjection} />
             <LongField label="Deal notes" value={opportunity.dealNotes} />
           </Stack>
-        )}
-        {!hasNotes && (
+        ) : (
           <Text size="xs" c="dimmed" fs="italic">
             No pain, objection, or deal notes captured yet.
           </Text>
         )}
-      </Stack>
-    </Section>
-  );
-}
-
-function BuyerContactCard({ buyer }: { buyer: MockBuyer | null }) {
-  if (!buyer) {
-    return (
-      <Section title="Buyer">
-        <Text size="sm" c="dimmed">
-          Buyer record missing.
-        </Text>
-      </Section>
-    );
-  }
-  return (
-    <Section title="Buyer">
-      <Stack gap="sm">
-        <Field
-          icon={<IconUser size={14} />}
-          label="Name"
-          value={[buyer.firstName, buyer.lastName].filter(Boolean).join(' ')}
-        />
-        <Field label="Title" value={buyer.title} />
-        <Field label="Company" value={buyer.company} />
-        <Field
-          label="Email"
-          value={
-            buyer.email ? (
-              <Anchor href={`mailto:${buyer.email}`} size="sm">
-                {buyer.email}
-              </Anchor>
-            ) : null
-          }
-        />
-        <Field
-          label="LinkedIn"
-          value={
-            buyer.linkedin ? (
-              <Anchor href={buyer.linkedin} target="_blank" rel="noreferrer" size="sm">
-                {buyer.linkedin}
-              </Anchor>
-            ) : null
-          }
-        />
-        {buyer.notes && <LongField label="Notes" value={buyer.notes} />}
+        {buyer?.notes && (
+          <Stack gap="sm" mt={4}>
+            <LongField label="Buyer notes" value={buyer.notes} />
+          </Stack>
+        )}
       </Stack>
     </Section>
   );
@@ -131,38 +118,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         {children}
       </Stack>
     </Paper>
-  );
-}
-
-function Field({
-  icon,
-  label,
-  value,
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <Group gap="sm" wrap="nowrap" align="flex-start">
-      <Group gap={4} w={120} wrap="nowrap" style={{ flexShrink: 0 }}>
-        {icon && (
-          <Text component="span" c="dimmed" style={{ display: 'inline-flex' }}>
-            {icon}
-          </Text>
-        )}
-        <Text size="xs" c="dimmed">
-          {label}
-        </Text>
-      </Group>
-      <Text size="sm">
-        {value ?? (
-          <Text component="span" size="sm" c="dimmed">
-            —
-          </Text>
-        )}
-      </Text>
-    </Group>
   );
 }
 

@@ -92,11 +92,40 @@ export const crmStageTemplates = ['simple_b2b_sales', 'custom'] as const;
 export const crmStageTemplateSchema = z.enum(crmStageTemplates);
 export type CrmStageTemplate = z.infer<typeof crmStageTemplateSchema>;
 
-// The CRMs the file-based round-trip targets (HubSpot + Pipedrive only — see
-// CLAUDE.md → "What's intentionally NOT here" on Salesforce).
-export const crmTypes = ['hubspot', 'pipedrive'] as const;
+// The CRMs we record for a workspace. `hubspot`/`pipedrive`/`highlevel` round-trip
+// against the file-based Update Pack export; `salesforce` is captured at
+// onboarding for context but has no note-import format yet, so its exports
+// degrade to copy-ready notes (see CLAUDE.md → "What's intentionally NOT here").
+// Use `crmSupportsExport` to branch on that.
+export const crmTypes = ['hubspot', 'pipedrive', 'salesforce', 'highlevel'] as const;
 export const crmTypeSchema = z.enum(crmTypes);
 export type CrmType = z.infer<typeof crmTypeSchema>;
+
+// The subset of CRMs the file-based Update Pack export targets. A workspace can
+// carry a `crmType` outside this set (capture-only, e.g. Salesforce) — export
+// then degrades to copy-ready notes, same as no CRM at all.
+export const exportableCrmTypes = [
+  'hubspot',
+  'pipedrive',
+  'highlevel',
+] as const satisfies readonly CrmType[];
+
+export function crmSupportsExport(crmType: CrmType | null): boolean {
+  return crmType !== null && (exportableCrmTypes as readonly string[]).includes(crmType);
+}
+
+// Display names for each CRM. One home so the onboarding picker, export pack,
+// and import guidance never drift. `null` is the "no CRM selected" fallback.
+export const crmDisplayLabels: Record<CrmType, string> = {
+  hubspot: 'HubSpot',
+  pipedrive: 'Pipedrive',
+  salesforce: 'Salesforce',
+  highlevel: 'HighLevel',
+};
+
+export function crmLabel(crmType: CrmType | null): string {
+  return crmType ? crmDisplayLabels[crmType] : 'your CRM';
+}
 
 // Subscription / paywall state. The hard paywall (M11) gates in-shell routes
 // to workspaces whose status is `trialing` or `active`.

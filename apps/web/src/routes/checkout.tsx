@@ -63,7 +63,7 @@ const PLAN = {
   features: [
     'Unlimited opportunities & buyer-readiness diagnoses',
     'Pipeline Reality Check on every deal',
-    'Pre-call intelligence & the Live Co-pilot',
+    'Pre-call intelligence & PG.AI PILOT',
     'CRM import / export round-trip',
   ],
 } as const;

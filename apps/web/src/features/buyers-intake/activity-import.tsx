@@ -26,6 +26,7 @@ import {
   IconUpload,
   IconX,
 } from '@tabler/icons-react';
+import { crmLabel } from '@pg/shared';
 import { useNavigate } from '@tanstack/react-router';
 import Papa from 'papaparse';
 import { useMemo, useState } from 'react';
@@ -473,8 +474,4 @@ function Stat({ value, label }: { value: number; label: string }) {
       </Text>
     </Stack>
   );
-}
-
-function crmLabel(crmType: 'hubspot' | 'pipedrive'): string {
-  return crmType === 'hubspot' ? 'HubSpot' : 'Pipedrive';
 }

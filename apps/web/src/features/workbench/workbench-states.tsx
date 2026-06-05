@@ -1,83 +1,57 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Center,
-  Group,
-  Paper,
-  Skeleton,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Box, Button, Center, Group, Paper, Skeleton, Stack, Text, Title } from '@mantine/core';
 import {
   IconAlertTriangle,
-  IconBriefcase,
+  IconCalendarOff,
   IconFilterOff,
-  IconInfoCircle,
-  IconPlus,
   IconRefresh,
   IconUpload,
 } from '@tabler/icons-react';
+import { PERIOD_LABELS, type WorkbenchPeriod } from '../../lib/period';
+import { DailyLoopSteps, DAILY_LOOP_NOTE } from './daily-loop';
 import type { WorkbenchView } from './use-workbench-view';
-
-// Shared "what's an opportunity?" explainer — the empty state is a first-time
-// user's (and the demo audience's) first encounter with the concept.
-const CONCEPT_HEADING = "What's an opportunity?";
-const CONCEPT_BODY = [
-  "An opportunity is a buyer at a company evaluating your product for a specific deal. It's the unit Pitch Genius diagnoses — pulling evidence from your meetings and notes to score buyer readiness and flag pipeline mismatches.",
-  'One buyer can have multiple opportunities over time (current, historical, reframed).',
-];
 
 // --- Empty (zero opportunities) -------------------------------------------
 
 interface WorkbenchEmptyProps {
-  onAdd: () => void;
+  // Primary path: the morning Daily Workbench import — the daily ritual we teach.
   onImport: () => void;
+  // Secondary, low-commitment path: add a single opportunity via the form.
+  onAddOne: () => void;
 }
 
-export function WorkbenchEmpty({ onAdd, onImport }: WorkbenchEmptyProps) {
+// The product's primary teaching moment (PG-264). The empty state isn't "you
+// have nothing yet" — it teaches the daily cadence the whole product is built
+// around (morning import → work → end-of-day export). Bulk import leads; the
+// single-add is demoted to a "just try it" path.
+export function WorkbenchEmpty({ onImport, onAddOne }: WorkbenchEmptyProps) {
   return (
     <Center py="xl">
-      <Stack align="center" gap="md" maw={560}>
-        <Paper withBorder p="xl" radius="md" w="100%">
-          <Stack align="center" gap="sm">
-            <IconBriefcase size={36} color="var(--mantine-color-dimmed)" />
-            <Title order={3}>Your workbench is empty</Title>
-            <Text size="sm" c="dimmed" ta="center">
-              Add your first opportunity to get a buyer readiness diagnosis — it'll show up
-              here on your board.
-            </Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={onAdd} mt="sm">
-              Add your first opportunity
-            </Button>
-            <Button
-              variant="subtle"
-              size="xs"
-              color="gray"
-              leftSection={<IconUpload size={14} />}
-              onClick={onImport}
-            >
-              Or import your list
-            </Button>
-          </Stack>
-        </Paper>
+      <Stack align="center" gap="lg" maw={820} w="100%">
+        <Stack align="center" gap={4}>
+          <Title order={2} ta="center">
+            Here's how each day works
+          </Title>
+          <Text size="sm" c="dimmed" ta="center" maw={620}>
+            Pitch Genius fits around your sales day. Bring in the deals you're working each morning,
+            work them with live buyer intelligence, then push your updates back to your CRM before
+            you log off.
+          </Text>
+        </Stack>
 
-        <Alert
-          icon={<IconInfoCircle size={18} />}
-          title={CONCEPT_HEADING}
-          color="blue"
-          variant="light"
-          w="100%"
-        >
-          <Stack gap="xs">
-            {CONCEPT_BODY.map((paragraph) => (
-              <Text key={paragraph} size="sm">
-                {paragraph}
-              </Text>
-            ))}
-          </Stack>
-        </Alert>
+        <DailyLoopSteps />
+
+        <Text size="sm" c="dimmed" ta="center" fs="italic">
+          {DAILY_LOOP_NOTE}
+        </Text>
+
+        <Group justify="center" gap="sm">
+          <Button leftSection={<IconUpload size={16} />} onClick={onImport}>
+            Import today's leads
+          </Button>
+          <Button variant="subtle" color="gray" onClick={onAddOne}>
+            Just add one opportunity to try it
+          </Button>
+        </Group>
       </Stack>
     </Center>
   );
@@ -93,12 +67,49 @@ export function WorkbenchFilteredEmpty({ onClear }: { onClear: () => void }) {
           <IconFilterOff size={28} color="var(--mantine-color-dimmed)" />
           <Text fw={500}>No opportunities match these filters</Text>
           <Text size="sm" c="dimmed" ta="center">
-            Try widening the readiness states or stage, or clear the filters to see
-            everything.
+            Try widening the readiness states or stage, or clear the filters to see everything.
           </Text>
           <Button variant="default" size="xs" onClick={onClear} mt="xs">
             Clear filters
           </Button>
+        </Stack>
+      </Paper>
+    </Center>
+  );
+}
+
+// --- Empty for the selected period -----------------------------------------
+
+interface WorkbenchPeriodEmptyProps {
+  period: WorkbenchPeriod;
+  onShowAll: () => void;
+  onImport: () => void;
+}
+
+// Shown when the rep has opportunities but none fall in the selected recency
+// scope (e.g. the default "Today" before the morning import, or for a rep who
+// works ad-hoc). Keeps the daily-loop nudge front-and-centre while offering an
+// instant escape hatch to the full list.
+export function WorkbenchPeriodEmpty({ period, onShowAll, onImport }: WorkbenchPeriodEmptyProps) {
+  const label = PERIOD_LABELS[period].toLowerCase();
+  return (
+    <Center py="lg">
+      <Paper withBorder p="lg" radius="md" maw={480}>
+        <Stack align="center" gap="sm">
+          <IconCalendarOff size={28} color="var(--mantine-color-dimmed)" />
+          <Text fw={500}>Nothing worked {label}</Text>
+          <Text size="sm" c="dimmed" ta="center">
+            None of your deals were imported, added, or worked {label}. Import today's leads to
+            start the day, or show every deal.
+          </Text>
+          <Group gap="sm" mt="xs">
+            <Button size="xs" leftSection={<IconUpload size={15} />} onClick={onImport}>
+              Import today's leads
+            </Button>
+            <Button variant="default" size="xs" onClick={onShowAll}>
+              Show all
+            </Button>
+          </Group>
         </Stack>
       </Paper>
     </Center>

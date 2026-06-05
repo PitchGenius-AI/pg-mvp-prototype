@@ -99,7 +99,7 @@ The May-2026 scope adds further AI capabilities — website-scrape profile extra
 
 The `@pg/shared` zod **entity** schemas (`entities.ts`, `precall.ts`) are the canonical contract as of M9; the Zustand mock store types (`apps/web/src/mock/types.ts`) derive straight from `z.infer` of them, and the `@pg/db` Drizzle tables mirror them.
 
-- **Workspaces** own the pipeline configuration (CRM stages). MVP enforces one workspace per user. As of M9 a workspace also carries a `subscriptionStatus` (the M11 hard-paywall gate) and an optional `crmType` (`hubspot` / `pipedrive`).
+- **Workspaces** own the pipeline configuration (CRM stages). MVP enforces one workspace per user. As of M9 a workspace also carries a `subscriptionStatus` (the M11 hard-paywall gate) and an optional `crmType`. The `crmType` enum is `hubspot` / `pipedrive` / `salesforce` / `highlevel` (PG-263). HubSpot, Pipedrive, and HighLevel are export round-trip targets; Salesforce is **capture-only** (recorded at onboarding for context, but exports degrade to copy-ready notes). Branch on `crmSupportsExport()` from `@pg/shared`, never on `crmType !== null`.
 - **Products** are 1:N to workspaces with exactly one `isPrimary` — the primary is the default product context for new opportunities. M9 lit this up in the shared contract + mock store + seed; the `apps/api` stub still has a one-product-per-workspace check (lifts when M16 wires it). The 1:N schema means lifting that check needs no migration.
 - **Buyers are separate from opportunities.** A buyer is a person at a company; the same buyer can have many opportunities (current, historical, reframed). A buyer with **no** opportunity is "unassigned" — assigning a product turns it into an opportunity (M13). This separation also makes the reframe flow clean.
 - **Opportunities** carry denormalized "current_*" columns (readiness state, score, alignment) so the list view doesn't have to join the latest diagnosis. They MUST be updated in the same transaction that inserts a new diagnosis. They also carry a nullable `crmRecordId` (HubSpot Record ID / Pipedrive System ID) that drives the two-tier export model and bulk-activity auto-join.
@@ -166,7 +166,7 @@ pnpm dev
 
 - **No native CRM API integration.** The CRM round-trip is file-based — the rep exports a list out of their CRM and imports our Update Pack file back in. No live API sync; the CRM stays the system of record.
 - **No Chrome extension.** The Live Co-pilot is a cross-platform **desktop app**, not a browser extension. (Real-time in-call transcription/coaching *is* now in scope, via that app.)
-- **No Salesforce.** The CRM round-trip targets HubSpot and Pipedrive only — Salesforce is admin-heavy and a poor fit for the individual-rep user; a post-MVP candidate.
+- **No Salesforce _export_.** The file-based CRM round-trip (the Update Pack note-import file) targets HubSpot, Pipedrive, and HighLevel. Salesforce is admin-heavy and a poor fit for the individual-rep user; it's a post-MVP export candidate. As of PG-263 Salesforce **is** selectable in onboarding step 9 and recorded as the workspace `crmType` for context, but its exports degrade to copy-ready notes (the Daily Workbench CSV import is CRM-agnostic, so import still works).
 - **No Sales Brain learning loop.** Outcomes are recorded but don't feed back into prompt updates in MVP.
 - **No teams / manager views / multi-user.** Individual-rep product in MVP.
 

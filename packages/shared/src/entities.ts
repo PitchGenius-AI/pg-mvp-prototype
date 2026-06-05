@@ -66,6 +66,7 @@ export const buyerSchema = z.object({
   company: z.string(),
   email: z.string().nullable(),
   linkedin: z.string().nullable(),
+  website: z.string().nullable(),
   notes: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),

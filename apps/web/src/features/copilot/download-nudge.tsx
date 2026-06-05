@@ -29,7 +29,7 @@ export function CopilotDownloadNudge() {
     >
       <Stack gap="xs" align="flex-start">
         <Text size="sm">
-          The Live Co-pilot is a desktop app that transcribes your call and coaches you while
+          PG.AI PILOT is a desktop app that transcribes your call and coaches you while
           you're on it. Set it up before your next conversation with this buyer.
         </Text>
         <Button

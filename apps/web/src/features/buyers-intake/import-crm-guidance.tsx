@@ -6,7 +6,7 @@ import {
   IconChevronRight,
   IconFileExport,
 } from '@tabler/icons-react';
-import type { CrmType } from '@pg/shared';
+import { type CrmType, crmLabel } from '@pg/shared';
 
 interface ImportCrmGuidanceProps {
   crmType: CrmType | null;
@@ -22,7 +22,10 @@ interface Guidance {
 // [FLAG] Per-CRM export guidance is placeholder copy — the exact menu paths and
 // the column that carries the CRM Record ID need confirming against 2–3 real
 // sample exports per CRM (PG-212). The structure is final; the wording is not.
-const GUIDANCE: Record<CrmType, Guidance> = {
+// Export-round-trip CRMs get bespoke steps; capture-only CRMs (Salesforce) fall
+// back to the generic CSV steps below, named for their CRM. The import mapper is
+// CRM-agnostic, so generic steps still work either way.
+const GUIDANCE: Partial<Record<CrmType, Guidance>> = {
   hubspot: {
     label: 'HubSpot',
     steps: [
@@ -42,6 +45,15 @@ const GUIDANCE: Record<CrmType, Guidance> = {
     ],
     note: 'Heads-up: a Pipedrive deal-list export only carries a Deal ID for contacts that have an associated deal. Contacts without one still import — they just come through without a Record ID.',
   },
+  highlevel: {
+    label: 'HighLevel',
+    steps: [
+      'Open the Opportunities view you work from each day.',
+      'Confirm the Opportunity ID column is included — it becomes the CRM Record ID Pitch Genius matches deals on.',
+      'Use Export, choose CSV, and keep all columns.',
+      'Download the file, then upload it below.',
+    ],
+  },
 };
 
 const GENERIC: Guidance = {
@@ -59,7 +71,11 @@ const GENERIC: Guidance = {
 // CRM so the steps name the right menus.
 export function ImportCrmGuidance({ crmType }: ImportCrmGuidanceProps) {
   const [opened, { toggle }] = useDisclosure(true);
-  const guidance = crmType ? GUIDANCE[crmType] : GENERIC;
+  // Bespoke steps for export-round-trip CRMs; otherwise the generic CSV steps,
+  // labelled with the workspace's CRM when one is recorded.
+  const guidance =
+    (crmType && GUIDANCE[crmType]) ??
+    (crmType ? { ...GENERIC, label: crmLabel(crmType) } : GENERIC);
 
   return (
     <Paper withBorder radius="md" p="md">

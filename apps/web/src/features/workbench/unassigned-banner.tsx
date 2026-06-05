@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 
 interface UnassignedBannerProps {
   count: number;
+  onDismiss?: () => void;
 }
 
 // Pinned above the Workbench views when the workspace has buyers with no product
@@ -12,20 +13,28 @@ interface UnassignedBannerProps {
 // Unassigned, where the M13 assignment flow lives.
 //
 // [FLAG] CTA + body wording is placeholder pending final copy.
-export function UnassignedBanner({ count }: UnassignedBannerProps) {
+export function UnassignedBanner({ count, onDismiss }: UnassignedBannerProps) {
   const navigate = useNavigate();
   if (count <= 0) return null;
-  const plural = count === 1 ? 'buyer' : 'buyers';
+  const one = count === 1;
 
   return (
-    <Alert color="yellow" variant="light" icon={<IconUsers size={18} />} p="sm">
-      <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+    <Alert
+      color="yellow"
+      variant="light"
+      icon={<IconUsers size={18} />}
+      p="sm"
+      withCloseButton={Boolean(onDismiss)}
+      onClose={onDismiss}
+      closeButtonLabel="Dismiss"
+    >
+      <Group justify="space-between" align="center" wrap="wrap" gap="sm" pr="xl">
         <Text size="sm">
           <Text span fw={600}>
-            {count} imported {plural}
+            {count} imported {one ? 'buyer' : 'buyers'}
           </Text>{' '}
-          {count === 1 ? "doesn't have" : "don't have"} a product yet — assign one to start
-          tracking {count === 1 ? 'it' : 'them'} on your workbench.
+          {one ? "doesn't" : "don't"} have a product yet, so they're not on your workbench. Assign{' '}
+          {one ? 'them' : 'each'} a product to start scoring them.
         </Text>
         <Button
           size="xs"

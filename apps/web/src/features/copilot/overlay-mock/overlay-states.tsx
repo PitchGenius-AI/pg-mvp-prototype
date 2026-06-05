@@ -1,12 +1,10 @@
 import { Box, Button, Group, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import {
-  IconAlertTriangle,
   IconArrowRight,
   IconArrowUpRight,
   IconCheck,
   IconCircleCheck,
   IconHelpCircle,
-  IconLink,
   IconScript,
 } from '@tabler/icons-react';
 import {
@@ -15,7 +13,6 @@ import {
   OVERLAY,
   RESTING_PROMPT,
   TECHNIQUE_LABEL,
-  UNBOUND_PROMPT,
 } from './mock-data';
 import {
   CollapsedRow,
@@ -126,7 +123,7 @@ export function PillOverlay() {
         }}
       />
       <Text fz={12} fw={600} c={OVERLAY.textPrimary}>
-        Co-pilot
+        PG.AI PILOT
       </Text>
       <Box
         style={{
@@ -145,76 +142,6 @@ export function PillOverlay() {
         </Text>
       </Box>
     </Box>
-  );
-}
-
-// --- PG-239: unbound "nothing saved" warning (Path 3) ----------------------
-
-// Path 3 — the rep launched the co-pilot without a deal attached. Coaching
-// still runs, but the warning makes the cost explicit: with no bound deal there
-// is nowhere to write the call back when it ends.
-export function UnboundOverlay() {
-  return (
-    <OverlayWindow>
-      <OverlayHeader mode="live" timer="02:47" />
-
-      {/* Stands in for the DealStrip — there is no deal to name. */}
-      <Group
-        gap={8}
-        wrap="nowrap"
-        px="sm"
-        py={8}
-        style={{ borderBottom: `1px solid ${OVERLAY.border}` }}
-      >
-        <IconAlertTriangle size={15} color="var(--mantine-color-yellow-5)" />
-        <Box style={{ minWidth: 0 }}>
-          <Text fz={12} fw={600} c={OVERLAY.textPrimary}>
-            Not linked to a deal
-          </Text>
-          <Text fz={11} c={OVERLAY.textMuted}>
-            This call won't be saved anywhere
-          </Text>
-        </Box>
-      </Group>
-
-      <Stack gap={8} p="sm">
-        <Box
-          style={{
-            background: OVERLAY.panelBg,
-            borderRadius: 12,
-            borderLeft: '3px solid var(--mantine-color-yellow-5)',
-          }}
-          p="sm"
-        >
-          <Stack gap={8}>
-            <Text fz={12} c={OVERLAY.textSecondary} lh={1.45}>
-              The co-pilot will still coach you live — but when the call ends
-              there's no opportunity to post the transcript to, and the deal
-              won't be re-scored.
-            </Text>
-            <Button
-              component="div"
-              size="xs"
-              radius="md"
-              color="indigo"
-              leftSection={<IconLink size={13} />}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              Link a deal
-            </Button>
-          </Stack>
-        </Box>
-
-        {/* Coaching still works unbound — just generically, with no deal
-            context loaded. */}
-        <PromptCard
-          tone="resting"
-          techniqueMove={UNBOUND_PROMPT.techniqueMove}
-          why={UNBOUND_PROMPT.why}
-          say={UNBOUND_PROMPT.say}
-        />
-      </Stack>
-    </OverlayWindow>
   );
 }
 

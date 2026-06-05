@@ -74,16 +74,16 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
+        {/* Contextual, one-time Co-pilot download nudge (PG-237). Self-gating:
+            renders only while the desktop app isn't installed + un-dismissed. */}
+        <CopilotDownloadNudge />
+
         <ScoreHeader
           opportunity={opportunity}
           buyer={buyer}
           productName={productName}
           vm={vm}
         />
-
-        {/* Contextual, one-time Co-pilot download nudge (PG-237). Self-gating:
-            renders only while the desktop app isn't installed + un-dismissed. */}
-        <CopilotDownloadNudge />
 
         <Tabs
           value={activeTab}
@@ -110,6 +110,9 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
                 opportunity={opportunity}
                 buyer={buyer}
                 latestDiagnosis={latestDiagnosis}
+                vm={vm}
+                onAddActivity={() => onTabChange('activity')}
+                onViewDiagnosis={() => onTabChange('diagnosis')}
               />
             </TabFade>
           </Tabs.Panel>

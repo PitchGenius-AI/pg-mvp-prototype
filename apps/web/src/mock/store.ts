@@ -956,6 +956,7 @@ export const useMockStore = create<MockState & MockActions>()(
               ...row.buyer,
               id: newId('buy'),
               workspaceId,
+              website: null,
               notes: null,
               createdAt: nowIso(),
               updatedAt: nowIso(),

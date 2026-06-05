@@ -36,6 +36,7 @@ export const buyers = pgTable(
     company: text('company').notNull(),
     email: text('email'),
     linkedin: text('linkedin'),
+    website: text('website'),
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

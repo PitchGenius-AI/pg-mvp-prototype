@@ -115,7 +115,7 @@ export function ConnectedPanel() {
               </ThemeIcon>
               <div>
                 <Group gap="xs">
-                  <Text fw={600}>Live Co-pilot connected</Text>
+                  <Text fw={600}>PG.AI PILOT connected</Text>
                   <Badge size="sm" variant="light" color="teal">
                     Ready
                   </Badge>
@@ -134,7 +134,7 @@ export function ConnectedPanel() {
               leftSection={<IconBroadcast size={18} />}
               onClick={() => startCopilot()}
             >
-              Launch co-pilot
+              Launch PG.AI PILOT
             </Button>
             <Button
               variant="subtle"
@@ -150,7 +150,7 @@ export function ConnectedPanel() {
       <Alert variant="light" color="indigo" icon={<IconInfoCircle size={18} />}>
         <Text size="sm">
           Launching here opens the app to its own opportunity picker. To start a call already
-          bound to a deal, use the <Text span fw={600}>Start live co-pilot</Text> button in any
+          bound to a deal, use the <Text span fw={600}>Start PG.AI PILOT</Text> button in any
           opportunity's header.
         </Text>
       </Alert>

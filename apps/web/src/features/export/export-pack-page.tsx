@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconClipboardCopy, IconDownload } from '@tabler/icons-react';
+import { crmLabel, crmSupportsExport } from '@pg/shared';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -54,9 +55,10 @@ export function ExportPackPage() {
   const rows = useMemo(() => pack.data ?? [], [pack.data]);
   const showProduct = (products.data?.length ?? 0) > 1;
   const crmType = workspace?.crmType ?? null;
-  // No CRM selected → no note-import format exists, so every deal degrades to
-  // copy-only and the per-row copy replaces the bulk download (PG-232).
-  const copyOnlyMode = crmType === null;
+  // No export-capable CRM (none selected, or a capture-only one like
+  // Salesforce/HighLevel) → no note-import format exists, so every deal degrades
+  // to copy-only and the per-row copy replaces the bulk download (PG-232).
+  const copyOnlyMode = !crmSupportsExport(crmType);
 
   // The default working set: deals with new activity since the last export
   // (every deal with activity when never exported). Pre-checked on first load.
@@ -319,14 +321,9 @@ export function ExportPackPage() {
   );
 }
 
-function crmLabel(crmType: string | null): string {
-  if (crmType === 'hubspot') return 'HubSpot';
-  if (crmType === 'pipedrive') return 'Pipedrive';
-  return 'your CRM';
-}
-
 function crmSlug(crmType: string | null): string {
   if (crmType === 'hubspot') return 'hubspot';
   if (crmType === 'pipedrive') return 'pipedrive';
+  if (crmType === 'highlevel') return 'highlevel';
   return 'crm';
 }

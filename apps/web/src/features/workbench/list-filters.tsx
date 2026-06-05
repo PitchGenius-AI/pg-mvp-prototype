@@ -75,8 +75,7 @@ export function ListFilters({ params, onChange, stages, products }: ListFiltersP
         onChange={(value) =>
           onChange({
             ...params,
-            readiness:
-              value.length > 0 ? (value as WorkbenchSearchParams['readiness']) : undefined,
+            readiness: value.length > 0 ? (value as WorkbenchSearchParams['readiness']) : undefined,
           })
         }
       />
@@ -113,7 +112,7 @@ export function ListFilters({ params, onChange, stages, products }: ListFiltersP
           size="sm"
           variant="subtle"
           color="gray"
-          onClick={() => onChange({ sort: params.sort, dir: params.dir })}
+          onClick={() => onChange({ sort: params.sort, dir: params.dir, period: params.period })}
         >
           Clear filters
         </Button>

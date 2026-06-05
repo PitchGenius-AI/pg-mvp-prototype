@@ -80,8 +80,9 @@ export const closedStatusEnum = pgEnum('closed_status', [
 
 export const crmStageTemplateEnum = pgEnum('crm_stage_template', ['simple_b2b_sales', 'custom']);
 
-// The CRMs the file-based round-trip targets (HubSpot + Pipedrive only).
-export const crmTypeEnum = pgEnum('crm_type', ['hubspot', 'pipedrive']);
+// CRMs recorded for a workspace. Only hubspot/pipedrive are export-round-trip
+// targets; salesforce/highlevel are capture-only (see @pg/shared crmSupportsExport).
+export const crmTypeEnum = pgEnum('crm_type', ['hubspot', 'pipedrive', 'salesforce', 'highlevel']);
 
 // Subscription / paywall state — gates in-shell routes (M11).
 export const subscriptionStatusEnum = pgEnum('subscription_status', [

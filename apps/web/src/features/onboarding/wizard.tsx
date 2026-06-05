@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 import { Brand } from '../../components/layout/brand';
 import { mockActions, useCurrentSession, useOnboardingDraft } from '../../mock/store';
+import { crmTypeFromOnboardingChoice } from '../../mock/types';
 import { CrmStep } from './steps/crm-step';
 import { ProductsStep } from './steps/products-step';
 import { ScriptStep } from './steps/script-step';
@@ -73,12 +74,7 @@ export function OnboardingWizard() {
               .filter((name) => name.length > 0)
               .map((name, order) => ({ name, order }))
           : null,
-      crmType:
-        draft.crmChoice === 'hubspot'
-          ? 'hubspot'
-          : draft.crmChoice === 'pipedrive'
-            ? 'pipedrive'
-            : null,
+      crmType: crmTypeFromOnboardingChoice(draft.crmChoice),
     });
 
     // The workspace-level customer + problem fan into every product; the rep can

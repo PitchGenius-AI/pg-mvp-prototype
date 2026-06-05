@@ -6,6 +6,7 @@ import type {
   ClosedStatus,
   ConfidenceLevel,
   CrmStageTemplate,
+  CrmType,
   ImportMapping,
   Opportunity,
   PrecallIntelligence,
@@ -111,9 +112,32 @@ export interface OnboardingDraftProduct {
 // confirmation mode (pre-filled); `failed`/`skipped` → manual-entry mode.
 export type OnboardingScrapeStatus = 'idle' | 'done' | 'failed' | 'skipped';
 
-// Step-9 CRM selection. `hubspot`/`pipedrive` map to a real `crmType`; `none`
-// and `other` leave it null and degrade export to copy-ready notes.
-export type OnboardingCrmChoice = 'hubspot' | 'pipedrive' | 'none' | 'other';
+// Step-9 CRM selection. A named CRM (`hubspot`/`pipedrive`/`salesforce`/
+// `highlevel`) maps to a real `crmType`; `none`/`other` leave it null. Only
+// hubspot/pipedrive are export-round-trip targets — the rest degrade export to
+// copy-ready notes (see @pg/shared crmSupportsExport).
+export type OnboardingCrmChoice =
+  | 'hubspot'
+  | 'pipedrive'
+  | 'salesforce'
+  | 'highlevel'
+  | 'none'
+  | 'other';
+
+// A named-CRM choice maps 1:1 to a `crmType`; `none`/`other` leave it null.
+export function crmTypeFromOnboardingChoice(
+  choice: OnboardingCrmChoice | null,
+): CrmType | null {
+  if (
+    choice === 'hubspot' ||
+    choice === 'pipedrive' ||
+    choice === 'salesforce' ||
+    choice === 'highlevel'
+  ) {
+    return choice;
+  }
+  return null;
+}
 
 // The full onboarding wizard state. Lives in the mock store so per-step edits
 // persist across in-app navigation (PG-190). Covers steps 2–10 of the 11-step

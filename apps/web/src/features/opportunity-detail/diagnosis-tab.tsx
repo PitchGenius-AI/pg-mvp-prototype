@@ -107,7 +107,7 @@ export function DiagnosisTab({
 
 // --- Provisional readiness (no activity yet) -------------------------------
 
-function ProvisionalDiagnosis({
+export function ProvisionalDiagnosis({
   opportunity,
   vm,
   onAddActivity,
@@ -195,12 +195,17 @@ function ProvisionalDiagnosis({
 
 // --- Pipeline Reality Check (FLAGSHIP) ------------------------------------
 
-function PipelineRealityCheck({
+export function PipelineRealityCheck({
   opportunity,
   diagnosis,
+  onViewDiagnosis,
 }: {
   opportunity: MockOpportunity;
   diagnosis: MockDiagnosis;
+  // When provided (on the Overview tab), renders a link into the Diagnosis tab
+  // that carries the full supporting detail. Omitted inside the Diagnosis tab,
+  // where that detail already sits directly below this card.
+  onViewDiagnosis?: () => void;
 }) {
   const dx = diagnosis.diagnosis;
   const check = dx.pipeline_reality_check;
@@ -260,6 +265,24 @@ function PipelineRealityCheck({
           </Group>
           <Text size="sm">{check.reason}</Text>
         </Stack>
+
+        {onViewDiagnosis && (
+          <Group justify="flex-end">
+            <Anchor
+              component="button"
+              type="button"
+              onClick={onViewDiagnosis}
+              size="sm"
+              fw={500}
+              c={palette.heading}
+            >
+              <Group gap={4} wrap="nowrap">
+                View full diagnosis
+                <IconArrowRight size={14} />
+              </Group>
+            </Anchor>
+          </Group>
+        )}
       </Stack>
     </Card>
   );
@@ -388,7 +411,7 @@ function Blockers({ diagnosis }: { diagnosis: MockDiagnosis }) {
 
 // --- Recommended action + What not to do ----------------------------------
 
-function RecommendedAction({ diagnosis }: { diagnosis: MockDiagnosis }) {
+export function RecommendedAction({ diagnosis }: { diagnosis: MockDiagnosis }) {
   return (
     <Paper withBorder p="md" radius="md">
       <Stack gap="xs">
@@ -404,7 +427,7 @@ function RecommendedAction({ diagnosis }: { diagnosis: MockDiagnosis }) {
   );
 }
 
-function WhatNotToDoCard({ items }: { items: string[] }) {
+export function WhatNotToDoCard({ items }: { items: string[] }) {
   if (items.length === 0) return null;
   return (
     <Paper withBorder p="md" radius="md">
@@ -427,7 +450,7 @@ function WhatNotToDoCard({ items }: { items: string[] }) {
 
 // --- Copy-to-clipboard cards ----------------------------------------------
 
-function FollowUpEmailCard({ subject, body }: { subject: string; body: string }) {
+export function FollowUpEmailCard({ subject, body }: { subject: string; body: string }) {
   const clipboard = useClipboard({ timeout: 2000 });
   const copyAll = () => {
     clipboard.copy(`Subject: ${subject}\n\n${body}`);

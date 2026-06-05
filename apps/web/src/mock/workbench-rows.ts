@@ -10,6 +10,10 @@ export interface WorkbenchRow {
   buyer: MockBuyer | null;
   product: MockProduct | null;
   latestActivityDate: string;
+  // The deal's last change (`opportunity.updatedAt`) — the recency signal the
+  // Workbench + Co-pilot "Today / Yesterday / This week" scope filters on. A
+  // deal enters "Today" when it was imported, created, or worked today.
+  lastActiveAt: string;
   // Number of activities logged against the opportunity (M15). Zero means
   // readiness is provisional — the workbench highlights these for the rep.
   activityCount: number;
@@ -19,9 +23,7 @@ export interface WorkbenchRow {
 
 export function buildWorkbenchRows(workspaceId: string): WorkbenchRow[] {
   const state = useMockStore.getState();
-  const opps = Object.values(state.opportunities).filter(
-    (o) => o.workspaceId === workspaceId,
-  );
+  const opps = Object.values(state.opportunities).filter((o) => o.workspaceId === workspaceId);
 
   const latestActivityByOpp = new Map<string, string>();
   const activityCountByOpp = new Map<string, number>();
@@ -30,10 +32,7 @@ export function buildWorkbenchRows(workspaceId: string): WorkbenchRow[] {
     if (!prev || a.activityDate > prev) {
       latestActivityByOpp.set(a.opportunityId, a.activityDate);
     }
-    activityCountByOpp.set(
-      a.opportunityId,
-      (activityCountByOpp.get(a.opportunityId) ?? 0) + 1,
-    );
+    activityCountByOpp.set(a.opportunityId, (activityCountByOpp.get(a.opportunityId) ?? 0) + 1);
   }
 
   const latestDxByOpp = new Map<string, MockDiagnosis>();
@@ -51,6 +50,7 @@ export function buildWorkbenchRows(workspaceId: string): WorkbenchRow[] {
       buyer: state.buyers[opp.buyerId] ?? null,
       product: state.products[opp.productId] ?? null,
       latestActivityDate: latestActivityByOpp.get(opp.id) ?? opp.createdAt,
+      lastActiveAt: opp.updatedAt,
       activityCount: activityCountByOpp.get(opp.id) ?? 0,
       primaryBlocker: dx?.primaryBlocker ?? null,
       nextAction: dx?.diagnosis.recommended_next_action ?? null,

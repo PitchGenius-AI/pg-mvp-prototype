@@ -1,3 +1,4 @@
+import { type CrmType, crmSupportsExport } from '@pg/shared';
 import { computeProvisionalReadiness } from '../mock/fake-diagnosis';
 import type { MockBuyer, MockDiagnosis, MockOpportunity } from '../mock/types';
 
@@ -89,11 +90,14 @@ export function exportTier(opportunity: MockOpportunity): ExportTier {
 
 // The CRM Update Pack's tier (M18, PG-231/232) is stricter than the
 // per-opportunity Export tab's: a deal joins the import file only when it
-// carries a CRM Record ID AND the workspace has a CRM selected — a note-import
-// file needs a CRM to import into. With no CRM, every row degrades to
-// `copy_only` and the rep copies each note by hand.
-export function packExportTier(opportunity: MockOpportunity, crmType: string | null): ExportTier {
-  return opportunity.crmRecordId && crmType ? 'crm_import' : 'copy_only';
+// carries a CRM Record ID AND the workspace's CRM supports a note-import format.
+// With no CRM — or a capture-only one (Salesforce/HighLevel) — every row
+// degrades to `copy_only` and the rep copies each note by hand.
+export function packExportTier(
+  opportunity: MockOpportunity,
+  crmType: CrmType | null,
+): ExportTier {
+  return opportunity.crmRecordId && crmSupportsExport(crmType) ? 'crm_import' : 'copy_only';
 }
 
 // Build the CRM note-import file — a two-column CSV (Record ID + Note) the CRM

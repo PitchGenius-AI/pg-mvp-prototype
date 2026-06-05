@@ -4,6 +4,7 @@ import {
   Button,
   Group,
   Loader,
+  Modal,
   Paper,
   Progress,
   SimpleGrid,
@@ -13,7 +14,9 @@ import {
   Textarea,
   ThemeIcon,
   Tooltip,
+  TypographyStylesProvider,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconBrain,
@@ -23,7 +26,8 @@ import {
   IconSparkles,
   IconTargetArrow,
 } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type {
   DiscType,
   GeneratedScript,
@@ -214,14 +218,18 @@ export function PrecallIntelligence({
           <IconSparkles size={13} color="var(--mantine-color-dimmed)" />
         </Tooltip>
       </Group>
-      <ProfileCard profile={precall.psychProfile} />
-      <TechniqueCard precall={precall} />
-      <ScriptCard
-        precall={precall}
-        regenerating={regenerating}
-        onRegenerate={handleRegenerateScript}
-        onSave={handleSaveScript}
-      />
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+        <ProfileCard profile={precall.psychProfile} />
+        <Stack gap="md">
+          <TechniqueCard precall={precall} />
+          <ScriptCard
+            precall={precall}
+            regenerating={regenerating}
+            onRegenerate={handleRegenerateScript}
+            onSave={handleSaveScript}
+          />
+        </Stack>
+      </SimpleGrid>
     </Stack>
   );
 }
@@ -294,42 +302,40 @@ function ProfileCard({ profile }: { profile: PsychProfile }) {
 
   return (
     <SectionCard icon={<IconBrain size={18} />} title="Buyer psychological profile">
-      <Stack gap="md">
+      <Stack gap="lg">
         <Text size="sm">{profile.summary}</Text>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
-          <Stack gap={8}>
-            <Group gap="xs">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                DISC
-              </Text>
-              <Badge size="xs" variant="light" color="blue">
-                {disc.primaryType} · {DISC_TYPE_LABELS[disc.primaryType]}
-              </Badge>
-            </Group>
-            {DISC_ROWS.map((t) => (
-              <TraitRow
-                key={t}
-                label={DISC_TYPE_LABELS[t]}
-                value={discValue(t)}
-                color="blue"
-                highlighted={t === disc.primaryType}
-              />
-            ))}
-          </Stack>
-          <Stack gap={8}>
+        <Stack gap={8}>
+          <Group gap="xs">
             <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-              OCEAN · Big Five
+              DISC
             </Text>
-            {OCEAN_ROWS.map((row) => (
-              <TraitRow
-                key={row.key}
-                label={row.label}
-                value={ocean[row.key]}
-                color="grape"
-              />
-            ))}
-          </Stack>
-        </SimpleGrid>
+            <Badge size="xs" variant="light" color="blue">
+              {disc.primaryType} · {DISC_TYPE_LABELS[disc.primaryType]}
+            </Badge>
+          </Group>
+          {DISC_ROWS.map((t) => (
+            <TraitRow
+              key={t}
+              label={DISC_TYPE_LABELS[t]}
+              value={discValue(t)}
+              color="blue"
+              highlighted={t === disc.primaryType}
+            />
+          ))}
+        </Stack>
+        <Stack gap={8}>
+          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+            OCEAN · Big Five
+          </Text>
+          {OCEAN_ROWS.map((row) => (
+            <TraitRow
+              key={row.key}
+              label={row.label}
+              value={ocean[row.key]}
+              color="grape"
+            />
+          ))}
+        </Stack>
       </Stack>
     </SectionCard>
   );
@@ -383,6 +389,9 @@ function TechniqueCard({ precall }: { precall: MockPrecallIntelligence }) {
 
 // --- Generated script ------------------------------------------------------
 
+// The compact script card — it shows which technique the script uses plus a
+// one-line rationale, and opens the full script in a modal for review/editing.
+// Kept small so it can sit alongside the matched-technique card in one row.
 function ScriptCard({
   precall,
   regenerating,
@@ -395,9 +404,75 @@ function ScriptCard({
   onSave: (sections: GeneratedScript['sections']) => Promise<void>;
 }) {
   const script = precall.generatedScript;
+  const [opened, { open, close }] = useDisclosure(false);
+
+  return (
+    <>
+      <SectionCard icon={<IconScript size={18} />} title="Pre-call script">
+        <Stack gap="sm" style={{ flex: 1 }} justify="space-between">
+          <Stack gap="xs">
+            <Group gap="xs">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                Technique
+              </Text>
+              <Badge size="sm" variant="light" color="violet">
+                {TECHNIQUE_LABELS[script.technique]}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              {script.basedOnTemplateId
+                ? 'Adapted from your workspace script template for this buyer.'
+                : 'Generated from scratch for this buyer — no workspace template.'}
+            </Text>
+          </Stack>
+          <Button
+            variant="light"
+            leftSection={<IconScript size={16} />}
+            onClick={open}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Review script
+          </Button>
+        </Stack>
+      </SectionCard>
+      <ScriptModal
+        opened={opened}
+        onClose={close}
+        script={script}
+        regenerating={regenerating}
+        onRegenerate={onRegenerate}
+        onSave={onSave}
+      />
+    </>
+  );
+}
+
+// The full pre-call script, opened from the compact card. Renders the script as
+// markdown for review; Edit and Regenerate live here so the card stays minimal.
+function ScriptModal({
+  opened,
+  onClose,
+  script,
+  regenerating,
+  onRegenerate,
+  onSave,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  script: GeneratedScript;
+  regenerating: boolean;
+  onRegenerate: () => void;
+  onSave: (sections: GeneratedScript['sections']) => Promise<void>;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<GeneratedScript['sections']>(script.sections);
   const [saving, setSaving] = useState(false);
+
+  // Compose the script sections into markdown for the read view.
+  const markdown = useMemo(
+    () => script.sections.map((s) => `## ${s.heading}\n\n${s.body}`).join('\n\n'),
+    [script.sections],
+  );
 
   const startEdit = () => {
     setDraft(script.sections.map((s) => ({ ...s })));
@@ -424,50 +499,53 @@ function ScriptCard({
   };
 
   return (
-    <SectionCard
-      icon={<IconScript size={18} />}
-      title="Generated pre-call script"
-      action={
-        editing ? (
-          <Group gap="xs">
-            <Button size="xs" variant="default" onClick={cancelEdit} disabled={saving}>
-              Cancel
-            </Button>
-            <Button size="xs" onClick={() => void save()} loading={saving}>
-              Save
-            </Button>
-          </Group>
-        ) : (
-          <Group gap="xs">
-            <Button
-              size="xs"
-              variant="default"
-              onClick={startEdit}
-              disabled={regenerating}
-            >
-              Edit
-            </Button>
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconRefresh size={14} />}
-              onClick={onRegenerate}
-              loading={regenerating}
-            >
-              Regenerate
-            </Button>
-          </Group>
-        )
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      size="lg"
+      title={
+        <Group gap="xs">
+          <IconScript size={18} color="var(--mantine-color-gray-6)" />
+          <Text fw={600}>Pre-call script</Text>
+          <Badge size="sm" variant="light" color="violet">
+            {TECHNIQUE_LABELS[script.technique]}
+          </Badge>
+        </Group>
       }
     >
       <Stack gap="md">
-        <Text size="xs" c="dimmed">
-          A per-opportunity script in the {TECHNIQUE_LABELS[script.technique]} technique
-          {script.basedOnTemplateId
-            ? ', adapted from your workspace script template'
-            : ' — no workspace template, generated from scratch'}
-          . Distinct from the reusable template; edit it freely for this call.
-        </Text>
+        <Group justify="flex-end">
+          {editing ? (
+            <Group gap="xs">
+              <Button size="xs" variant="default" onClick={cancelEdit} disabled={saving}>
+                Cancel
+              </Button>
+              <Button size="xs" onClick={() => void save()} loading={saving}>
+                Save
+              </Button>
+            </Group>
+          ) : (
+            <Group gap="xs">
+              <Button
+                size="xs"
+                variant="default"
+                onClick={startEdit}
+                disabled={regenerating}
+              >
+                Edit
+              </Button>
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconRefresh size={14} />}
+                onClick={onRegenerate}
+                loading={regenerating}
+              >
+                Regenerate
+              </Button>
+            </Group>
+          )}
+        </Group>
 
         {editing ? (
           <Stack gap="md">
@@ -497,28 +575,12 @@ function ScriptCard({
             ))}
           </Stack>
         ) : (
-          <Stack gap="md">
-            {script.sections.map((section, idx) => (
-              <Group key={idx} gap="sm" align="flex-start" wrap="nowrap">
-                <ThemeIcon size={22} radius="xl" variant="light" color="gray">
-                  <Text size="xs" fw={700}>
-                    {idx + 1}
-                  </Text>
-                </ThemeIcon>
-                <Stack gap={2} style={{ flex: 1 }}>
-                  <Text size="sm" fw={600}>
-                    {section.heading}
-                  </Text>
-                  <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
-                    {section.body}
-                  </Text>
-                </Stack>
-              </Group>
-            ))}
-          </Stack>
+          <TypographyStylesProvider>
+            <ReactMarkdown>{markdown}</ReactMarkdown>
+          </TypographyStylesProvider>
         )}
       </Stack>
-    </SectionCard>
+    </Modal>
   );
 }
 
