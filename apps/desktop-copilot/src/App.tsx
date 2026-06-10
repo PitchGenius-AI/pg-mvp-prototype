@@ -1,33 +1,27 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { DemoOverlay, LiveOverlay } from './components/Overlay';
 
-// `data-tauri-drag-region` is Tauri's native drag mechanism (it calls
-// startDragging on mousedown). Note: the Electron-style `-webkit-app-region:
-// drag` CSS the spec mentions is NOT supported by macOS WKWebView — this
-// attribute is the Tauri equivalent. Interactive controls simply omit it.
+// The same overlay view renders in two contexts from one codebase, differing
+// only in its event source:
+//  - Real Tauri app: LiveOverlay drives the Rust audio engine (mic → STT) and
+//    fills the transparent floating NSPanel (PG-244 shell).
+//  - Plain browser (QA/iteration): DemoOverlay replays the scripted fixture, and
+//    `.demo-stage` paints a stand-in backdrop so the glass translucency reads.
+// Tauri v2 always injects `__TAURI_INTERNALS__`, regardless of withGlobalTauri.
+const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 export default function App() {
-  const hide = () => {
-    void getCurrentWindow().hide();
-  };
+  if (inTauri) {
+    return (
+      <div className="tauri-root">
+        <LiveOverlay />
+      </div>
+    );
+  }
 
   return (
-    <main className="overlay" data-tauri-drag-region>
-      <header className="brand" data-tauri-drag-region>
-        <span className="dot" data-tauri-drag-region />
-        <span className="title" data-tauri-drag-region>
-          PG Overlay
-        </span>
-      </header>
-      <p className="subtitle" data-tauri-drag-region>
-        Tauri v2 shell spike
-      </p>
-      <p className="hint" data-tauri-drag-region>
-        Drag anywhere · floats over fullscreen · menu-bar controlled
-      </p>
-      <div className="actions">
-        <button type="button" onClick={hide}>
-          Hide
-        </button>
-      </div>
-    </main>
+    <div className="demo-stage">
+      <span className="demo-tag">Browser demo · fixture-driven (no audio)</span>
+      <DemoOverlay />
+    </div>
   );
 }

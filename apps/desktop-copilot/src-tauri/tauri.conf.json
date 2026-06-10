@@ -16,19 +16,14 @@
       {
         "label": "main",
         "title": "PG Desktop Co-pilot",
-        "width": 360,
-        "height": 420,
+        "width": 392,
+        "height": 540,
         "resizable": true,
         "fullscreen": false,
         "center": true,
         "decorations": false,
         "transparent": true,
-        "shadow": true,
-        "windowEffects": {
-          "effects": ["hudWindow"],
-          "state": "active",
-          "radius": 16
-        }
+        "shadow": false
       }
     ],
     "security": {

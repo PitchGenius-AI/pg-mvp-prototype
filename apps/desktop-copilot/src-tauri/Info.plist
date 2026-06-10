@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the macOS app bundle by Tauri (dev + build). TCC usage strings.
+  NSMicrophoneUsageDescription is what makes the OS show the "would like to
+  access the Microphone" prompt the first time cpal opens the input device
+  (UX_SPEC §4.2 "Hear your voice"). Screen & System Audio Recording (the buyer
+  stream) gets added here when the cidre system tap lands in increment 2.
+-->
+<plist version="1.0">
+  <dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Pitch Genius transcribes your side of the call to coach you live.</string>
+  </dict>
+</plist>

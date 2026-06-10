@@ -13,6 +13,7 @@
     "clean": "rm -rf .turbo dist src-tauri/target *.tsbuildinfo"
   },
   "dependencies": {
+    "@pg/shared": "workspace:*",
     "@tauri-apps/api": "^2.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

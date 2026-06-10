@@ -18,6 +18,27 @@ tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# M22 real-time engine (UX_SPEC §7, audio-capture doc). Mic capture via cpal,
+# streaming Deepgram STT over a WebSocket. The cpal Stream is !Send on macOS, so
+# capture lives on a dedicated std thread and hands PCM to the async STT task
+# through a tokio channel (ringbuf is the production refinement; a channel is
+# fine for the spike). tokio-tungstenite drives the Deepgram socket.
+cpal = "0.15"
+tokio = { version = "1", features = ["sync", "macros", "rt-multi-thread", "io-util", "net", "time"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+# Phase-2 planner (UX_SPEC §5.3): the buyer-answer scorer calls Anthropic haiku.
+# No official Anthropic Rust SDK — we drive the Messages API directly over reqwest
+# with structured output via tool_use (mirrors packages/ai's generateStructured),
+# rather than risk an unofficial crate. native-tls (reqwest default) matches the
+# tokio-tungstenite TLS stack already in the tree. async-trait makes the async
+# `score_answer` method object-safe behind `Box<dyn Planner>`.
+reqwest = { version = "0.12", features = ["json"] }
+async-trait = "0.1"
+# Dev convenience: load DEEPGRAM_API_KEY from the repo-root .env when running
+# `tauri dev` (the bundled app reads the process env instead).
+dotenvy = "0.15"
+
 # The overlay must draw over OTHER apps' fullscreen Spaces. A plain NSWindow
 # can't on macOS — even at screen-saver level with canJoinAllSpaces
 # (tauri-apps/tauri#11488); only an NSPanel can. tauri-nspanel subclasses our
@@ -25,6 +46,18 @@ serde_json = "1"
 # level + collection-behavior calls (PG-244).
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
+
+# Buyer-stream capture (M22 increment 2): macOS Core Audio process taps (14.4+).
+# Pure-Rust objc2 bindings (no Obj-C build step → builds on Command Line Tools,
+# no full Xcode — unlike cidre). Same *technique* as the audio doc (process tap →
+# private aggregate device → IO proc), just a lower-level binding. Recipe learned
+# read-for-approach from Apple's AudioCap sample (BSD-2) + Pluely (GPL-3); code
+# written fresh.
+objc2 = "0.6"
+objc2-core-audio = { version = "0.3", features = ["AudioHardware", "objc2", "objc2-core-audio-types", "objc2-foundation", "std", "libc"] }
+objc2-core-audio-types = { version = "0.3", features = ["CoreAudioBaseTypes"] }
+objc2-core-foundation = { version = "0.3", features = ["CFBase", "CFString", "CFDictionary", "CFArray", "CFNumber"] }
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSDictionary", "NSString", "NSValue", "NSUUID"] }
 
 [profile.release]
 # Small release binary for the bundle-size NFR (PG-246).

@@ -72,6 +72,9 @@ importers:
 
   apps/desktop-copilot:
     dependencies:
+      '@pg/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@tauri-apps/api':
         specifier: ^2.0.0
         version: 2.11.0
