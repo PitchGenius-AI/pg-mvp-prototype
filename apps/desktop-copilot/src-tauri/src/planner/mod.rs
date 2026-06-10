@@ -21,6 +21,11 @@
 //! The fully-generated Phase-2 chain + material-signal re-plan (§5.3) is next.
 
 mod llm;
+// The seller product / ICP / problem context (PG-282). Lands the data-layer
+// seam; the planner does not read it yet — first readers are PG-284 (skeleton
+// grounding) and PG-286 (live product match), which thread it in via start_call.
+#[allow(dead_code)]
+pub mod product;
 mod technique;
 
 use std::collections::VecDeque;
