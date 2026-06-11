@@ -34,8 +34,6 @@ async function main() {
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
         name: 'Demo Rep',
-        firstName: 'Demo',
-        lastName: 'Rep',
       },
     });
     realUserId = res.user.id;

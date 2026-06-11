@@ -1,13 +1,13 @@
 import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 // Tables owned by Better Auth. Names are singular to match Better Auth defaults.
-// `firstName` / `lastName` are additional fields exposed via Better Auth config.
+// `name` is the single canonical display name for a user account; derive a first
+// name from it where needed (e.g. checkout greeting). Structured first/last names
+// live on the `buyers` table, not here.
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),

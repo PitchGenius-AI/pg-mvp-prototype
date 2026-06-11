@@ -2,11 +2,10 @@ import { Avatar, Group, Menu, Stack, Text, UnstyledButton } from '@mantine/core'
 import { notifications } from '@mantine/notifications';
 import { IconChevronDown, IconLogout, IconUser } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
-import { useClearSession } from '../../mock/hooks';
-import { useMockStore } from '../../mock/store';
+import { useClearSession, useSession } from '../../mock/hooks';
 
 export function UserMenu() {
-  const session = useMockStore((s) => s.session);
+  const { data: session } = useSession();
   const { mutate: signOut } = useClearSession();
   const navigate = useNavigate();
 

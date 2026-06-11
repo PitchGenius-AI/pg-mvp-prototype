@@ -1,5 +1,5 @@
 import { Burger, Group, Text } from '@mantine/core';
-import { useMockStore } from '../../mock/store';
+import { useCurrentWorkspace } from '../../mock/hooks';
 import { Brand } from './brand';
 import { ColorSchemeToggle } from './color-scheme-toggle';
 import { UserMenu } from './user-menu';
@@ -10,9 +10,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ navOpen, onNavToggle }: TopBarProps) {
-  const workspace = useMockStore((s) =>
-    s.session ? s.workspaces[s.session.workspaceId] ?? null : null,
-  );
+  const { data: workspace } = useCurrentWorkspace();
 
   return (
     <Group h="100%" px="md" justify="space-between">

@@ -172,8 +172,6 @@ async function seed() {
   await db.insert(user).values({
     id: USER_ID,
     name: 'Demo Rep',
-    firstName: 'Demo',
-    lastName: 'Rep',
     email: PLACEHOLDER_EMAIL,
     emailVerified: true,
   });

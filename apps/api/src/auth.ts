@@ -13,12 +13,6 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
-  user: {
-    additionalFields: {
-      firstName: { type: 'string', required: false },
-      lastName: { type: 'string', required: false },
-    },
-  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   trustedOrigins: [env.WEB_URL],
