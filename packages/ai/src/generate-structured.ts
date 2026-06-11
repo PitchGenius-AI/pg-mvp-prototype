@@ -54,7 +54,16 @@ export async function generateStructured<T extends z.ZodTypeAny>(opts: {
 
   const block = response.content.find((c) => c.type === 'tool_use');
   if (!block || block.type !== 'tool_use') {
-    throw new Error(`Model did not return a tool_use block for ${schemaName}`);
+    throw new Error(
+      `Model did not return a tool_use block for ${schemaName} (stop_reason=${response.stop_reason})`,
+    );
   }
-  return schema.parse(block.input);
+  const parsed = schema.safeParse(block.input);
+  if (!parsed.success) {
+    // stop_reason=max_tokens means the tool JSON was truncated — bump maxTokens.
+    throw new Error(
+      `Model output for ${schemaName} failed schema validation (stop_reason=${response.stop_reason}): ${parsed.error.message}`,
+    );
+  }
+  return parsed.data;
 }

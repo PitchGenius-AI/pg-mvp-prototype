@@ -89,6 +89,13 @@ export const diagnosisRouter = router({
         knownObjection: opp.knownObjection,
         signals,
         priorReadinessState: opp.currentReadinessState ?? null,
+        // Commercial evidence (rule 2) — any pricing / budget / implementation /
+        // security discussion recorded on the activity.
+        commercialEvidence:
+          activity.pricingDiscussed ||
+          activity.budgetDiscussed ||
+          activity.implementationDiscussed ||
+          activity.securityDiscussed,
       };
       const diagnosis = await generateDiagnosis(ctx.anthropic, diagInput);
 
