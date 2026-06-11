@@ -6,6 +6,7 @@ import { workbenchRouter } from './workbench';
 import { opportunityRouter } from './opportunity';
 import { activityRouter } from './activity';
 import { diagnosisRouter } from './diagnosis';
+import { precallRouter } from './precall';
 import { parserRouter } from './parser';
 
 export const appRouter = router({
@@ -16,6 +17,7 @@ export const appRouter = router({
   opportunity: opportunityRouter,
   activity: activityRouter,
   diagnosis: diagnosisRouter,
+  precall: precallRouter,
   parser: parserRouter,
 });
 

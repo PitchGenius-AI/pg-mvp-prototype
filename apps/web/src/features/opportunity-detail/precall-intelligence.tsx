@@ -33,18 +33,11 @@ import type {
   GeneratedScript,
   PsychProfile,
 } from '@pg/shared';
-import {
-  DISC_TYPE_LABELS,
-  FAKE_PRECALL_STEPS,
-  fakeGenerateScript,
-  fakeGeneratePrecall,
-  TECHNIQUE_LABELS,
-  type GeneratePrecallInput,
-} from '../../mock/fake-precall';
+import { DISC_TYPE_LABELS, FAKE_PRECALL_STEPS, TECHNIQUE_LABELS } from '../../mock/fake-precall';
 import {
   usePrecallIntelligence,
-  useScriptTemplates,
-  useSetPrecallIntelligence,
+  useRunPrecall,
+  useUpdatePrecallScript,
 } from '../../mock/hooks';
 import type {
   MockBuyer,
@@ -69,25 +62,14 @@ export function PrecallIntelligence({
   latestDiagnosis,
 }: PrecallIntelligenceProps) {
   const { data: precall, isLoading } = usePrecallIntelligence(opportunity.id);
-  const { data: scriptTemplates = [], isLoading: templatesLoading } = useScriptTemplates();
-  const { mutateAsync: setPrecall } = useSetPrecallIntelligence();
+  const { mutateAsync: runPrecall } = useRunPrecall();
+  const { mutateAsync: updateScript } = useUpdatePrecallScript();
 
   const [stepIndex, setStepIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const triggered = useRef(false);
   const intervalRef = useRef<number | null>(null);
-  const regenCount = useRef(0);
-
-  const scriptTemplate =
-    scriptTemplates.find((t) => t.isPrimary) ?? scriptTemplates[0] ?? null;
-
-  const buildInput = (): GeneratePrecallInput => ({
-    opportunity,
-    buyer,
-    scriptTemplate,
-    latestDiagnosis,
-  });
 
   // Clean up the stepper interval if the tab unmounts mid-generation.
   useEffect(() => {
@@ -103,8 +85,8 @@ export function PrecallIntelligence({
       setStepIndex((i) => Math.min(i + 1, FAKE_PRECALL_STEPS.length - 1));
     }, 650);
     try {
-      const result = fakeGeneratePrecall(buildInput());
-      await setPrecall({ opportunityId: opportunity.id, ...result });
+      // The server generates the DISC/OCEAN profile + matched technique + script.
+      await runPrecall({ opportunityId: opportunity.id });
     } catch {
       setFailed(true);
     } finally {
@@ -115,40 +97,24 @@ export function PrecallIntelligence({
     }
   };
 
-  // Generate on first view once both queries have settled and nothing exists.
+  // Generate on first view once the query has settled and nothing exists.
   useEffect(() => {
-    if (
-      !isLoading &&
-      !templatesLoading &&
-      !precall &&
-      !triggered.current
-    ) {
+    if (!isLoading && !precall && !triggered.current) {
       triggered.current = true;
       void runGeneration();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, templatesLoading, precall]);
+  }, [isLoading, precall]);
 
   const handleRegenerateScript = async () => {
     if (!precall) return;
     setRegenerating(true);
     try {
-      regenCount.current += 1;
-      const script = fakeGenerateScript(
-        buildInput(),
-        precall.matchedTechnique.technique,
-        regenCount.current,
-      );
-      await setPrecall({
-        opportunityId: opportunity.id,
-        psychProfile: precall.psychProfile,
-        matchedTechnique: precall.matchedTechnique,
-        generatedScript: script,
-      });
+      await runPrecall({ opportunityId: opportunity.id });
       notifications.show({
         color: 'teal',
-        title: 'Script regenerated',
-        message: 'A fresh pre-call script for this buyer.',
+        title: 'Pre-call intelligence regenerated',
+        message: 'A fresh read and script for this buyer.',
       });
     } catch {
       notifications.show({
@@ -163,12 +129,7 @@ export function PrecallIntelligence({
 
   const handleSaveScript = async (sections: GeneratedScript['sections']) => {
     if (!precall) return;
-    await setPrecall({
-      opportunityId: opportunity.id,
-      psychProfile: precall.psychProfile,
-      matchedTechnique: precall.matchedTechnique,
-      generatedScript: { ...precall.generatedScript, sections },
-    });
+    await updateScript({ opportunityId: opportunity.id, sections });
     notifications.show({
       color: 'teal',
       title: 'Script saved',

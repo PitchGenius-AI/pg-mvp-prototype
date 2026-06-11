@@ -2,11 +2,13 @@ import {
   activitySchema,
   buyerSchema,
   opportunitySchema,
+  precallIntelligenceSchema,
   productSchema,
   workspaceSchema,
   type Activity,
   type Buyer,
   type Opportunity,
+  type PrecallIntelligence,
   type Product,
   type Workspace,
 } from '@pg/shared';
@@ -14,6 +16,7 @@ import type {
   activities,
   buyers,
   opportunities,
+  precallIntelligence,
   products,
   readinessDiagnoses,
   workspaces,
@@ -32,6 +35,7 @@ type BuyerRow = typeof buyers.$inferSelect;
 type OpportunityRow = typeof opportunities.$inferSelect;
 type ActivityRow = typeof activities.$inferSelect;
 type DiagnosisRow = typeof readinessDiagnoses.$inferSelect;
+type PrecallRow = typeof precallIntelligence.$inferSelect;
 
 const iso = (d: Date | string): string => (typeof d === 'string' ? d : d.toISOString());
 
@@ -156,6 +160,17 @@ export interface WireDiagnosis {
   followUpBody: string | null;
   managerCoachingNote: string | null;
   createdAt: string;
+}
+
+export function toWirePrecall(row: PrecallRow): PrecallIntelligence {
+  return precallIntelligenceSchema.parse({
+    id: row.id,
+    opportunityId: row.opportunityId,
+    psychProfile: row.psychProfile,
+    matchedTechnique: row.matchedTechnique,
+    generatedScript: row.generatedScript,
+    generatedAt: iso(row.generatedAt),
+  });
 }
 
 export function toWireDiagnosis(row: DiagnosisRow): WireDiagnosis {

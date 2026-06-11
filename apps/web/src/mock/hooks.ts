@@ -166,8 +166,29 @@ export function useOutcomes(_opportunityId: string | undefined) {
   return useDeferredQuery<MockOutcome[]>('outcomes', []);
 }
 
-export function usePrecallIntelligence(_opportunityId: string | undefined) {
-  return useDeferredQuery<MockPrecallIntelligence | null>('precall', null);
+export function usePrecallIntelligence(opportunityId: string | undefined) {
+  return trpc.precall.forOpportunity.useQuery(
+    { opportunityId: opportunityId ?? '' },
+    { enabled: opportunityId !== undefined, retry: false },
+  ) as unknown as ReturnType<typeof useQuery<MockPrecallIntelligence | null>>;
+}
+
+// Generate (or regenerate) the pre-call intelligence bundle for an opportunity.
+export function useRunPrecall() {
+  const utils = trpc.useUtils();
+  return trpc.precall.run.useMutation({
+    onSuccess: (p) =>
+      utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
+  });
+}
+
+// Persist rep edits to the generated script's sections.
+export function useUpdatePrecallScript() {
+  const utils = trpc.useUtils();
+  return trpc.precall.updateScript.useMutation({
+    onSuccess: (p) =>
+      utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
+  });
 }
 
 export function useExportTimestamp(_opportunityId: string | undefined) {
@@ -297,8 +318,6 @@ export const useAddScriptTemplate = () =>
 export const useUpdateScriptTemplate = () =>
   useDeferredMutation<{ scriptTemplateId: string; patch: unknown }, MockScriptTemplate | null>();
 export const useSetPrimaryScriptTemplate = () => useDeferredMutation<string, void>();
-export const useSetPrecallIntelligence = () =>
-  useDeferredMutation<unknown, MockPrecallIntelligence>();
 export const useRecordExport = () => useDeferredMutation<string, string>();
 export const useRecordExportPack = () => useDeferredMutation<string[], string[]>();
 export const useAddImportMapping = () =>
