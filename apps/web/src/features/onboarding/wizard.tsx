@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { Brand } from '../../components/layout/brand';
 import { mockActions, useCurrentSession, useOnboardingDraft } from '../../mock/store';
 import { crmTypeFromOnboardingChoice } from '../../mock/types';
+import { trpc } from '../../trpc';
 import { CrmStep } from './steps/crm-step';
 import { ProductsStep } from './steps/products-step';
 import { ScriptStep } from './steps/script-step';
@@ -43,6 +44,8 @@ export function OnboardingWizard() {
   const session = useCurrentSession();
   const draft = useOnboardingDraft();
   const update = mockActions.updateOnboardingDraft;
+  const utils = trpc.useUtils();
+  const completeOnboarding = trpc.workspace.completeOnboarding.useMutation();
 
   const step = clampStep(draft.currentStep);
 
@@ -53,66 +56,65 @@ export function OnboardingWizard() {
       update({ currentStep: step + 1 });
       return;
     }
-    finishOnboarding();
+    void finishOnboarding();
   };
 
-  // Commit the draft to real entities, then mark onboarding complete. Mirrors a
-  // single transactional write the real backend would do.
-  const finishOnboarding = () => {
-    if (!session) return;
-    const workspaceId = session.workspaceId;
+  // Commit the whole draft to the backend in one transactional write (creates the
+  // workspace + products + script template, marks onboarding complete).
+  const finishOnboarding = async () => {
+    if (!session || completeOnboarding.isPending) return;
 
-    mockActions.updateWorkspace(workspaceId, {
-      name: draft.workspaceName.trim(),
-      website: draft.website.trim() || null,
-      industry: draft.industry.trim() || null,
-      crmStageTemplate: draft.stageTemplate,
-      customCrmStages:
-        draft.stageTemplate === 'custom'
-          ? draft.customStages
-              .map((s) => s.name.trim())
-              .filter((name) => name.length > 0)
-              .map((name, order) => ({ name, order }))
-          : null,
-      crmType: crmTypeFromOnboardingChoice(draft.crmChoice),
-    });
+    const products = draft.products
+      .map((p) => ({
+        name: p.name.trim(),
+        description: p.description.trim(),
+        isPrimary: p.isPrimary,
+      }))
+      .filter((p) => p.name.length > 0 && p.description.length > 0);
 
-    // The workspace-level customer + problem fan into every product; the rep can
-    // differentiate them per-product later on the M16 Products page.
-    const targetBuyer = draft.targetCustomer.trim();
-    const problemSolved = draft.coreProblem.trim();
-    let primaryProductId: string | null = null;
-    for (const product of draft.products) {
-      const created = mockActions.addProduct(workspaceId, {
-        name: product.name.trim(),
-        description: product.description.trim(),
-        targetBuyer,
-        problemSolved,
-        isPrimary: product.isPrimary,
+    try {
+      await completeOnboarding.mutateAsync({
+        workspaceName: draft.workspaceName.trim(),
+        website: draft.website.trim() || undefined,
+        industry: draft.industry.trim() || undefined,
+        crmType: crmTypeFromOnboardingChoice(draft.crmChoice),
+        targetBuyer: draft.targetCustomer.trim(),
+        problemSolved: draft.coreProblem.trim(),
+        products,
+        scriptContent:
+          !draft.scriptSkipped && draft.scriptContent.trim().length > 0
+            ? draft.scriptContent.trim()
+            : undefined,
+        crmStageTemplate: draft.stageTemplate,
+        customStages:
+          draft.stageTemplate === 'custom'
+            ? draft.customStages
+                .map((s) => s.name.trim())
+                .filter((name) => name.length > 0)
+                .map((name, order) => ({ name, order }))
+            : undefined,
       });
-      if (product.isPrimary) primaryProductId = created.id;
-    }
-    if (primaryProductId) mockActions.setPrimaryProduct(primaryProductId);
-
-    if (!draft.scriptSkipped && draft.scriptContent.trim().length > 0) {
-      mockActions.addScriptTemplate(workspaceId, {
-        name: 'My call script',
-        content: draft.scriptContent.trim(),
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Could not finish setup',
+        message: err instanceof Error ? err.message : 'Please review your answers and try again.',
       });
+      return;
     }
 
-    // Marks the workspace + session onboarding-complete and clears the draft.
-    mockActions.completeOnboarding();
+    // Refresh the session-derived queries so the guard sees onboarding complete.
+    await utils.workspace.getCurrent.invalidate();
+    mockActions.resetOnboardingDraft();
 
     notifications.show({
       color: 'teal',
       title: 'Workspace ready',
-      message: 'One last step — activate your subscription.',
+      message: 'You’re all set — welcome to Pitch Genius.',
     });
 
-    // Onboarding step 11: the mock checkout + hard paywall (M11). The paywall
-    // holds the rep at /checkout until payment "completes".
-    navigate({ to: '/checkout' });
+    // Billing (M31) is not yet enforced, so go straight into the app.
+    navigate({ to: '/' });
   };
 
   const StepComponent = STEP_COMPONENTS[step] ?? WorkspaceNameStep;

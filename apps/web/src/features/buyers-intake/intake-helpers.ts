@@ -50,39 +50,36 @@ export function checkDedup(
   });
 }
 
-// Build the argument for the `useAddOpportunity` mutation — a new buyer when
-// creating, or just the linked buyerId when linking to an existing one.
+const undef = (v: string | null) => (v && v.trim().length > 0 ? v : undefined);
+
+// Build the input for the real `opportunity.create` mutation. The buyer carries
+// its details either way (firstName + company are required); when linking, it
+// also carries the existing buyer's id so the server reuses it.
 export function buildAddOpportunityArgs(
   draft: PreSaveOpportunity,
   ctx: SaveContext,
   strategy: BuyerStrategy,
 ) {
-  const opportunity = {
+  return {
     workspaceId: ctx.workspaceId,
-    ownerUserId: ctx.ownerUserId,
     productId: ctx.productId,
-    buyerId: strategy.kind === 'link' ? strategy.buyerId : undefined,
-    opportunityName: draft.opportunity.opportunityName,
-    currentCrmStage: draft.opportunity.currentCrmStage,
-    opportunityValue: draft.opportunity.opportunityValue,
-    expectedCloseDate: draft.opportunity.expectedCloseDate,
-    knownPain: draft.opportunity.knownPain,
-    knownObjection: draft.opportunity.knownObjection,
-    dealNotes: draft.opportunity.dealNotes,
+    buyer: {
+      id: strategy.kind === 'link' ? strategy.buyerId : undefined,
+      firstName: draft.buyer.firstName,
+      lastName: undef(draft.buyer.lastName),
+      title: undef(draft.buyer.title),
+      company: draft.buyer.company,
+      email: undef(draft.buyer.email),
+      linkedin: undef(draft.buyer.linkedin),
+    },
+    opportunity: {
+      name: draft.opportunity.opportunityName,
+      currentCrmStage: draft.opportunity.currentCrmStage,
+      value: draft.opportunity.opportunityValue ?? undefined,
+      expectedCloseDate: undef(draft.opportunity.expectedCloseDate),
+      knownPain: undef(draft.opportunity.knownPain),
+      knownObjection: undef(draft.opportunity.knownObjection),
+      dealNotes: undef(draft.opportunity.dealNotes),
+    },
   };
-  const buyer =
-    strategy.kind === 'create'
-      ? {
-          workspaceId: ctx.workspaceId,
-          firstName: draft.buyer.firstName,
-          lastName: draft.buyer.lastName,
-          title: draft.buyer.title,
-          company: draft.buyer.company,
-          email: draft.buyer.email,
-          linkedin: draft.buyer.linkedin,
-          website: draft.buyer.website,
-          notes: null,
-        }
-      : undefined;
-  return { buyer, opportunity };
 }

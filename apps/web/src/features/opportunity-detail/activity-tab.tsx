@@ -36,15 +36,8 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { activityTypes, type ActivityType } from '@pg/shared';
-import { FAKE_DIAGNOSIS_STEPS, fakeGenerateDiagnosis } from '../../mock/fake-diagnosis';
-import {
-  useAddActivity,
-  useCurrentProduct,
-  useDiagnoses,
-  useRunDiagnosis,
-} from '../../mock/hooks';
-import { mockAiCall } from '../../mock/mock-api';
-import { useBuyerById, useCurrentSession } from '../../mock/store';
+import { FAKE_DIAGNOSIS_STEPS } from '../../mock/fake-diagnosis';
+import { useAddActivity, useDiagnoses, useRunDiagnosis } from '../../mock/hooks';
 import { relativeTime } from '../../lib/relative-time';
 import type { MockActivity, MockDiagnosis, MockOpportunity } from '../../mock/types';
 import { humanize, READINESS_LABELS, readinessColor } from './badges';
@@ -313,9 +306,6 @@ function AddActivityModal({
   opportunity,
   onComplete,
 }: AddActivityModalProps) {
-  const buyer = useBuyerById(opportunity.buyerId);
-  const { data: product } = useCurrentProduct();
-  const session = useCurrentSession();
   const { mutateAsync: addActivity } = useAddActivity();
   const { mutateAsync: runDiagnosis } = useRunDiagnosis();
 
@@ -380,35 +370,9 @@ function AddActivityModal({
         securityDiscussed: form.securityDiscussed,
       });
 
-      const { signalExtraction, diagnosis } = await mockAiCall(() =>
-        fakeGenerateDiagnosis({
-          opportunity,
-          buyer,
-          product: product ?? null,
-          activity,
-          repName: session?.user.name,
-        }),
-      );
-
-      await runDiagnosis({
-        workspaceId: opportunity.workspaceId,
-        opportunityId: opportunity.id,
-        activityId: activity.id,
-        signalExtraction,
-        diagnosis,
-        readinessState: diagnosis.readiness_state,
-        readinessScore: diagnosis.readiness_score,
-        confidenceLevel: diagnosis.confidence_level,
-        alignmentOutcome: diagnosis.pipeline_reality_check.outcome,
-        alignmentLevel: diagnosis.pipeline_reality_check.level,
-        alignmentReason: diagnosis.pipeline_reality_check.reason,
-        primaryBlocker: diagnosis.primary_blocker,
-        secondaryBlocker: diagnosis.secondary_blocker,
-        crmNoteText: '',
-        followUpSubject: diagnosis.follow_up_email.subject,
-        followUpBody: diagnosis.follow_up_email.body,
-        managerCoachingNote: diagnosis.manager_coaching_note,
-      });
+      // The server runs the real signal-extraction + diagnosis-generation chains
+      // from the persisted activity (needs ANTHROPIC_API_KEY set on the API).
+      await runDiagnosis({ activityId: activity.id });
 
       notifications.show({
         color: 'teal',

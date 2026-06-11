@@ -3,12 +3,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { Sidebar } from '../components/layout/sidebar';
 import { TopBar } from '../components/layout/top-bar';
-import { hasActiveSubscription } from '../mock/access';
-import { useMockStore } from '../mock/store';
+import { authClient } from '../auth-client';
+import { trpcVanilla } from '../trpc';
 
 export const Route = createFileRoute('/_authed')({
-  beforeLoad: ({ location }) => {
-    const { session, workspaces } = useMockStore.getState();
+  beforeLoad: async ({ location }) => {
+    const { data: session } = await authClient.getSession();
     if (!session) {
       throw redirect({
         to: '/login',
@@ -16,14 +16,13 @@ export const Route = createFileRoute('/_authed')({
         search: { redirect: location.href },
       });
     }
-    if (!session.workspaceOnboardingCompleted) {
+    const current = await trpcVanilla.workspace.getCurrent.query();
+    if (!current || !current.workspace.onboardingCompleted) {
       throw redirect({ to: '/onboarding' });
     }
-    // Hard paywall (M11): an onboarded-but-unpaid workspace can't reach any
-    // in-shell route — every `_authed` child bounces to /checkout until payment.
-    if (!hasActiveSubscription(workspaces[session.workspaceId])) {
-      throw redirect({ to: '/checkout' });
-    }
+    // Hard paywall (M11/M31): temporarily NOT enforced — the real Stripe gate
+    // lands in M31. Until then an onboarded user reaches the app regardless of
+    // subscriptionStatus. Re-enable here once billing is wired.
   },
   component: AuthedLayout,
 });

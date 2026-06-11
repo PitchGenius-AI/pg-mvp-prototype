@@ -10,8 +10,6 @@ import { createRoot } from 'react-dom/client';
 import { theme } from './theme';
 import { routeTree } from './routeTree.gen';
 import { trpc, trpcClient } from './trpc';
-import { mockActions } from './mock/store';
-import { buildSeed } from './mock/seed';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,10 +32,6 @@ declare module '@tanstack/react-router' {
     router: typeof router;
   }
 }
-
-// Mock store still backs the UI until the M29 web cutover migrates each surface
-// to the tRPC client wired below. Removed once the last surface is on the backend.
-mockActions.hydrate(buildSeed());
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Missing #root');

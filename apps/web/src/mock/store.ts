@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { useShallow } from 'zustand/react/shallow';
 import type { ActivityType } from '@pg/shared';
+import * as dataHooks from './hooks';
 import { COPILOT_APP_VERSION } from '../lib/copilot';
 import { computePipelineRealityCheck, fakeGenerateDiagnosis } from './fake-diagnosis';
 import { createInitialCopilotClient, createInitialOnboardingDraft } from './types';
@@ -1159,132 +1159,75 @@ export const useMockStore = create<MockState & MockActions>()(
 
 // --- Selector hooks (subscribe to fine-grained slices) ---
 
-export const useCurrentSession = () => useMockStore((s) => s.session);
+// M29 cutover: the data selectors below now delegate to the tRPC-backed hooks in
+// ./hooks (real backend), returning the same raw values components already expect
+// (the loading state surfaces as null / empty array, as it did pre-hydration).
+// Only the client-only slices (onboarding draft, copilot) still read the store.
 
-export const useWorkspace = () =>
-  useMockStore((s) => (s.session ? s.workspaces[s.session.workspaceId] ?? null : null));
+const EMPTY: readonly never[] = Object.freeze([]);
 
-// In-progress onboarding wizard state (M10). A single object reference, stable
-// until `updateOnboardingDraft` replaces it — no `useShallow` needed.
+export const useCurrentSession = () => dataHooks.useSession().data ?? null;
+
+export const useWorkspace = () => dataHooks.useCurrentWorkspace().data ?? null;
+
+// In-progress onboarding wizard state (M10) — client-only, stays in the store.
 export const useOnboardingDraft = () => useMockStore((s) => s.onboardingDraft);
 
-// Live Co-pilot desktop-client state (M19). A single object reference, replaced
-// wholesale by every copilot action — no `useShallow` needed.
+// Live Co-pilot desktop-client state (M19) — client-only mock, stays in the store.
 export const useCopilot = () => useMockStore((s) => s.copilot);
 
 // Whether the contextual Co-pilot download nudge has been dismissed (M19, PG-237).
 export const useCopilotNudgeDismissed = () =>
   useMockStore((s) => s.copilotNudgeDismissed);
 
-// Array-returning selectors below all wrap in `useShallow` — zustand v5 treats
-// a fresh array reference as a state change and will infinite-loop on consumers
-// otherwise. Same pattern as use-workspace-stages.ts.
-
 export const useProductsForCurrentWorkspace = () =>
-  useMockStore(
-    useShallow((s) => {
-      if (!s.session) return [];
-      return Object.values(s.products).filter((p) => p.workspaceId === s.session?.workspaceId);
-    }),
-  );
+  (dataHooks.useProducts().data ?? (EMPTY as readonly MockProduct[])) as MockProduct[];
 
 // The primary product is the default context for new opportunities.
-export const usePrimaryProduct = () =>
-  useMockStore((s) => {
-    if (!s.session) return null;
-    const products = Object.values(s.products).filter(
-      (p) => p.workspaceId === s.session?.workspaceId,
-    );
-    return products.find((p) => p.isPrimary) ?? products[0] ?? null;
-  });
+export const usePrimaryProduct = () => dataHooks.usePrimaryProduct().data ?? null;
 
 // Back-compat alias for M3–M6 surfaces written against single-product workspaces.
 export const useProductForCurrentWorkspace = usePrimaryProduct;
 
 export const useBuyersForCurrentWorkspace = () =>
-  useMockStore(
-    useShallow((s) => {
-      if (!s.session) return [];
-      return Object.values(s.buyers).filter((b) => b.workspaceId === s.session?.workspaceId);
-    }),
-  );
+  (dataHooks.useBuyers().data ?? (EMPTY as readonly MockBuyer[])) as MockBuyer[];
 
 export const useScriptTemplatesForCurrentWorkspace = () =>
-  useMockStore(
-    useShallow((s) => {
-      if (!s.session) return [];
-      return Object.values(s.scriptTemplates).filter(
-        (t) => t.workspaceId === s.session?.workspaceId,
-      );
-    }),
-  );
+  (dataHooks.useScriptTemplates().data ?? (EMPTY as readonly MockScriptTemplate[])) as MockScriptTemplate[];
 
 export const useOpportunities = () =>
-  useMockStore(
-    useShallow((s) => {
-      if (!s.session) return [];
-      const workspaceId = s.session.workspaceId;
-      return Object.values(s.opportunities).filter((o) => o.workspaceId === workspaceId);
-    }),
-  );
+  (dataHooks.useOpportunities().data ?? (EMPTY as readonly MockOpportunity[])) as MockOpportunity[];
 
 export const useOpportunityById = (id: string | undefined) =>
-  useMockStore((s) => (id ? s.opportunities[id] ?? null : null));
+  dataHooks.useOpportunity(id).data ?? null;
 
-export const useBuyerById = (id: string | undefined) =>
-  useMockStore((s) => (id ? s.buyers[id] ?? null : null));
+export const useBuyerById = (id: string | undefined) => {
+  const buyers = dataHooks.useBuyers().data;
+  return id ? buyers?.find((b) => b.id === id) ?? null : null;
+};
 
-export const useProductById = (id: string | undefined) =>
-  useMockStore((s) => (id ? s.products[id] ?? null : null));
+export const useProductById = (id: string | undefined) => {
+  const products = dataHooks.useProducts().data;
+  return id ? products?.find((p) => p.id === id) ?? null : null;
+};
 
 export const useActivitiesForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore(
-    useShallow((s) => {
-      if (!opportunityId) return [];
-      return Object.values(s.activities)
-        .filter((a) => a.opportunityId === opportunityId)
-        .sort((a, b) => b.activityDate.localeCompare(a.activityDate));
-    }),
-  );
+  (dataHooks.useActivities(opportunityId).data ?? (EMPTY as readonly MockActivity[])) as MockActivity[];
 
 export const useDiagnosisById = (id: string | undefined) =>
-  useMockStore((s) => (id ? s.diagnoses[id] ?? null : null));
+  dataHooks.useDiagnosis(id).data ?? null;
 
 export const useLatestDiagnosisForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore((s) => {
-    if (!opportunityId) return null;
-    const list = Object.values(s.diagnoses).filter((d) => d.opportunityId === opportunityId);
-    if (list.length === 0) return null;
-    return list.reduce((latest, d) => (d.createdAt > latest.createdAt ? d : latest));
-  });
+  dataHooks.useLatestDiagnosis(opportunityId).data ?? null;
 
 export const useDiagnosesForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore(
-    useShallow((s) => {
-      if (!opportunityId) return [];
-      return Object.values(s.diagnoses)
-        .filter((d) => d.opportunityId === opportunityId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    }),
-  );
+  (dataHooks.useDiagnoses(opportunityId).data ?? (EMPTY as readonly MockDiagnosis[])) as MockDiagnosis[];
 
 export const useOutcomesForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore(
-    useShallow((s) => {
-      if (!opportunityId) return [];
-      return Object.values(s.outcomes)
-        .filter((o) => o.opportunityId === opportunityId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    }),
-  );
+  (dataHooks.useOutcomes(opportunityId).data ?? (EMPTY as readonly MockOutcome[])) as MockOutcome[];
 
 export const usePrecallIntelligenceForOpportunity = (opportunityId: string | undefined) =>
-  useMockStore((s) => {
-    if (!opportunityId) return null;
-    return (
-      Object.values(s.precallIntelligence).find((p) => p.opportunityId === opportunityId) ?? null
-    );
-  });
+  dataHooks.usePrecallIntelligence(opportunityId).data ?? null;
 
 // --- Action accessors (stable refs; safe to use outside React) ---
 
