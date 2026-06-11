@@ -742,3 +742,206 @@ body {
   color: var(--text-3);
   text-align: center;
 }
+
+/* — First-run onboarding: product / ICP context capture (§4.6, PG-281) — */
+.ob-step-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+}
+.ob-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ob-title {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.ob-sub {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.ob-input {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 9px 11px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+.ob-input::placeholder {
+  color: var(--text-3);
+}
+.ob-input:focus {
+  outline: none;
+  border-color: rgba(48, 245, 250, 0.5);
+}
+.ob-input--area {
+  resize: vertical;
+  line-height: 1.45;
+}
+.ob-cta {
+  appearance: none;
+  border: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pg-navy);
+  background: var(--pg-cyan);
+  padding: 9px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+.ob-cta:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.ob-cta:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.ob-cta--inline {
+  padding: 8px 18px;
+}
+.ob-secondary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.ob-link {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s ease;
+}
+.ob-link:hover {
+  color: var(--text-1);
+}
+
+/* Scraping beat — the "reading your site…" wait. */
+.ob-scraping {
+  align-items: center;
+  text-align: center;
+  padding: 18px 0 12px;
+  gap: 14px;
+}
+.ob-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.14);
+  border-top-color: var(--pg-cyan);
+  animation: ob-spin 0.8s linear infinite;
+}
+.ob-scrape-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Editable product list — scrolls when several products are captured. */
+.ob-products {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.ob-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-style: italic;
+}
+.ob-product {
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-product-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ob-product-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ob-remove {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.ob-remove:hover {
+  color: var(--pg-coral);
+}
+.ob-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ob-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ob-add {
+  appearance: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ob-add:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-1);
+}
+.ob-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}

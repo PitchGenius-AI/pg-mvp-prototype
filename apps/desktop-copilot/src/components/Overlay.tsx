@@ -397,7 +397,7 @@ function TechniquePanel({ technique }: { technique: TechniqueUpdateEvent | null 
 const WINDOW_WIDTH = 392; // matches tauri.conf.json window width
 const TAURI_GUTTER = 56; // .tauri-root padding (28px) top + bottom
 
-function useFitWindowToContent(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+export function useFitWindowToContent(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
   useEffect(() => {
     const el = ref.current;
     if (!enabled || !el) return;
