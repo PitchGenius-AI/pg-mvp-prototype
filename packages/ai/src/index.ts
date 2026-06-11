@@ -5,3 +5,4 @@ export * from './prompts/opportunity-parser';
 export * from './prompts/csv-mapper';
 export * from './prompts/signal-extractor';
 export * from './prompts/diagnosis-generator';
+export * from './prompts/website-extractor';

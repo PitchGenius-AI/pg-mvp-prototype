@@ -6,4 +6,5 @@ export * from './diagnosis';
 export * from './precall';
 export * from './product';
 export * from './parser';
+export * from './scrape';
 export * from './realtime';

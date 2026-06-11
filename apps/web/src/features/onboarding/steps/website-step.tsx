@@ -1,8 +1,9 @@
 import { Alert, Anchor, Button, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconCheck, IconAlertTriangle, IconWorldWww } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { FAKE_SCRAPE_STEPS, fakeScrapeWebsite } from '../../../mock/fake-scrape';
+import { FAKE_SCRAPE_STEPS } from '../../../mock/fake-scrape';
 import { newDraftId, type OnboardingDraft } from '../../../mock/types';
+import { trpc } from '../../../trpc';
 import { OnboardingShell } from '../onboarding-shell';
 import type { OnboardingStepProps } from '../types';
 
@@ -27,6 +28,7 @@ function blankExtraction(): Pick<
 export function WebsiteStep({ step, draft, update, onBack, onContinue }: OnboardingStepProps) {
   const [running, setRunning] = useState(false);
   const [messageIndex, setMessageIndex] = useState(0);
+  const scrape = trpc.parser.scrapeWebsite.useMutation();
 
   // Cycle the progress messages while the scrape runs, independent of the
   // promise — purely so the wait has a sense of motion.
@@ -52,23 +54,23 @@ export function WebsiteStep({ step, draft, update, onBack, onContinue }: Onboard
   const handleAnalyze = async () => {
     setRunning(true);
     try {
-      const result = await fakeScrapeWebsite(url, draft.workspaceName);
-      if (result.ok) {
-        update({
-          scrapeStatus: 'done',
-          industry: result.extraction.industry,
-          products: result.extraction.products.map((p, i) => ({
-            id: newDraftId('prod'),
-            name: p.name,
-            description: p.description,
-            isPrimary: i === 0,
-          })),
-          targetCustomer: result.extraction.targetCustomer,
-          coreProblem: result.extraction.coreProblem,
-        });
-      } else {
-        update({ scrapeStatus: 'failed', ...blankExtraction() });
-      }
+      const extraction = await scrape.mutateAsync({ url });
+      const products = extraction.products.filter((p) => p.name.trim().length > 0);
+      update({
+        scrapeStatus: 'done',
+        industry: extraction.industry,
+        products:
+          products.length > 0
+            ? products.map((p, i) => ({
+                id: newDraftId('prod'),
+                name: p.name,
+                description: p.description,
+                isPrimary: i === 0,
+              }))
+            : blankExtraction().products,
+        targetCustomer: extraction.targetCustomer,
+        coreProblem: extraction.coreProblem,
+      });
     } catch {
       update({ scrapeStatus: 'failed', ...blankExtraction() });
     } finally {
