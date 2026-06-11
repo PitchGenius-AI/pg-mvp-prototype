@@ -7,8 +7,11 @@ services:
       POSTGRES_USER: pg
       POSTGRES_PASSWORD: pg
       POSTGRES_DB: pg_mvp
+    # Host port 5434 (container still 5432) to avoid colliding with other local
+    # Postgres instances commonly bound to 5432/5433. The connection string in
+    # .env must match this host port.
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

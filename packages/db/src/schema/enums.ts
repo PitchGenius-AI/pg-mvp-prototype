@@ -106,3 +106,9 @@ export const exportedObjectTypeEnum = pgEnum('exported_object_type', [
   'opportunity',
   'opportunities_batch',
 ]);
+
+// Sales techniques the pre-call intelligence matches a buyer to.
+export const salesTechniqueEnum = pgEnum('sales_technique', ['challenger', 'spin', 'nepq']);
+
+// DISC personality quadrants (Dominance / Influence / Steadiness / Conscientiousness).
+export const discTypeEnum = pgEnum('disc_type', ['D', 'I', 'S', 'C']);

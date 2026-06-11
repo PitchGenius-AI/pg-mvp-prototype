@@ -16,8 +16,12 @@ export const workspaces = pgTable('workspaces', {
   customCrmStages: jsonb('custom_crm_stages').$type<Array<{ name: string; order: number }>>(),
   // Which CRM the workspace round-trips against (drives import/export guidance).
   crmType: crmTypeEnum('crm_type'),
-  // Paywall state — gates in-shell routes (M11).
+  // Paywall state — gates in-shell routes (M11/M31).
   subscriptionStatus: subscriptionStatusEnum('subscription_status').notNull().default('none'),
+  // Stripe linkage (M31). Nullable until the workspace starts a checkout; the
+  // webhook writes them back. Added in the M27 baseline so M31 needs no migration.
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
   createdByUserId: text('created_by_user_id')
     .notNull()
     .references(() => user.id),

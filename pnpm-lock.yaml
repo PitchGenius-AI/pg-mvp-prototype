@@ -266,12 +266,18 @@ importers:
         specifier: ^3.4.5
         version: 3.4.9
     devDependencies:
+      '@pg/shared':
+        specifier: workspace:*
+        version: link:../shared
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
       drizzle-kit:
         specifier: ^0.31.4
         version: 0.31.10
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.1
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

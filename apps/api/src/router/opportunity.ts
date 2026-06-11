@@ -58,6 +58,10 @@ export const opportunityRouter = router({
           .refine((b) => b.id || (b.firstName && b.company), {
             message: 'Provide buyer.id or first_name + company',
           }),
+        // Which product this opportunity is for. Optional — defaults to the
+        // workspace's primary product (workspaces are 1:N to products with one
+        // `isPrimary`, per the May-2026 re-scope).
+        productId: z.string().uuid().optional(),
         opportunity: z.object({
           name: z.string().min(1),
           currentCrmStage: z.string().min(1),
@@ -71,12 +75,28 @@ export const opportunityRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceOwnership(ctx.db, input.workspaceId, ctx.user.id);
-      // Resolve product (MVP enforces one per workspace).
-      const product = await ctx.db.query.products.findFirst({
-        where: eq(products.workspaceId, input.workspaceId),
-      });
+      // Resolve the product: explicit productId (validated against this
+      // workspace), else the primary, else any product as a fallback.
+      const product = input.productId
+        ? await ctx.db.query.products.findFirst({
+            where: and(
+              eq(products.id, input.productId),
+              eq(products.workspaceId, input.workspaceId),
+            ),
+          })
+        : ((await ctx.db.query.products.findFirst({
+            where: and(eq(products.workspaceId, input.workspaceId), eq(products.isPrimary, true)),
+          })) ??
+          (await ctx.db.query.products.findFirst({
+            where: eq(products.workspaceId, input.workspaceId),
+          })));
       if (!product) {
-        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Complete onboarding first' });
+        throw new TRPCError({
+          code: input.productId ? 'NOT_FOUND' : 'PRECONDITION_FAILED',
+          message: input.productId
+            ? 'Product not found in this workspace'
+            : 'Complete onboarding first',
+        });
       }
 
       return ctx.db.transaction(async (tx) => {
