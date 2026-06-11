@@ -38,7 +38,10 @@ if (!databaseUrl) {
 const db = createDbClient(databaseUrl);
 
 const USER_ID = 'seed-user-demo';
-const DEMO_EMAIL = 'demo@pitchgenius.test';
+// A credential-less placeholder owner. It deliberately does NOT use the real
+// demo login email — `pnpm db:seed:auth` (apps/api) creates the loginable
+// demo@pitchgenius.test user via Better Auth and repoints this data onto it.
+const PLACEHOLDER_EMAIL = 'seed-placeholder@pitchgenius.invalid';
 
 // A validated signal-extraction + diagnosis bundle for the seeded diagnosis,
 // matching the @pg/shared contract exactly (parsed below before insert).
@@ -171,7 +174,7 @@ async function seed() {
     name: 'Demo Rep',
     firstName: 'Demo',
     lastName: 'Rep',
-    email: DEMO_EMAIL,
+    email: PLACEHOLDER_EMAIL,
     emailVerified: true,
   });
 
@@ -350,8 +353,9 @@ async function seed() {
   });
 
   console.log(
-    `Seeded workspace "${ws.name}" (${DEMO_EMAIL}): 2 products, 1 script, 3 buyers, 3 opportunities, 1 diagnosis.`,
+    `Seeded workspace "${ws.name}": 2 products, 1 script, 3 buyers, 3 opportunities, 1 diagnosis.`,
   );
+  console.log('Run `pnpm db:seed:auth` to create the loginable demo user and attach this data to it.');
 }
 
 seed()

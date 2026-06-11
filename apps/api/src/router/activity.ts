@@ -1,27 +1,15 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { activityTypeSchema } from '@pg/shared';
-import { activities, opportunities, workspaces } from '@pg/db/schema';
+import { activities } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
-import { TRPCError } from '@trpc/server';
+import { assertOpportunityAccess } from '../lib/authz';
 
 export const activityRouter = router({
   listForOpportunity: protectedProcedure
     .input(z.object({ opportunityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const opp = await ctx.db.query.opportunities.findFirst({
-        where: eq(opportunities.id, input.opportunityId),
-      });
-      if (!opp) throw new TRPCError({ code: 'NOT_FOUND' });
-      // Authz
-      const ws = await ctx.db.query.workspaces.findFirst({
-        where: and(
-          eq(workspaces.id, opp.workspaceId),
-          eq(workspaces.createdByUserId, ctx.user.id),
-        ),
-      });
-      if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
-
+      await assertOpportunityAccess(ctx, input.opportunityId);
       return ctx.db.query.activities.findMany({
         where: eq(activities.opportunityId, input.opportunityId),
         orderBy: [desc(activities.activityDate)],
@@ -51,17 +39,7 @@ export const activityRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const opp = await ctx.db.query.opportunities.findFirst({
-        where: eq(opportunities.id, input.opportunityId),
-      });
-      if (!opp) throw new TRPCError({ code: 'NOT_FOUND' });
-      const ws = await ctx.db.query.workspaces.findFirst({
-        where: and(
-          eq(workspaces.id, opp.workspaceId),
-          eq(workspaces.createdByUserId, ctx.user.id),
-        ),
-      });
-      if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
+      const opp = await assertOpportunityAccess(ctx, input.opportunityId);
 
       const [row] = await ctx.db
         .insert(activities)

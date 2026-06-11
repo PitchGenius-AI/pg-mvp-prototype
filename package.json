@@ -19,6 +19,7 @@
     "db:generate": "pnpm --filter @pg/db generate",
     "db:migrate": "pnpm --filter @pg/db migrate",
     "db:seed": "pnpm --filter @pg/db seed",
+    "db:seed:auth": "pnpm --filter @pg/api seed:demo",
     "db:studio": "pnpm --filter @pg/db studio",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",

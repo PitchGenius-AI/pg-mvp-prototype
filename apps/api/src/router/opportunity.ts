@@ -1,28 +1,15 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { buyers, opportunities, products, workspaces } from '@pg/db/schema';
+import { buyers, opportunities, products } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
 import { TRPCError } from '@trpc/server';
-
-// Helper — assert the user owns this workspace.
-async function assertWorkspaceOwnership(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any,
-  workspaceId: string,
-  userId: string,
-) {
-  const ws = await db.query.workspaces.findFirst({
-    where: and(eq(workspaces.id, workspaceId), eq(workspaces.createdByUserId, userId)),
-  });
-  if (!ws) throw new TRPCError({ code: 'FORBIDDEN' });
-  return ws;
-}
+import { assertOpportunityAccess, assertWorkspaceAccess } from '../lib/authz';
 
 export const opportunityRouter = router({
   list: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertWorkspaceOwnership(ctx.db, input.workspaceId, ctx.user.id);
+      await assertWorkspaceAccess(ctx, input.workspaceId);
       return ctx.db.query.opportunities.findMany({
         where: eq(opportunities.workspaceId, input.workspaceId),
         orderBy: [desc(opportunities.updatedAt)],
@@ -32,12 +19,7 @@ export const opportunityRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const opp = await ctx.db.query.opportunities.findFirst({
-        where: eq(opportunities.id, input.id),
-      });
-      if (!opp) throw new TRPCError({ code: 'NOT_FOUND' });
-      await assertWorkspaceOwnership(ctx.db, opp.workspaceId, ctx.user.id);
-      return opp;
+      return assertOpportunityAccess(ctx, input.id);
     }),
 
   // Creates a buyer (if not provided) + an opportunity in one tx.
@@ -74,7 +56,7 @@ export const opportunityRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertWorkspaceOwnership(ctx.db, input.workspaceId, ctx.user.id);
+      await assertWorkspaceAccess(ctx, input.workspaceId);
       // Resolve the product: explicit productId (validated against this
       // workspace), else the primary, else any product as a fallback.
       const product = input.productId
