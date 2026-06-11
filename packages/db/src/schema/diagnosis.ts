@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { ReadinessDiagnosis, SignalExtraction } from '@pg/shared';
 import {
   alignmentLevelEnum,
   alignmentOutcomeEnum,
@@ -37,8 +38,8 @@ export const readinessDiagnoses = pgTable(
       .notNull()
       .references(() => activities.id, { onDelete: 'cascade' }),
     // Structured AI outputs (validated by zod schemas in @pg/shared before insert).
-    signalExtraction: jsonb('signal_extraction').notNull(),
-    diagnosis: jsonb('diagnosis').notNull(),
+    signalExtraction: jsonb('signal_extraction').$type<SignalExtraction>().notNull(),
+    diagnosis: jsonb('diagnosis').$type<ReadinessDiagnosis>().notNull(),
     // Denormalized fields.
     readinessState: readinessStateEnum('readiness_state').notNull(),
     readinessScore: integer('readiness_score').notNull(),

@@ -10,26 +10,29 @@ import { opportunities, products, readinessDiagnoses } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { assertActivityAccess, assertOpportunityAccess } from '../lib/authz';
+import { toWireDiagnosis } from '../lib/serialize';
 
 export const diagnosisRouter = router({
   latestForOpportunity: protectedProcedure
     .input(z.object({ opportunityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await assertOpportunityAccess(ctx, input.opportunityId);
-      return ctx.db.query.readinessDiagnoses.findFirst({
+      const row = await ctx.db.query.readinessDiagnoses.findFirst({
         where: eq(readinessDiagnoses.opportunityId, input.opportunityId),
         orderBy: [desc(readinessDiagnoses.createdAt)],
       });
+      return row ? toWireDiagnosis(row) : null;
     }),
 
   listForOpportunity: protectedProcedure
     .input(z.object({ opportunityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await assertOpportunityAccess(ctx, input.opportunityId);
-      return ctx.db.query.readinessDiagnoses.findMany({
+      const rows = await ctx.db.query.readinessDiagnoses.findMany({
         where: eq(readinessDiagnoses.opportunityId, input.opportunityId),
         orderBy: [desc(readinessDiagnoses.createdAt)],
       });
+      return rows.map(toWireDiagnosis);
     }),
 
   // The end-to-end AI pipeline for one activity:
@@ -126,7 +129,8 @@ export const diagnosisRouter = router({
           })
           .where(eq(opportunities.id, opp.id));
 
-        return row;
+        if (!row) throw new Error('Failed to persist diagnosis');
+        return toWireDiagnosis(row);
       });
     }),
 });

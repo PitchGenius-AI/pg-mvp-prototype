@@ -19,11 +19,11 @@
     "clean": "rm -rf .turbo dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@pg/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "@pg/shared": "workspace:*",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.31.4",
     "tsx": "^4.19.2",

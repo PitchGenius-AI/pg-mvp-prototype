@@ -27,6 +27,17 @@ export async function assertWorkspaceAccess(ctx: AuthzCtx, workspaceId: string) 
   return ws;
 }
 
+// Resolve the caller's single workspace (MVP is one-per-user). Lets input-less
+// list endpoints derive scope from the session instead of trusting a client id.
+// Throws PRECONDITION_FAILED if the user hasn't completed onboarding yet.
+export async function resolveWorkspace(ctx: AuthzCtx) {
+  const ws = await ctx.db.query.workspaces.findFirst({
+    where: eq(workspaces.createdByUserId, ctx.user.id),
+  });
+  if (!ws) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No workspace yet' });
+  return ws;
+}
+
 // Load an opportunity and assert the user owns its workspace. Returns the opp.
 export async function assertOpportunityAccess(ctx: AuthzCtx, opportunityId: string) {
   const opp = await ctx.db.query.opportunities.findFirst({

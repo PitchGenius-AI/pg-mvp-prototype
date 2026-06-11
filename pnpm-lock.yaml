@@ -259,6 +259,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@pg/shared':
+        specifier: workspace:*
+        version: link:../shared
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(gel@2.2.0)(kysely@0.28.17)(postgres@3.4.9)
@@ -266,9 +269,6 @@ importers:
         specifier: ^3.4.5
         version: 3.4.9
     devDependencies:
-      '@pg/shared':
-        specifier: workspace:*
-        version: link:../shared
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1

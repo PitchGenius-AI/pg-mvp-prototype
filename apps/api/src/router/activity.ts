@@ -4,16 +4,18 @@ import { activityTypeSchema } from '@pg/shared';
 import { activities } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
 import { assertOpportunityAccess } from '../lib/authz';
+import { toWireActivity } from '../lib/serialize';
 
 export const activityRouter = router({
   listForOpportunity: protectedProcedure
     .input(z.object({ opportunityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await assertOpportunityAccess(ctx, input.opportunityId);
-      return ctx.db.query.activities.findMany({
+      const rows = await ctx.db.query.activities.findMany({
         where: eq(activities.opportunityId, input.opportunityId),
         orderBy: [desc(activities.activityDate)],
       });
+      return rows.map(toWireActivity);
     }),
 
   create: protectedProcedure
@@ -60,10 +62,10 @@ export const activityRouter = router({
           securityDiscussed: input.checklist.securityDiscussed ?? false,
         })
         .returning();
+      if (!row) throw new Error('Failed to create activity');
 
-      // TODO (next ticket): trigger diagnosis pipeline async — extract signals,
-      // generate diagnosis, persist to readinessDiagnoses, update opportunity
-      // denormalized state. See packages/ai/src/prompts and diagnosis router.
-      return row;
+      // Diagnosis is run explicitly via diagnosis.run({ activityId }) from the UI
+      // (the Activity tab shows a "Run diagnosis" action), not auto-triggered here.
+      return toWireActivity(row);
     }),
 });

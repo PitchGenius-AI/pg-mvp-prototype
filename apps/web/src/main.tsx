@@ -9,6 +9,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { theme } from './theme';
 import { routeTree } from './routeTree.gen';
+import { trpc, trpcClient } from './trpc';
 import { mockActions } from './mock/store';
 import { buildSeed } from './mock/seed';
 
@@ -34,8 +35,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// Seed the mock store once at boot so route guards + queries see consistent data
-// from the first render. Real backend swap removes this in favor of tRPC fetches.
+// Mock store still backs the UI until the M29 web cutover migrates each surface
+// to the tRPC client wired below. Removed once the last surface is on the backend.
 mockActions.hydrate(buildSeed());
 
 const rootEl = document.getElementById('root');
@@ -46,9 +47,11 @@ createRoot(rootEl).render(
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <ModalsProvider>
         <Notifications position="top-right" />
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-        </QueryClientProvider>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+          </QueryClientProvider>
+        </trpc.Provider>
       </ModalsProvider>
     </MantineProvider>
   </StrictMode>,

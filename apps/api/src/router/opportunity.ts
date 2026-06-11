@@ -3,23 +3,27 @@ import { z } from 'zod';
 import { buyers, opportunities, products } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import { assertOpportunityAccess, assertWorkspaceAccess } from '../lib/authz';
+import { assertOpportunityAccess, assertWorkspaceAccess, resolveWorkspace } from '../lib/authz';
+import { toWireOpportunity } from '../lib/serialize';
 
 export const opportunityRouter = router({
+  // Opportunities in the caller's workspace. workspaceId is optional — omitted,
+  // it resolves to the caller's single workspace (MVP one-per-user).
   list: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid() }))
+    .input(z.object({ workspaceId: z.string().uuid() }).optional())
     .query(async ({ ctx, input }) => {
-      await assertWorkspaceAccess(ctx, input.workspaceId);
-      return ctx.db.query.opportunities.findMany({
-        where: eq(opportunities.workspaceId, input.workspaceId),
+      const ws = input ? await assertWorkspaceAccess(ctx, input.workspaceId) : await resolveWorkspace(ctx);
+      const rows = await ctx.db.query.opportunities.findMany({
+        where: eq(opportunities.workspaceId, ws.id),
         orderBy: [desc(opportunities.updatedAt)],
       });
+      return rows.map(toWireOpportunity);
     }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return assertOpportunityAccess(ctx, input.id);
+      return toWireOpportunity(await assertOpportunityAccess(ctx, input.id));
     }),
 
   // Creates a buyer (if not provided) + an opportunity in one tx.
@@ -116,8 +120,9 @@ export const opportunityRouter = router({
             dealNotes: input.opportunity.dealNotes,
           })
           .returning();
+        if (!opp) throw new Error('Failed to create opportunity');
 
-        return opp;
+        return toWireOpportunity(opp);
       });
     }),
 });
