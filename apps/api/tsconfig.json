@@ -5,7 +5,15 @@
     "rootDir": "src",
     "types": ["node"],
     "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    // @pg/api is consumed as source (package `main`/`exports` point at src/*.ts;
+    // the web imports the `AppRouter` *type* from src directly). `dist` exists only
+    // for the runtime `node dist/index.js`, which needs no .d.ts. So we don't emit
+    // declarations — which also avoids TS2742 declaration-portability errors when
+    // inferred router/auth types reference deep transitive types (zod v4 core in
+    // the Better Auth plugins, undici Headers on the request context — PG-289).
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src/**/*"]
 }

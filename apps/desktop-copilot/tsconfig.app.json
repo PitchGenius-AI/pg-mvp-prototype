@@ -4,6 +4,12 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "noEmit": true,
+    // This is an app (Vite builds it; tsc only typechecks) — it emits no
+    // declarations, so disable declaration-portability checking. Mirrors the web
+    // app and avoids TS2742 when the tRPC client's inferred type references deep
+    // @pg/api transitive types (PG-289).
+    "declaration": false,
+    "declarationMap": false,
     "types": []
   },
   "include": ["src"]

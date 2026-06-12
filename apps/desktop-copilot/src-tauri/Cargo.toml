@@ -18,6 +18,14 @@ tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Desktop ↔ web handoff (M33/PG-289). deep-link registers the `pitchgenius://`
+# scheme and surfaces inbound URLs to the frontend; single-instance (with the
+# deep-link feature) routes a launch-time URL to the already-running overlay
+# instead of spawning a second instance. single-instance MUST be the first plugin
+# registered (see lib.rs).
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+
 # M22 real-time engine (UX_SPEC §7, audio-capture doc). Mic capture via cpal,
 # streaming Deepgram STT over a WebSocket. The cpal Stream is !Send on macOS, so
 # capture lives on a dedicated std thread and hands PCM to the async STT task
@@ -46,6 +54,12 @@ dotenvy = "0.15"
 # level + collection-behavior calls (PG-244).
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
+
+# OS keychain for the exchanged session token (M33/PG-289): the bearer token is
+# stored in the macOS Keychain via the Security framework (apple-native, no Obj-C
+# build step), so the rep stays signed in across launches. The `secret_*` Tauri
+# commands in lib.rs wrap this; they stub out on non-macOS (the app is macOS-only).
+keyring = { version = "3", features = ["apple-native"] }
 
 # Buyer-stream capture (M22 increment 2): macOS Core Audio process taps (14.4+).
 # Pure-Rust objc2 bindings (no Obj-C build step → builds on Command Line Tools,

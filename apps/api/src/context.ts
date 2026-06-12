@@ -7,6 +7,9 @@ export async function createContext(req: Request) {
   return {
     db,
     anthropic,
+    // Forwarded so procedures can call Better Auth server APIs that read the
+    // caller's session from headers (e.g. copilot.mintLaunchToken → PG-289).
+    headers: req.headers,
     user: session?.user ?? null,
     session: session?.session ?? null,
   };

@@ -33,13 +33,14 @@ export function detectOs(): CopilotPlatform {
   return 'macos';
 }
 
-// The mock deep link the web app hands off to the installed desktop app. With an
+// The deep link the web app hands off to the installed desktop app. With an
 // opportunity id it binds the call to that deal (the launch-from-opportunity
-// happy path); without one the app opens to its own opportunity picker (M20).
-// [FLAG] the real handshake (custom URL scheme vs. token exchange) is an
-// implementation detail left to the desktop build.
-export function copilotDeepLink(opportunityId?: string): string {
-  return opportunityId
+// happy path); without one the app opens to its own opportunity picker (M20/PG-291).
+// The short-lived one-time `token` (minted via copilot.mintLaunchToken, PG-289)
+// rides in the query string; the desktop exchanges it for a session on launch.
+export function copilotDeepLink(opportunityId?: string, token?: string): string {
+  const base = opportunityId
     ? `pitchgenius://session/${opportunityId}`
     : 'pitchgenius://launch';
+  return token ? `${base}?t=${encodeURIComponent(token)}` : base;
 }

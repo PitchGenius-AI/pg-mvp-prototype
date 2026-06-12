@@ -8,6 +8,8 @@ import { activityRouter } from './activity';
 import { diagnosisRouter } from './diagnosis';
 import { precallRouter } from './precall';
 import { parserRouter } from './parser';
+import { enrichmentRouter } from './enrichment';
+import { copilotRouter } from './copilot';
 
 export const appRouter = router({
   workspace: workspaceRouter,
@@ -19,6 +21,8 @@ export const appRouter = router({
   diagnosis: diagnosisRouter,
   precall: precallRouter,
   parser: parserRouter,
+  enrichment: enrichmentRouter,
+  copilot: copilotRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -134,6 +134,70 @@ fn start_call(app: AppHandle, state: State<'_, EngineState>) -> Result<(), Strin
     Ok(())
 }
 
+// — Desktop ↔ web auth handoff: OS keychain (M33/PG-289) —
+//
+// The session token the desktop exchanges the one-time deeplink token for is kept
+// in the OS keychain (macOS Keychain via the `keyring` crate's apple-native store)
+// so the rep stays signed in across launches. The frontend's auth boot calls these
+// three commands; everything else is in the React `src/api/` layer. macOS-only —
+// the rest of the app (NSPanel, Core Audio taps) is macOS-only too, so non-macOS
+// builds get stubs that report the keychain as unavailable rather than failing to
+// compile.
+#[cfg(target_os = "macos")]
+const KEYRING_SERVICE: &str = "com.pitchgenius.desktop-copilot";
+
+/// Persist a secret (the bearer session token) under `account` in the OS keychain.
+#[tauri::command]
+fn secret_set(account: String, value: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, &account).map_err(|e| e.to_string())?;
+        entry.set_password(&value).map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (account, value);
+        Err("keychain unavailable on this platform".to_string())
+    }
+}
+
+/// Read a secret by `account`; `Ok(None)` when nothing is stored (not an error).
+#[tauri::command]
+fn secret_get(account: String) -> Result<Option<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, &account).map_err(|e| e.to_string())?;
+        match entry.get_password() {
+            Ok(v) => Ok(Some(v)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = account;
+        Ok(None)
+    }
+}
+
+/// Delete the secret at `account`; deleting a missing entry is a no-op success.
+#[tauri::command]
+fn secret_delete(account: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, &account).map_err(|e| e.to_string())?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = account;
+        Ok(())
+    }
+}
+
 /// Manual-skip the current cue (§5.2/§5.4): advance the planner to the next PROMPT
 /// without scoring a buyer answer — the stall-breaker for when STT mishears and the
 /// cue won't auto-advance. No-op when no call is live (the overlay only shows the
@@ -230,7 +294,20 @@ pub fn run() {
         }
     }
 
-    let builder = tauri::Builder::default();
+    // single-instance MUST be registered first (Tauri v2 guidance). With the
+    // `deep-link` feature, a second launch carrying a `pitchgenius://` URL forwards
+    // it to the running instance (which the deep-link plugin then surfaces via
+    // onOpenUrl) instead of starting a duplicate overlay. We also bring the panel
+    // forward so the handoff feels immediate.
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            #[cfg(target_os = "macos")]
+            if let Ok(panel) = app.get_webview_panel("main") {
+                panel.show();
+            }
+            let _ = app;
+        }))
+        .plugin(tauri_plugin_deep_link::init());
 
     // The NSPanel subclass + manager (macOS only).
     #[cfg(target_os = "macos")]
@@ -238,8 +315,23 @@ pub fn run() {
 
     builder
         .manage(EngineState::default())
-        .invoke_handler(tauri::generate_handler![start_call, stop_call, skip_cue])
+        .invoke_handler(tauri::generate_handler![
+            start_call,
+            stop_call,
+            skip_cue,
+            secret_set,
+            secret_get,
+            secret_delete
+        ])
         .setup(|app| {
+            // Dev convenience: register the `pitchgenius` scheme at runtime so
+            // `tauri dev` (unbundled — no Info.plist) still receives deep links.
+            // A bundled build registers the scheme from tauri.conf.json instead.
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = app.deep_link().register("pitchgenius");
+            }
             // PG-245 (FR10): menu-bar-only — no Dock tile, no Cmd+Tab entry.
             // Set at runtime so it also holds in `tauri dev`, where the bundled
             // Info.plist `LSUIElement` key does not apply.

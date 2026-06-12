@@ -7,15 +7,20 @@ import { auth } from './auth';
 import { createContext } from './context';
 import { env } from './env';
 import { appRouter } from './router';
+import { DESKTOP_ORIGINS } from './origins';
 
 const app = new Hono();
 
 app.use('*', logger());
 
+// Web (cookies, credentialed) + the Tauri desktop Co-pilot webview (bearer token,
+// PG-289). Hono's cors callback echoes back the request origin when allowed, so a
+// per-origin allowlist works alongside `credentials: true`.
+const allowedOrigins = new Set<string>([env.WEB_URL, ...DESKTOP_ORIGINS]);
 app.use(
   '*',
   cors({
-    origin: env.WEB_URL,
+    origin: (origin) => (allowedOrigins.has(origin) ? origin : null),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
