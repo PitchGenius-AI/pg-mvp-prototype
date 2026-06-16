@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { trpc } from '../trpc';
+import { trpc, type RouterOutputs } from '../trpc';
 import { authClient } from '../auth-client';
 import type { BuyerRow } from './buyer-rows';
 import type { ExportPackRow } from './export-pack-rows';
@@ -98,9 +98,7 @@ export function usePrimaryProduct() {
 export const useCurrentProduct = usePrimaryProduct;
 
 export function useBuyers() {
-  return trpc.buyer.list.useQuery(undefined) as unknown as ReturnType<
-    typeof useQuery<MockBuyer[]>
-  >;
+  return trpc.buyer.list.useQuery(undefined) as unknown as ReturnType<typeof useQuery<MockBuyer[]>>;
 }
 
 export function useBuyerDirectory() {
@@ -162,6 +160,37 @@ export function useDiagnoses(opportunityId: string | undefined) {
   ) as unknown as ReturnType<typeof useQuery<MockDiagnosis[]>>;
 }
 
+export type DiagnosisJob = RouterOutputs['diagnosis']['jobsForOpportunity'][number];
+
+// A background diagnosis run is treated as orphaned after this long (e.g. the API
+// process restarted mid-run, in dev), so a stuck 'running' job surfaces as failed
+// rather than spinning forever — and the poll can stop.
+export const DIAGNOSIS_JOB_STALE_MS = 3 * 60 * 1000;
+
+export function isDiagnosisJobActive(job: DiagnosisJob, now: number): boolean {
+  return (
+    job.status === 'running' && now - new Date(job.createdAt).getTime() < DIAGNOSIS_JOB_STALE_MS
+  );
+}
+
+// The recent background diagnosis jobs for an opportunity. Polls every 2s while any
+// job is still actively running, then stops. Drives the Activity tab's live "running /
+// failed" state without blocking the add-activity flow on the AI chain.
+export function useDiagnosisJobs(opportunityId: string | undefined) {
+  return trpc.diagnosis.jobsForOpportunity.useQuery(
+    { opportunityId: opportunityId ?? '' },
+    {
+      enabled: opportunityId !== undefined,
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data) return false;
+        const now = Date.now();
+        return data.some((j) => isDiagnosisJobActive(j, now)) ? 2000 : false;
+      },
+    },
+  );
+}
+
 export function useOutcomes(_opportunityId: string | undefined) {
   return useDeferredQuery<MockOutcome[]>('outcomes', []);
 }
@@ -177,8 +206,7 @@ export function usePrecallIntelligence(opportunityId: string | undefined) {
 export function useRunPrecall() {
   const utils = trpc.useUtils();
   return trpc.precall.run.useMutation({
-    onSuccess: (p) =>
-      utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
+    onSuccess: (p) => utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
   });
 }
 
@@ -186,8 +214,7 @@ export function useRunPrecall() {
 export function useUpdatePrecallScript() {
   const utils = trpc.useUtils();
   return trpc.precall.updateScript.useMutation({
-    onSuccess: (p) =>
-      utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
+    onSuccess: (p) => utils.precall.forOpportunity.invalidate({ opportunityId: p.opportunityId }),
   });
 }
 
@@ -285,6 +312,34 @@ export function useAddActivity() {
         },
       }),
   };
+}
+
+export function useDeleteActivity() {
+  const utils = trpc.useUtils();
+  return trpc.activity.delete.useMutation({
+    onSuccess: ({ opportunityId }) => {
+      // Removing an activity also removes its diagnosis and may change the
+      // opportunity's denormalized readiness — invalidate every surface that reads it.
+      utils.activity.listForOpportunity.invalidate({ opportunityId });
+      utils.diagnosis.listForOpportunity.invalidate({ opportunityId });
+      utils.diagnosis.latestForOpportunity.invalidate({ opportunityId });
+      utils.opportunity.get.invalidate({ id: opportunityId });
+      utils.opportunity.list.invalidate();
+      utils.workbench.rows.invalidate();
+    },
+  });
+}
+
+// Kick off a background diagnosis run. Returns as soon as the job is enqueued; the
+// Activity tab's `useDiagnosisJobs` poll then drives the live status. On enqueue we
+// invalidate the jobs query so the "Diagnosing…" state appears immediately.
+export function useEnqueueDiagnosis() {
+  const utils = trpc.useUtils();
+  return trpc.diagnosis.enqueue.useMutation({
+    onSuccess: (job) => {
+      utils.diagnosis.jobsForOpportunity.invalidate({ opportunityId: job.opportunityId });
+    },
+  });
 }
 
 export function useRunDiagnosis() {

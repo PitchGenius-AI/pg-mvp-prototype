@@ -1,9 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { activityTypeSchema } from '@pg/shared';
-import { activities } from '@pg/db/schema';
+import { activities, opportunities, readinessDiagnoses } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
-import { assertOpportunityAccess } from '../lib/authz';
+import { assertActivityAccess, assertOpportunityAccess } from '../lib/authz';
 import { toWireActivity } from '../lib/serialize';
 
 export const activityRouter = router({
@@ -67,5 +67,39 @@ export const activityRouter = router({
       // Diagnosis is run explicitly via diagnosis.run({ activityId }) from the UI
       // (the Activity tab shows a "Run diagnosis" action), not auto-triggered here.
       return toWireActivity(row);
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ activityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { activity, opportunity: opp } = await assertActivityAccess(ctx, input.activityId);
+
+      return ctx.db.transaction(async (tx) => {
+        // Deleting the activity cascade-deletes its diagnosis (one-per-activity) and
+        // any outcome feedback on that diagnosis (both FKs are onDelete: 'cascade').
+        await tx.delete(activities).where(eq(activities.id, activity.id));
+
+        // The opportunity's denormalized current_* readiness was stamped forward from
+        // the latest diagnosis — possibly the one we just cascaded away. Re-stamp from
+        // whatever diagnosis now remains (newest first), or clear it if none are left.
+        // (atRisk is a separate, non-diagnosis-derived flag, so it's untouched.)
+        const latest = await tx.query.readinessDiagnoses.findFirst({
+          where: eq(readinessDiagnoses.opportunityId, opp.id),
+          orderBy: [desc(readinessDiagnoses.createdAt)],
+        });
+
+        await tx
+          .update(opportunities)
+          .set({
+            currentReadinessState: latest?.readinessState ?? null,
+            currentReadinessScore: latest?.readinessScore ?? null,
+            currentAlignmentOutcome: latest?.alignmentOutcome ?? null,
+            currentAlignmentLevel: latest?.alignmentLevel ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(opportunities.id, opp.id));
+
+        return { id: activity.id, opportunityId: opp.id };
+      });
     }),
 });

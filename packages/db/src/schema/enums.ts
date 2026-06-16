@@ -33,6 +33,16 @@ export const alignmentLevelEnum = pgEnum('alignment_level', [
 
 export const confidenceLevelEnum = pgEnum('confidence_level', ['low', 'medium', 'high']);
 
+// Async diagnosis run status (background job + polling). Infra-only — this isn't a
+// domain enum, so it has no @pg/shared counterpart (cf. the diagnosis read-model,
+// which also has no shared row schema). A job is inserted 'running' the moment a
+// diagnosis is enqueued; the in-process worker flips it to 'done' or 'failed'.
+export const diagnosisJobStatusEnum = pgEnum('diagnosis_job_status', [
+  'running',
+  'done',
+  'failed',
+]);
+
 export const signalStrengthEnum = pgEnum('signal_strength', ['weak', 'medium', 'strong']);
 
 export const signalDimensionEnum = pgEnum('signal_dimension', [

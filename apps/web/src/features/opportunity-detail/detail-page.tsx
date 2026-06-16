@@ -118,11 +118,7 @@ export function DetailPage({ opportunityId, tab, onTabChange }: DetailPageProps)
           </Tabs.Panel>
           <Tabs.Panel value="activity" pt="lg">
             <TabFade keyName={activeTab === 'activity' ? 'activity' : null}>
-              <ActivityTab
-                opportunity={opportunity}
-                activities={activities}
-                onJumpToDiagnosis={() => onTabChange('diagnosis')}
-              />
+              <ActivityTab opportunity={opportunity} activities={activities} />
             </TabFade>
           </Tabs.Panel>
           <Tabs.Panel value="diagnosis" pt="lg">

@@ -15,6 +15,13 @@
       "when": 1781188794297,
       "tag": "0001_red_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781281019522,
+      "tag": "0002_needy_silk_fever",
+      "breakpoints": true
     }
   ]
 }

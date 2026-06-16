@@ -1,7 +1,12 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import { createTRPCReact } from '@trpc/react-query';
+import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@pg/api/router';
 import { API_URL } from './env';
+
+// Inferred procedure outputs — lets the app type values against the real API shape
+// for procedures that have no @pg/shared row schema (e.g. the diagnosis read-model).
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 const links = [
   httpBatchLink({

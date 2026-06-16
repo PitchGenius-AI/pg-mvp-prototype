@@ -15,6 +15,7 @@ import {
 import type {
   activities,
   buyers,
+  diagnosisJobs,
   opportunities,
   precallIntelligence,
   products,
@@ -35,6 +36,7 @@ type BuyerRow = typeof buyers.$inferSelect;
 type OpportunityRow = typeof opportunities.$inferSelect;
 type ActivityRow = typeof activities.$inferSelect;
 type DiagnosisRow = typeof readinessDiagnoses.$inferSelect;
+type DiagnosisJobRow = typeof diagnosisJobs.$inferSelect;
 type PrecallRow = typeof precallIntelligence.$inferSelect;
 
 const iso = (d: Date | string): string => (typeof d === 'string' ? d : d.toISOString());
@@ -160,6 +162,32 @@ export interface WireDiagnosis {
   followUpBody: string | null;
   managerCoachingNote: string | null;
   createdAt: string;
+}
+
+// The async diagnosis run's lifecycle, for the UI poll. No @pg/shared schema (it's
+// an infra read-model, like WireDiagnosis); the client types it via tRPC inference.
+export interface WireDiagnosisJob {
+  id: string;
+  opportunityId: string;
+  activityId: string;
+  status: DiagnosisJobRow['status'];
+  error: string | null;
+  diagnosisId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toWireDiagnosisJob(row: DiagnosisJobRow): WireDiagnosisJob {
+  return {
+    id: row.id,
+    opportunityId: row.opportunityId,
+    activityId: row.activityId,
+    status: row.status,
+    error: row.error ?? null,
+    diagnosisId: row.diagnosisId ?? null,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
 }
 
 export function toWirePrecall(row: PrecallRow): PrecallIntelligence {

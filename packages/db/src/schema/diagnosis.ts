@@ -13,6 +13,7 @@ import {
   alignmentLevelEnum,
   alignmentOutcomeEnum,
   confidenceLevelEnum,
+  diagnosisJobStatusEnum,
   exportTypeEnum,
   exportedObjectTypeEnum,
   outcomeTypeEnum,
@@ -59,6 +60,39 @@ export const readinessDiagnoses = pgTable(
   (t) => [
     index('diagnoses_opportunity_created_idx').on(t.opportunityId, t.createdAt),
     index('diagnoses_activity_idx').on(t.activityId),
+  ],
+);
+
+// Tracks one background diagnosis run per enqueue (M-async). The diagnosis itself
+// still lands in `readiness_diagnoses` fully-formed in a single transaction when the
+// worker finishes — this table only carries the run's lifecycle so the UI can poll
+// for "diagnosing… / done / failed" without blocking on the AI chain. `diagnosisId`
+// is set when the run succeeds. All three parent FKs cascade so deleting an activity
+// (or its opportunity/workspace) cleans up its job rows too.
+export const diagnosisJobs = pgTable(
+  'diagnosis_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    opportunityId: uuid('opportunity_id')
+      .notNull()
+      .references(() => opportunities.id, { onDelete: 'cascade' }),
+    activityId: uuid('activity_id')
+      .notNull()
+      .references(() => activities.id, { onDelete: 'cascade' }),
+    status: diagnosisJobStatusEnum('status').notNull().default('running'),
+    error: text('error'),
+    diagnosisId: uuid('diagnosis_id').references(() => readinessDiagnoses.id, {
+      onDelete: 'cascade',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('diagnosis_jobs_opportunity_created_idx').on(t.opportunityId, t.createdAt),
+    index('diagnosis_jobs_activity_idx').on(t.activityId),
   ],
 );
 
