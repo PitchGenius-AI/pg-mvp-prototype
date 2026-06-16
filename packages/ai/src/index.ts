@@ -7,3 +7,4 @@ export * from './prompts/signal-extractor';
 export * from './prompts/diagnosis-generator';
 export * from './prompts/website-extractor';
 export * from './prompts/precall-generator';
+export * from './enrichment';

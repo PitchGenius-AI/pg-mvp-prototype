@@ -11,19 +11,15 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconBrandLinkedin, IconMail } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import {
-  EMAIL_ENRICH_STEPS,
-  LINKEDIN_ENRICH_STEPS,
-  fakeEnrichBuyer,
-  type BuyerEnrichment,
-  type EnrichSource,
-} from '../../mock/fake-enrich';
+import type { EnrichedBuyerFields, EnrichmentCandidate, EnrichSource } from '@pg/shared';
+import { trpc } from '../../trpc';
+import { CandidatePicker } from './candidate-picker';
 
 interface BuyerLookupProps {
-  // Called with whatever we could enrich (source = how we found it). On a miss
-  // we still pass a minimal enrichment seeded with just the entered value so the
-  // rep can carry on filling the form in manually.
-  onResolve: (source: EnrichSource, enrichment: BuyerEnrichment) => void;
+  // Called with the buyer fields we resolved (source = how we found them). On a
+  // miss we pass a minimal set seeded with just the entered value so the rep can
+  // carry on filling the form in manually.
+  onResolve: (source: EnrichSource, fields: EnrichedBuyerFields) => void;
   // Skip enrichment entirely and open a blank form.
   onSkip: () => void;
 }
@@ -31,27 +27,42 @@ interface BuyerLookupProps {
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 const URL_RE = /^https?:\/\//;
 
-// Phase 1 of Manual Entry (PG-210, reworked): start from a single identifier —
-// an email or a LinkedIn URL — and let the mock enrichment pre-fill the form,
-// rather than presenting every field blank up front.
+// Staged progress messages, cycled on a timer while the lookup runs — purely so
+// the wait has a sense of motion.
+const EMAIL_STEPS = [
+  'Searching the web for this person…',
+  'Reading what we found…',
+  'Sorting out who’s who…',
+] as const;
+const LINKEDIN_STEPS = [
+  'Opening the LinkedIn profile…',
+  'Searching the web for this person…',
+  'Sorting out who’s who…',
+] as const;
+
+// Phase 1 of Manual Entry (PG-210 / PG-288): start from a single identifier — an
+// email or a LinkedIn URL — run real enrichment, then either auto-fill (one clear
+// match) or let the rep pick among same-name candidates before pre-filling.
 export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
   const [source, setSource] = useState<EnrichSource>('email');
   const [value, setValue] = useState('');
-  const [running, setRunning] = useState(false);
   const [messageIndex, setMessageIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const [touched, setTouched] = useState(false);
+  // Populated when enrichment returns more than one candidate — the rep disambiguates.
+  const [candidates, setCandidates] = useState<EnrichmentCandidate[] | null>(null);
 
-  const steps = source === 'email' ? EMAIL_ENRICH_STEPS : LINKEDIN_ENRICH_STEPS;
+  const resolveLead = trpc.enrichment.resolveLead.useMutation();
+  const running = resolveLead.isPending;
+  const steps = source === 'email' ? EMAIL_STEPS : LINKEDIN_STEPS;
 
-  // Cycle the progress messages while enrichment runs, independent of the
-  // promise — purely so the wait has a sense of motion (mirrors WebsiteStep).
+  // Cycle the progress messages while enrichment runs, independent of the promise.
   useEffect(() => {
     if (!running) return;
     setMessageIndex(0);
     const id = setInterval(() => {
       setMessageIndex((i) => Math.min(i + 1, steps.length - 1));
-    }, 650);
+    }, 800);
     return () => clearInterval(id);
   }, [running, steps.length]);
 
@@ -71,31 +82,34 @@ export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
     setValue('');
     setFailed(false);
     setTouched(false);
+    setCandidates(null);
   };
 
   const handleLookUp = async () => {
     setTouched(true);
     if (!canLookUp) return;
     setFailed(false);
-    setRunning(true);
+    setCandidates(null);
     try {
-      const result = await fakeEnrichBuyer(source, trimmed);
-      if (result.ok) {
-        onResolve(source, result.enrichment);
-      } else {
+      const result = await resolveLead.mutateAsync({ source, value: trimmed });
+      if (result.candidates.length === 0) {
         setFailed(true);
+      } else if (result.candidates.length === 1) {
+        // One clear match — pre-fill straight away.
+        onResolve(source, result.candidates[0]!.fields);
+      } else {
+        // Ambiguous — let the rep pick the right person.
+        setCandidates(result.candidates);
       }
     } catch {
       setFailed(true);
-    } finally {
-      setRunning(false);
     }
   };
 
   // On a miss, carry the one value the rep already typed into the form so they
   // don't re-enter it, and let them fill in the rest by hand.
   const continueManually = () => {
-    const blank: BuyerEnrichment = {
+    const seeded: EnrichedBuyerFields = {
       firstName: null,
       lastName: null,
       title: null,
@@ -104,8 +118,19 @@ export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
       linkedin: source === 'linkedin' ? trimmed : null,
       website: null,
     };
-    onResolve(source, blank);
+    onResolve(source, seeded);
   };
+
+  // Candidate disambiguation — the rep picks among same-name people.
+  if (candidates) {
+    return (
+      <CandidatePicker
+        candidates={candidates}
+        onPick={(candidate) => onResolve(source, candidate.fields)}
+        onManual={continueManually}
+      />
+    );
+  }
 
   return (
     <Stack gap="lg" maw={520}>
@@ -114,8 +139,8 @@ export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
           Start with one detail
         </Text>
         <Text size="sm" c="dimmed">
-          Give us an email or a LinkedIn profile and we’ll pull in what we can —
-          you’ll review and finish the rest on the next screen.
+          Give us an email or a LinkedIn profile and we’ll pull in what we can — you’ll review and
+          finish the rest on the next screen.
         </Text>
       </Stack>
 
@@ -149,7 +174,7 @@ export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
         <TextInput
           size="md"
           label="Buyer’s email"
-          description="We’ll read their company from the domain and its website."
+          description="We’ll search the web for who they are and where they work."
           placeholder="jane.doe@acme.com"
           type="email"
           leftSection={<IconMail size={16} />}
@@ -206,8 +231,7 @@ export function BuyerLookup({ onResolve, onSkip }: BuyerLookupProps) {
         >
           <Stack gap={6}>
             <Text size="sm">
-              No problem — you can enter the buyer’s details yourself on the next
-              screen.
+              No problem — you can enter the buyer’s details yourself on the next screen.
             </Text>
             <Group gap="sm">
               <Anchor component="button" type="button" size="sm" onClick={continueManually}>

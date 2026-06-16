@@ -19,8 +19,28 @@ export async function generateStructured<T extends z.ZodTypeAny>(opts: {
   schema: T;
   schemaName: string;
   maxTokens?: number;
+  /** Per-stage sampling temperature. Omitted → the API default. Low (~0.1) for
+   *  classification/judgment, moderate (~0.2) for grounded summary prose. */
+  temperature?: number;
+  /** How many times to (re)sample when the model emits a missing/invalid tool call.
+   *  Even with `tool_choice` forced, the model occasionally returns an empty or
+   *  partial object (stop_reason=tool_use) — a transient that a fresh sample fixes.
+   *  The SDK already retries transport-level errors (429/5xx); this covers the
+   *  schema-validation case it can't see. Truncation (max_tokens) is NOT retried —
+   *  the same budget would truncate again. */
+  maxAttempts?: number;
 }): Promise<z.infer<T>> {
-  const { client, model, system, user, schema, schemaName, maxTokens = 4096 } = opts;
+  const {
+    client,
+    model,
+    system,
+    user,
+    schema,
+    schemaName,
+    maxTokens = 4096,
+    temperature,
+    maxAttempts = 3,
+  } = opts;
 
   const toolName = `emit_${schemaName}`;
   const inputSchema = zodToJsonSchema(schema, {
@@ -30,40 +50,49 @@ export async function generateStructured<T extends z.ZodTypeAny>(opts: {
   delete inputSchema.$schema;
   delete inputSchema.title;
 
-  const response = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    system: [
-      {
-        type: 'text',
-        text: system,
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    tools: [
-      {
-        name: toolName,
-        description: `Emit a validated ${schemaName} object.`,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        input_schema: inputSchema as any,
-      },
-    ],
-    tool_choice: { type: 'tool', name: toolName },
-    messages: [{ role: 'user', content: user }],
-  });
+  let lastError = 'no attempts ran';
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await client.messages.create({
+      model,
+      max_tokens: maxTokens,
+      ...(temperature !== undefined ? { temperature } : {}),
+      system: [
+        {
+          type: 'text',
+          text: system,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      tools: [
+        {
+          name: toolName,
+          description: `Emit a validated ${schemaName} object.`,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          input_schema: inputSchema as any,
+        },
+      ],
+      tool_choice: { type: 'tool', name: toolName },
+      messages: [{ role: 'user', content: user }],
+    });
 
-  const block = response.content.find((c) => c.type === 'tool_use');
-  if (!block || block.type !== 'tool_use') {
-    throw new Error(
-      `Model did not return a tool_use block for ${schemaName} (stop_reason=${response.stop_reason})`,
-    );
+    const block = response.content.find((c) => c.type === 'tool_use');
+    if (!block || block.type !== 'tool_use') {
+      lastError = `did not return a tool_use block (stop_reason=${response.stop_reason})`;
+    } else {
+      const parsed = schema.safeParse(block.input);
+      if (parsed.success) return parsed.data;
+      // stop_reason=max_tokens means the tool JSON was truncated — bump maxTokens.
+      lastError = `failed schema validation (stop_reason=${response.stop_reason}): ${parsed.error.message}`;
+      if (response.stop_reason === 'max_tokens') break;
+    }
+
+    if (attempt < maxAttempts) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[generateStructured] ${schemaName} attempt ${attempt}/${maxAttempts} ${lastError.slice(0, 140)} — resampling`,
+      );
+    }
   }
-  const parsed = schema.safeParse(block.input);
-  if (!parsed.success) {
-    // stop_reason=max_tokens means the tool JSON was truncated — bump maxTokens.
-    throw new Error(
-      `Model output for ${schemaName} failed schema validation (stop_reason=${response.stop_reason}): ${parsed.error.message}`,
-    );
-  }
-  return parsed.data;
+
+  throw new Error(`Model output for ${schemaName} ${lastError} (after ${maxAttempts} attempts)`);
 }

@@ -16,7 +16,7 @@ import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { IconArrowLeft, IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import type { BuyerEnrichment, EnrichSource } from '../../mock/fake-enrich';
+import type { EnrichedBuyerFields, EnrichSource } from '@pg/shared';
 import { useAddOpportunity, useCurrentWorkspace, useProducts, useSession } from '../../mock/hooks';
 import type { MockBuyer } from '../../mock/types';
 import { useWorkspaceStages } from '../../mock/use-workspace-stages';
@@ -50,7 +50,7 @@ const BUYER_FIELDS = [
 
 // Human label for the buyer fields the lookup pre-filled, for the "we found…"
 // banner. Order matches how they read on the form.
-const ENRICH_FIELD_LABELS: Array<[keyof BuyerEnrichment, string]> = [
+const ENRICH_FIELD_LABELS: Array<[keyof EnrichedBuyerFields, string]> = [
   ['firstName', 'name'],
   ['title', 'title'],
   ['company', 'company'],
@@ -59,7 +59,7 @@ const ENRICH_FIELD_LABELS: Array<[keyof BuyerEnrichment, string]> = [
   ['website', 'website'],
 ];
 
-function filledLabels(enrichment: BuyerEnrichment): string[] {
+function filledLabels(enrichment: EnrichedBuyerFields): string[] {
   const labels: string[] = [];
   for (const [key, label] of ENRICH_FIELD_LABELS) {
     // firstName covers the name pair; skip lastName so it isn't double-counted.
@@ -91,9 +91,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
   const [phase, setPhase] = useState<Phase>('lookup');
   // What the lookup found — drives the banner on the buyer step. Null when the
   // rep skipped enrichment and went straight to a blank form.
-  const [enriched, setEnriched] = useState<{ source: EnrichSource; labels: string[] } | null>(
-    null,
-  );
+  const [enriched, setEnriched] = useState<{ source: EnrichSource; labels: string[] } | null>(null);
 
   const [dedupMatch, setDedupMatch] = useState<MockBuyer | null>(null);
   const [dedupOpen, setDedupOpen] = useState(false);
@@ -120,8 +118,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
       buyerFirstName: (v) => (v.trim().length > 0 ? null : 'Required'),
       buyerCompany: (v) => (v.trim().length > 0 ? null : 'Required'),
       currentCrmStage: (v) => (v && v.length > 0 ? null : 'Required'),
-      buyerEmail: (v) =>
-        v.length === 0 || /^\S+@\S+\.\S+$/.test(v) ? null : 'Invalid email',
+      buyerEmail: (v) => (v.length === 0 || /^\S+@\S+\.\S+$/.test(v) ? null : 'Invalid email'),
       buyerLinkedin: (v) =>
         v.length === 0 || /^https?:\/\//.test(v) ? null : 'Must start with http(s)://',
       buyerWebsite: (v) =>
@@ -131,7 +128,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
 
   // Pre-fill the form from a lookup result and move to the buyer step. Fields
   // enrichment couldn't determine stay blank with their required markers intact.
-  const handleResolve = (source: EnrichSource, enrichment: BuyerEnrichment) => {
+  const handleResolve = (source: EnrichSource, enrichment: EnrichedBuyerFields) => {
     form.setValues({
       buyerFirstName: enrichment.firstName ?? '',
       buyerLastName: enrichment.lastName ?? '',
@@ -255,8 +252,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
               }`}
             >
               <Text size="sm">
-                Pulled in {enriched.labels.join(', ')}. Review and fill in anything
-                we missed.
+                Pulled in {enriched.labels.join(', ')}. Review and fill in anything we missed.
               </Text>
             </Alert>
           ) : (
@@ -266,11 +262,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
           )}
 
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
-            <TextInput
-              label="First name"
-              required
-              {...form.getInputProps('buyerFirstName')}
-            />
+            <TextInput label="First name" required {...form.getInputProps('buyerFirstName')} />
             <TextInput label="Last name" {...form.getInputProps('buyerLastName')} />
             <TextInput label="Company" required {...form.getInputProps('buyerCompany')} />
             <TextInput label="Title" {...form.getInputProps('buyerTitle')} />
@@ -288,13 +280,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
           </SimpleGrid>
 
           <Group justify="space-between">
-            <Anchor
-              component="button"
-              type="button"
-              size="sm"
-              c="dimmed"
-              onClick={startOver}
-            >
+            <Anchor component="button" type="button" size="sm" c="dimmed" onClick={startOver}>
               Start over
             </Anchor>
             <Button onClick={goToDeal}>Continue to deal context</Button>
@@ -307,10 +293,9 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
           <Stack gap="lg">
             <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
               <Text size="sm">
-                Deal context powers the readiness diagnosis and the Pipeline
-                Reality Check — comparing your CRM stage to the buyer’s
-                evidence-based readiness so over-projected deals get flagged. The
-                more you add, the sharper the read.
+                Deal context powers the readiness diagnosis and the Pipeline Reality Check —
+                comparing your CRM stage to the buyer’s evidence-based readiness so over-projected
+                deals get flagged. The more you add, the sharper the read.
               </Text>
             </Alert>
 
@@ -381,11 +366,7 @@ export function StructuredForm({ onSuccess }: StructuredFormProps) {
               >
                 Back to buyer
               </Button>
-              <Button
-                type="submit"
-                loading={addOpportunity.isPending}
-                disabled={!productId}
-              >
+              <Button type="submit" loading={addOpportunity.isPending} disabled={!productId}>
                 Save opportunity
               </Button>
             </Group>

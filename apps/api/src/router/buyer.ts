@@ -1,7 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { buyers, opportunities } from '@pg/db/schema';
 import { protectedProcedure, router } from '../trpc';
-import { resolveWorkspace } from '../lib/authz';
+import { assertWorkspaceAccess, resolveWorkspace } from '../lib/authz';
 import { toWireBuyer } from '../lib/serialize';
 
 export const buyerRouter = router({
@@ -15,6 +17,18 @@ export const buyerRouter = router({
     });
     return rows.map(toWireBuyer);
   }),
+
+  // A single buyer by id, scoped to the caller's workspace. Used by the desktop
+  // Co-pilot to resolve the bound opportunity's buyer for planner pre-grounding
+  // (PG-292), where only the buyerId is on hand.
+  get: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const row = await ctx.db.query.buyers.findFirst({ where: eq(buyers.id, input.id) });
+      if (!row) throw new TRPCError({ code: 'NOT_FOUND' });
+      await assertWorkspaceAccess(ctx, row.workspaceId);
+      return toWireBuyer(row);
+    }),
 
   // The Buyers people-directory read-model (M13) — each buyer joined with its
   // opportunity count + assigned/unassigned status. A buyer with no opportunity

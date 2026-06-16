@@ -13,6 +13,12 @@ export const MODELS = {
   websiteExtractor: 'claude-haiku-4-5-20251001' as const,
   // Pre-call intelligence (DISC/OCEAN + technique + script) — reasoning-heavier.
   precall: 'claude-sonnet-4-6' as const,
+  // Lead enrichment (PG-288). Resolve disambiguates noisy web evidence into
+  // distinct people — a judgment task that deserves a stronger model than the
+  // trivial parsers. Structure turns one candidate's evidence into a grounded
+  // profile. Both Sonnet; tune here, not in the chains.
+  enrichResolve: 'claude-sonnet-4-6' as const,
+  enrichStructure: 'claude-sonnet-4-6' as const,
 };
 
 export type ModelChoice = (typeof MODELS)[keyof typeof MODELS];
