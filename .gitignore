@@ -40,3 +40,7 @@ pgdata/
 
 # Vite
 *.local
+
+# Claude Code local artifacts (not project config)
+.claude/skills/
+skills-lock.json

@@ -4,10 +4,18 @@ This file orients a Claude Code agent landing in this repo for the first time. R
 
 ## Key links
 
-- **Scope doc:** https://docs.google.com/document/d/19SQHpRMS1OghLeCwZCOGACLo20_veArQy5r9Y0KbdlE/edit
 - **Linear project:** https://linear.app/pitch-genius/project/buyer-readiness-mvp-30ada7fd1617/overview
+- **Decision history (the "why"):** [`docs/decision-log.md`](docs/decision-log.md)
 
-The source of truth is the **MVP UX Spec** (a screen-by-screen spec iterated in markdown) together with its companion **MVP Scope Overview**. As of **May 2026** the scope was materially expanded — see *Scope status* below; the UX Spec is the most current artifact. The **MVP Scope Overview supersedes the older Google Doc scope doc** linked above — keep the Google Doc link for history, but defer to the Scope Overview + UX Spec wherever they disagree. _Add the UX Spec's and Scope Overview's canonical URLs here once they have a stable home._ Items marked `[FLAG]` / `[FLAG FOR RUSSELL]` in the specs are open questions awaiting product confirmation — don't build past them without checking. `[LEVER]` items can be cut or added depending on capacity.
+**Canonical specs — which doc owns which surface:**
+
+| Doc | Owns | Status |
+| --- | --- | --- |
+| [Desktop UX Spec](apps/desktop-copilot/docs/UX_SPEC.md) (in repo) | the **desktop Live Co-pilot** | current (Gen 3, Jun 2026) |
+| [PG MVP UX Spec](https://docs.google.com/document/d/1WJYBzCplQmgZTiV6yuTO5Ui5jCQKh1ug2Okt38exX5g/edit) (Drive) | the **web app**, screen-by-screen | current (Gen 2, May 2026) |
+| [MVP Scope Overview](https://docs.google.com/document/d/17vktxAiV_wli7mNhfBtB7PERhEVtwec4fDDjIm7UBVA/edit) (Drive) | high-level scope; companion to the web UX Spec | current (Gen 2, May 2026) |
+
+When a spec and the code disagree, **the spec wins** (fix the code). Items marked `[FLAG]` / `[FLAG FOR RUSSELL]` are open product questions — don't build past them without checking. `[LEVER]` items can be cut or added depending on capacity.
 
 ## Scope status — May 2026 re-scope
 
@@ -16,9 +24,9 @@ A new MVP UX Spec materially expanded the product. Several earlier exclusions we
 - **Now in scope:** DISC/OCEAN psychological profiling, a matched sales technique + generated pre-call scripts, a **Live Co-pilot** desktop app (real-time in-call transcription + coaching), multiple products per workspace, a Buyers screen, a Board (Kanban) workbench view, account signup + an 11-step onboarding + a Stripe hard paywall, and a bulk file-based CRM round-trip (Daily Workbench import / CRM Update Pack export).
 - **Taxonomy change:** the readiness taxonomy is now **9 states** — At-Risk/Regression is a state, no longer a separate boolean.
 - **Terminology:** what a rep adds to an opportunity is now an **activity** (earlier drafts called it "evidence").
-- **Migration tracked in Linear milestones M9–M20.** **M9 has landed:** the shared contract (`@pg/shared`), the Zustand mock store + seed, and the `@pg/db` schema now use the new model — 9 readiness states, multiple products per workspace, and the `activity` rename. The **UI surfaces are still M5–M8 era** (list, opportunity detail, onboarding, intake) and consume the new data layer through back-compat shapes until they are rebuilt: M10 (onboarding), M12 (workbench, supersedes the list), M14 (intake), M17 (opportunity detail). Where the data-model section below diverges, it notes current-code vs. target.
+- **Migration tracked in Linear milestones M9–M20 — all landed.** The shared contract (`@pg/shared`), the mock store + seed, and the `@pg/db` schema use the new model (9 readiness states, multiple products per workspace, the `activity` rename), and the UI surfaces were rebuilt on it: M10 (onboarding), M12 (workbench, superseding the old list), M13 (buyers), M14 (intake), M16 (products/scripts), M17 (opportunity detail). The web app then cut over to the real backend in **M27–M33** (see the note at the end of this section).
 
-The current build is a **mock-backed prototype** (Zustand mock store, fake AI, no real backend). Milestones M9–M20 extend that prototype; they do not yet wire a real backend — the `apps/api` + `packages/ai` code is a forward-looking stub and still carries a few pre-M9 assumptions (one product per workspace; the diagnosis prompt enumerates 8 states). Those reconcile when the real backend is wired.
+**The real backend has since landed (June 2026, milestones M27–M33) — the "mock-backed prototype, no real backend" status below is obsolete.** `apps/api` now runs real Hono + tRPC + Better Auth against Postgres (Drizzle), and `packages/ai` runs six live chains + a lead-enrichment pipeline against Anthropic. The web app's golden path (intake → diagnosis → pre-call) is cut over to the backend; the **Zustand mock store survives only in pre-auth onboarding/checkout** screens. The pre-M9 stubs are gone: multiple-products-per-workspace is wired, and the diagnosis prompt enumerates **all 9 states and enforces all 7 hard rules** server-side. Still mock/pending: **Stripe checkout + paywall (M31)**, the desktop companion saved-call vault, and desktop first-run onboarding. See [`docs/decision-log.md`](docs/decision-log.md) for the pivot history behind all this.
 
 ## What the product is
 
@@ -50,11 +58,12 @@ The flagship insight is the Pipeline Reality Check. The product also ships a **L
 
 ```
 apps/
-  web/                  React frontend (Vite)
-  api/                  Hono + tRPC server
+  web/                  React frontend (Vite) — workbench, intake, diagnosis, pre-call
+  api/                  Hono + tRPC server — auth, routers, AI orchestration
+  desktop-copilot/      Tauri 2 (Rust) + React — live in-call co-pilot overlay
 packages/
   db/                   Drizzle schema, migrations, postgres client factory
-  ai/                   Anthropic SDK + the 4 prompt chains
+  ai/                   Anthropic SDK — prompt chains (prompts/) + lead enrichment (enrichment/)
   shared/               Zod schemas + enums + constants (the SHARED CONTRACT)
 docker-compose.yml      Local Postgres
 .env.example            Copy to .env at first run
@@ -67,6 +76,7 @@ docker-compose.yml      Local Postgres
 - `@pg/ai` takes an `AnthropicClient` instance and zod schemas from `@pg/shared`. It does not touch the DB.
 - `apps/api` wires everything together: env validation, DB client, Anthropic client, Better Auth, tRPC routers.
 - `apps/web` imports `AppRouter` type from `@pg/api/router` for tRPC client typing.
+- `apps/desktop-copilot` is a separate Tauri app. It imports `@pg/shared` and calls `apps/api` over tRPC with a bearer token (deeplink auth). Rust owns audio capture + the planner loop; React owns the overlay.
 
 ## Hard product rules (must be enforced in the diagnosis prompt + validated server-side)
 
@@ -80,32 +90,34 @@ These come from the scope doc and are non-negotiable. Search `prompts/diagnosis-
 6. **AI never invents buyer quotes.** Every signal must cite evidence that actually appears in the transcript/notes/checklist.
 7. **Rep subjective notes alone cannot produce a high-confidence diagnosis.**
 
-## The 4 prompt chains
+## The prompt chains
 
-Located in [`packages/ai/src/prompts/`](packages/ai/src/prompts):
+Six live chains in [`packages/ai/src/prompts/`](packages/ai/src/prompts) (all real against Anthropic as of M30), plus a lead-enrichment pipeline in [`packages/ai/src/enrichment/`](packages/ai/src/enrichment):
 
 | Chain | Input | Output (zod) | Model | Where used |
 | --- | --- | --- | --- | --- |
-| Opportunity Parser | Pasted free-text deal notes | `parsedOpportunitySchema` | haiku | `parser.parseQuickPaste` tRPC mutation |
+| Opportunity Parser | Pasted free-text deal notes | `parsedOpportunitySchema` | haiku | `parser.parseQuickPaste` |
 | CSV Column Mapper | Headers + sample rows | `csvColumnMappingSchema` | haiku | `parser.mapCsvColumns` |
-| Readiness Signal Extractor | Product context + activity evidence | `signalExtractionSchema` | sonnet | Inside `diagnosis.run` |
-| Buyer Readiness Diagnosis Generator | Product + opportunity + extracted signals | `readinessDiagnosisSchema` | opus | Inside `diagnosis.run` |
+| Website Extractor | Scraped site text | profile (industry / products / ICP / problem) | haiku/sonnet | onboarding prefill (`parser.scrapeWebsite`) |
+| Readiness Signal Extractor | Product context + activity evidence | `signalExtractionSchema` | sonnet | inside `diagnosis.run` |
+| Buyer Readiness Diagnosis Generator | Product + opportunity + signals | `readinessDiagnosisSchema` (9 states + 7 rules) | opus | inside `diagnosis.run` |
+| Pre-call Generator | Opportunity + product + diagnosis | DISC/OCEAN + matched technique + script | sonnet | `precall.run` → `precall_intelligence` |
 
-All four use the `generateStructured` helper which forces Claude to emit JSON via a `tool_use` block whose `input_schema` is the zod schema converted via `zod-to-json-schema`. **Do not** prompt for "respond in JSON" — use the tool. The system prompt is wrapped in `cache_control: ephemeral` to hit the prompt cache.
+**Lead enrichment** (`enrichment/`, PG-288): a single email/LinkedIn URL → normalize → search (Perplexity / SerpAPI) → resolve candidates → structure → ranked candidate **buyer-contact** profiles that pre-fill the intake form (`enrichment.resolveLead`). It is *identity/contact resolution* for workbench intake — distinct from the buyer **psychology** (Pre-call Generator) and buyer **readiness** (diagnosis) chains, which it's easy to conflate. Belongs to the buyer/opportunity intake surface.
 
-The May-2026 scope adds further AI capabilities — website-scrape profile extraction, DISC/OCEAN profiling, sales-technique matching, pre-call script generation. In the current prototype these are **mocked** (`apps/web/src/mock`); real chains for them would live here alongside the four above.
+All chains use the `generateStructured` helper, which forces Claude to emit JSON via a `tool_use` block whose `input_schema` is the zod schema converted via `zod-to-json-schema`. **Do not** prompt for "respond in JSON" — use the tool. The system prompt is wrapped in `cache_control: ephemeral` to hit the prompt cache. Diagnosis runs as a **background job** (enqueue + poll). Model routing lives in [`packages/ai/src/models.ts`](packages/ai/src/models.ts).
 
 ## Data model semantics (read before touching `packages/db/src/schema`)
 
 The `@pg/shared` zod **entity** schemas (`entities.ts`, `precall.ts`) are the canonical contract as of M9; the Zustand mock store types (`apps/web/src/mock/types.ts`) derive straight from `z.infer` of them, and the `@pg/db` Drizzle tables mirror them.
 
 - **Workspaces** own the pipeline configuration (CRM stages). MVP enforces one workspace per user. As of M9 a workspace also carries a `subscriptionStatus` (the M11 hard-paywall gate) and an optional `crmType`. The `crmType` enum is `hubspot` / `pipedrive` / `salesforce` / `highlevel` (PG-263). HubSpot, Pipedrive, and HighLevel are export round-trip targets; Salesforce is **capture-only** (recorded at onboarding for context, but exports degrade to copy-ready notes). Branch on `crmSupportsExport()` from `@pg/shared`, never on `crmType !== null`.
-- **Products** are 1:N to workspaces with exactly one `isPrimary` — the primary is the default product context for new opportunities. M9 lit this up in the shared contract + mock store + seed; the `apps/api` stub still has a one-product-per-workspace check (lifts when M16 wires it). The 1:N schema means lifting that check needs no migration.
+- **Products** are 1:N to workspaces with exactly one `isPrimary` — the primary is the default product context for new opportunities. The old one-product-per-workspace check is **gone** (M27); multiple products with a primary are wired end to end.
 - **Buyers are separate from opportunities.** A buyer is a person at a company; the same buyer can have many opportunities (current, historical, reframed). A buyer with **no** opportunity is "unassigned" — assigning a product turns it into an opportunity (M13). This separation also makes the reframe flow clean.
 - **Opportunities** carry denormalized "current_*" columns (readiness state, score, alignment) so the list view doesn't have to join the latest diagnosis. They MUST be updated in the same transaction that inserts a new diagnosis. They also carry a nullable `crmRecordId` (HubSpot Record ID / Pipedrive System ID) that drives the two-tier export model and bulk-activity auto-join.
 - **Activities** (renamed from "interactions" / "evidence" in M9) are the unit of buyer evidence a rep adds to an opportunity; one diagnosis is produced per activity.
-- **Readiness taxonomy is 9 states** — `at_risk` (regression) is a first-class value in the `readiness_state` enum as of M9 (PG-183). A denormalized `atRisk` **boolean** is still kept on the opportunity as a list-rendering convenience; M12/M17 retire it once the workbench + detail surfaces read the state directly. (The `apps/ai` diagnosis-generator prompt still enumerates 8 states — a real-backend follow-up.)
-- **Pre-call intelligence** (DISC/OCEAN profile + matched technique + generated script) is keyed per opportunity, mirroring how diagnoses are stored. Mock-only in the prototype; no `@pg/db` table yet.
+- **Readiness taxonomy is 9 states** — `at_risk` (regression) is a first-class value in the `readiness_state` enum as of M9 (PG-183). A denormalized `atRisk` **boolean** is still kept on the opportunity as a list-rendering convenience; M12/M17 retire it once the workbench + detail surfaces read the state directly. (The diagnosis-generator prompt now enumerates all 9 states and enforces all 7 hard rules server-side — M30.)
+- **Pre-call intelligence** (DISC/OCEAN profile + matched technique + generated script) is keyed per opportunity, mirroring how diagnoses are stored. Real as of M30 — generated by the Pre-call Generator chain and persisted to the `precall_intelligence` table (added in M27).
 - **Diagnoses store the full AI output as `jsonb`** (validated by the zod schemas in `@pg/shared`) plus discrete columns for filtering.
 - **`closed_status` enum includes `reframed`** — changing an opportunity's product closes the original as `reframed` and creates a new one linked via `reframed_from_opportunity_id`. The schema is ready; the UI flow is not yet built.
 - **CRM stages**: spec ships ONE template (`simple_b2b_sales`) + `custom`. Additional templates are post-MVP pending real-user pipeline observations. See the known design tension comment in [packages/db/src/schema/workspace.ts](packages/db/src/schema/workspace.ts) about JSON-vs-normalized stages.
@@ -150,7 +162,7 @@ pnpm dev
 - **Strict TS, no `any`** unless commented why. `noUncheckedIndexedAccess` is on — handle `undefined` from array access.
 - **Validate all I/O boundaries with zod.** tRPC procedures take `.input(zod)`. AI outputs are validated by `generateStructured`. Don't trust unvalidated JSON from anywhere.
 - **No `process.env` outside the env loader.** `apps/api/src/env.ts` is the only place that reads env vars; everything else imports `env`.
-- **Workspace authorization on every protected procedure.** A user can only see/mutate their own workspace. The pattern is in [apps/api/src/router/opportunity.ts](apps/api/src/router/opportunity.ts) — extract it to a helper once it appears in 3+ routers.
+- **Workspace authorization on every protected procedure.** A user can only see/mutate their own workspace. Use the helpers in [apps/api/src/lib/authz.ts](apps/api/src/lib/authz.ts) (`assertWorkspaceAccess` / `assertOpportunityAccess` / `assertActivityAccess`) — every protected router routes through them.
 - **Transactions for multi-table writes.** Creating an opportunity (buyer + opportunity) and running a diagnosis (diagnosis + opportunity denormalization) must be transactional.
 - **Source of truth for enums lives in `@pg/shared`.** Mirror values to `packages/db/src/schema/enums.ts` exactly — these MUST stay in sync.
 - **Never write AI output directly to the DB without zod validation.** Always parse first via the schemas in `@pg/shared`.
