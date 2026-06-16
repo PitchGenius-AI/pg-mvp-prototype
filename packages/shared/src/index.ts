@@ -4,6 +4,7 @@ export * from './entities';
 export * from './signal';
 export * from './diagnosis';
 export * from './precall';
+export * from './technique-matching';
 export * from './product';
 export * from './parser';
 export * from './scrape';

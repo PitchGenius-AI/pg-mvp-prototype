@@ -306,6 +306,9 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@2.7.0)(sugarss@5.0.1(postcss@8.5.14))(tsx@4.22.1)
 
 packages:
 
