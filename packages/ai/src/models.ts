@@ -3,7 +3,7 @@
 
 export const MODELS = {
   // Diagnosis is the flagship product output — quality matters most.
-  diagnosis: 'claude-opus-4-7' as const,
+  diagnosis: 'claude-opus-4-8' as const,
   // Signal extraction reads long transcripts; Sonnet balances cost and quality.
   signalExtraction: 'claude-sonnet-4-6' as const,
   // Lightweight parsing tasks.

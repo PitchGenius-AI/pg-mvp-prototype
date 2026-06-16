@@ -25,33 +25,28 @@ NSPanel always-on-top overlay (PG-244 / M21).
 | Decision                           | Choice                                               | Implication                                                                                                                                                              |
 | ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Real-time transcription + coaching | **Live audio + STT** (real pipeline)                 | Real capture → STT → coaching loop; latency budget is the core UX risk (see §7)                                                                                          |
-| Lifecycle scope                    | **In-call overlay** + (new) **first-run onboarding** | Product/ICP context captured at onboarding (§4.6, re-scoped IN 2026-06-10); no per-lead pre-call enrichment screen (a removable **call-script plan** preview is added, §5.8); a duration-aware call script backs the planner (§5.8); end-of-call is a **basic summary only** (§5.7) — full post-call analysis is out of v1                                                       |
+| Lifecycle scope                    | **In-call overlay** + (new) **first-run onboarding** | Product/ICP context captured at onboarding (§4.3, re-scoped IN 2026-06-10); no per-lead pre-call enrichment screen (a removable **call-script plan** preview is added, §5.8); a duration-aware call script backs the planner (§5.8); end-of-call is a **basic summary only** (§5.7) — full post-call analysis is out of v1                                                       |
 | Deal/profile data source           | **Reuse `@pg/shared` + mock store**                  | Speech is live; supporting context is seeded/derived (see §6)                                                                                                            |
 | Positioning                        | **Copilot + minimal companion web app**              | Both ship in the MVP; web app is mocked (seeded, no backend); the full web app stays deferred (§10)                                                                      |
 | Account + call persistence         | **Minimal web app** (mocked: seeded, no backend)     | Account/auth + saved-call vault & review live in the web app; desktop app launches it; real auth/storage deferred to §10 (§11)                                           |
-| Profiling scope                    | **Both seller + buyer**                              | Seller profiled at onboarding (DISC/OCEAN only — used to tailor coaching style); buyer profiled live, and the SPIN/Challenger/NEPQ technique is matched to the **buyer** |
+| Profiling scope                    | **Buyer only**                                       | The **buyer** is profiled live (from call audio), and the SPIN/Challenger/NEPQ technique is matched to the buyer. The seller is not profiled. |
 | Visual look & feel                 | **Glass-derived design language**                    | Smoked-glass translucency, pill chrome, near-monochrome + one accent, system-sans UI; codified in §12. Glass replaces Cluely as the **visual** reference (Cluely stays the onboarding-flow feel ref)                                              |
 
 ## 1. Product framing
 
 The Co-pilot fuses **real-time reaction** (live transcript + coaching cues off real call
-audio) with **layered intelligence about both the seller and the buyer**. In the
+audio) with **layered intelligence about the buyer**. In the
 cold-start case this intelligence is **built up, not pre-loaded** — nothing about the lead
 is collected before the call:
 
-- The **seller profile** (DISC/OCEAN, `UserPsychProfile`, §6) is generated at
-  **onboarding**: three questions (§4.3) score the seller's DISC/OCEAN. This is the one
-  piece that exists _before_ the call. **No sales technique is matched to the seller** —
-  technique selection (SPIN / Challenger / NEPQ) keys off the **buyer** and happens live
-  (sibling doc + §6.2); the seller profile only tailors **how the co-pilot coaches this
-  seller** (cue tone, pacing, how feedback is phrased). See §4.5.
+- Technique selection (SPIN / Challenger / NEPQ) keys off the **buyer** and happens live
+  (sibling doc + §6.2). The seller is not profiled.
 - The **product / ICP / problem context** (the seller's product line, each product's ICP and
-  the problem it solves) is also captured at **onboarding** (§4.6) — prefilled from the seller's
-  website (mocked scrape), editable, stored in the shared mock store. Alongside the seller
-  profile it's the other thing that exists _before_ the call, and it **grounds the generated
-  call script** (§5.3/§6.2). The seller does **not** pick which product the call is about up
-  front; the relevant product is **inferred and confirmed live** as the buyer reveals their
-  situation (§4.6/§5.3).
+  the problem it solves) is captured at **onboarding** (§4.3) — prefilled from the seller's
+  website (mocked scrape), editable, stored in the shared mock store. It's the thing that
+  exists _before_ the call, and it **grounds the generated call script** (§5.3/§6.2). The
+  seller does **not** pick which product the call is about up front; the relevant product is
+  **inferred and confirmed live** as the buyer reveals their situation (§4.3/§5.3).
 - The **buyer profile** (DISC/OCEAN, `LeadPsychProfile`) and the **pipeline stage** are
   assessed **live, from the call transcript** — the app prompts the seller to ask the buyer
   discovery questions, and the buyer's spoken answers are scored as the
@@ -66,12 +61,12 @@ The logic that grounds the coaching is being spec'd piece by piece:
   [docs/sales-technique-matching.md](docs/sales-technique-matching.md): SPIN / Challenger /
   NEPQ in build-against terms, plus DISC/OCEAN base leanings the matching engine starts
   from (it then weighs confidence and adjusts mid-call: Suggested / Recommended / Locked).
-- **Still TBD** — the DISC/OCEAN **scoring questions** (seller + buyer) and the live
+- **Still TBD** — the DISC/OCEAN **scoring rules** (buyer; seller scoring is cut) and the live
   **pipeline-stage assessment**. Treat these as placeholders; don't invent the rules.
 
 **The unique value of Pitch Genius:** coaching that is **not generic** — it is specific to
-_both_ the buyer and the seller, delivered through a sales technique matched to **how this
-seller sells best and how this buyer buys**.
+**this buyer**, delivered through a sales technique matched to **how this buyer buys**
+(per [docs/sales-technique-matching.md](docs/sales-technique-matching.md)).
 
 ## 2. Golden-path narrative (the demo spine)
 
@@ -88,21 +83,16 @@ The cold-start arc:
 First run (no account / no data)
   → Welcome
   → Permissions (mic, system audio / screen capture, overlay/accessibility)
-  → Onboarding questions  ──► seller psychological scoring
-  → DISC / OCEAN profile generated + revealed (seller)
-  → How coaching adapts to the seller (NO technique locked — technique is matched live to the buyer)
   → Product / ICP context (seller's website → scrape prefill → edit) — all products captured; none chosen for the call yet
   → Call setup
   → LIVE in-call overlay coaching
        → app prompts seller to ask the buyer discovery questions
        → buyer's live answers  ──► buyer DISC/OCEAN profile (LeadPsychProfile)
+       → technique matched to the buyer live (SPIN / Challenger / NEPQ)
        → relevant product inferred + confirmed live (matched to the buyer's revealed problem)
        → pipeline stage assessed live from the conversation
 ```
 
-- **Seller** is profiled during **onboarding** via onboarding questions → DISC/OCEAN
-  (`UserPsychProfile`). Self-calibration: coaching **delivery** adapts to the seller's
-  natural style. No technique is matched to the seller — see §4.5.
 - **Buyer(s)** are profiled **live** during the call, from their speech (`LeadPsychProfile`).
 - This makes **speaker separation (seller vs. buyer) a first-class requirement**: every
   utterance must be attributed correctly or both profiling and cue attribution break.
@@ -228,113 +218,14 @@ confirm when the audio subsystem lands.
 screenshots are an artifact of two installed builds — ship **one signed app identity** so
 the user sees exactly one OS prompt per permission.
 
-### 4.3 Onboarding questions → seller psychological scoring
-
-The last step before the first call. A short **three-question** form scores the seller into
-a DISC/OCEAN `UserPsychProfile` (§6.1) — the one profile that exists _before_ any call. It's
-**self-calibration**: it tunes how the co-pilot coaches _this_ seller (§4.5). It gates
-nothing, so it stays deliberately light.
-
-**The three questions** (locked set for now — see _Thinness_ below):
-
-| #   | Question                                                           | Type          | Answers                                        |
-| --- | ------------------------------------------------------------------ | ------------- | ---------------------------------------------- |
-| 1   | How would you describe your current approach to sales/deal-making? | Single choice | Analytical · Relationship-driven · Instinctive |
-| 2   | What are your top strengths in closing deals?                      | Free text     | —                                              |
-| 3   | How do you like to receive feedback?                               | Single choice | Straight talk · Data-driven · Mindset-oriented |
-
-**UI.** One short screen in the translucent NSPanel shell (consistent with §4.1–4.2): the
-two single-choice questions as tap-to-select chips/cards, the free-text as a single line, a
-step hint, and a primary CTA (**"See my profile"**) → §4.4. Fast to complete (<30s); no
-skipping — all three feed the score.
-
-**Scoring — deterministic mapping (mock).** No AI call. The two single-choice answers map to
-fixed DISC/OCEAN weight contributions via a lookup table; the free-text strengths gets light
-keyword tagging that nudges the weights. Reproducible and transparent — the same answers
-always yield the same profile, which is what we want for a demo. (Contrast the **buyer** path,
-which is AI-scored from live speech.)
-
-_Starter mapping (tunable; OCEAN dims start neutral at 50 and shift per nudge):_
-
-| Q1 approach         | DISC lean | OCEAN nudge                   |
-| ------------------- | --------- | ----------------------------- |
-| Analytical          | **C**     | +Conscientiousness, −Openness |
-| Relationship-driven | **S / I** | +Agreeableness, +Extraversion |
-| Instinctive         | **D**     | +Openness, −Conscientiousness |
-
-| Q3 feedback      | DISC lean | OCEAN nudge                                         |
-| ---------------- | --------- | --------------------------------------------------- |
-| Straight talk    | **D**     | −Agreeableness, −Neuroticism (tolerates directness) |
-| Data-driven      | **C**     | +Conscientiousness                                  |
-| Mindset-oriented | **I / S** | +Openness, +Agreeableness                           |
-
-| Q2 strengths keyword (free text)    | Nudge                  |
-| ----------------------------------- | ---------------------- |
-| relationships / rapport / trust     | +S, +Agreeableness     |
-| results / closing / numbers / drive | +D, +Conscientiousness |
-| listening / discovery / questions   | +C, +S                 |
-| energy / enthusiasm / people        | +I, +Extraversion      |
-| challenge / reframe / insight       | +D, +Openness          |
-
-DISC `primary` = highest accumulated letter, `secondary` = next (or `null` if not clearly
-distinct).
-
-**Thinness — documented, accepted.** Three inputs (two single-choice + one free-text) cannot
-independently sample four DISC letters and five OCEAN traits. Coverage is uneven: the D↔C axis,
-Conscientiousness, and Agreeableness are reasonably sampled; **Neuroticism and Extraversion
-are weakly sampled**, and nothing isolates Openness cleanly from approach style. That's
-acceptable here — unlike the buyer diagnosis, the seller profile only tailors coaching **tone**,
-so `confidence` starts **modest** (≈55–65) and the reveal (§4.4) is framed as a first read,
-not a verdict. **[LEVER]** a richer battery (5–7 questions giving every trait ≥2 reads,
-mirroring the §6.2 buyer-cue rigor) is the obvious upgrade if the coaching needs a firmer prior.
-
-### 4.4 Generated DISC / OCEAN profile reveal (seller)
-
-> **Basic mock for now — open to revision.** The v1 reveal shows the seller a readable
-> summary of their psychology and **how it will be used in coaching**. It deliberately does
-> **not** name a sales technique (§4.5).
-
-After scoring, a brief "generating…" beat (demo polish), then a single reveal card:
-
-- **Plain-language summary** — 2–3 sentences ("You sell like a **[primary DISC]** …"), in the
-  voice of the `summary` field on `UserPsychProfile`.
-- **DISC** — primary + secondary with a one-line `rationale`.
-- **OCEAN** — the five dimensions as lightweight 0–100 bars. Subtle, not clinical.
-- **"How we'll coach you"** — the key line: tie the profile to **coaching delivery**, e.g.
-  _"You lean analytical (C) and asked for data-driven feedback, so cues will be concise and
-  evidence-first."_ This payoff is what makes answering the questions feel worth it.
-- **Confidence** shown softly ("first read — sharpens as you run calls"), not a hard number,
-  given the thinness (§4.3).
-
-CTA **Continue** → §4.5. UI reuses the translucent shell. (Exact field list firms up once
-§4–5 settle, per §6.1.)
-
-### 4.5 How coaching adapts to the seller — _(no technique locked at onboarding; basic mock)_
-
-A short closing onboarding beat (can fold into §4.4's reveal) that sets expectations:
-
-- **Technique is chosen per buyer, live.** Preview the idea: _"On each call the co-pilot reads
-  the buyer and matches the technique to them — you don't pick one up front."_
-- **Your profile shapes delivery, not technique.** From the seller's DISC/OCEAN, the co-pilot
-  adapts **how cues are surfaced** — tone, density, pacing, and how feedback is phrased
-  (mirroring the Q3 feedback preference). Illustrative (mock-level) mappings:
-  - **C / analytical, data-driven feedback** → concise, evidence-first cues; fewer, higher-signal nudges.
-  - **I / relationship-driven, mindset feedback** → warmer, momentum-oriented cues; encouragement framing.
-  - **D / instinctive, straight-talk feedback** → blunt, short, get-to-the-point cues.
-- CTA → §4.6 (product context **[FLAG]**) / call setup → first live call (§4.7).
-
-**Still open (mock-only for now):** the precise coaching-style adaptation rules — which profile
-traits change which cue properties — aren't specified yet; v1 ships an illustrative mapping,
-not a tuned one.
-
-### 4.6 Product / ICP context (seller's website → scrape → product info) — _re-scoped IN for v1 (2026-06-10)_
+### 4.3 Product / ICP context (seller's website → scrape → product info) — _re-scoped IN for v1 (2026-06-10)_
 
 > **Reverses the 2026-06-08 deferral.** This section previously cut product context. It is now
 > **in v1**: the generated call script (§5.3/§6.2) is grounded in the seller's products, each
 > product's ICP, and the problem it solves. Without it, cues stay generic; with it, they're
 > product- and buyer-specific — the whole point of "coaching that isn't generic" (§1).
 
-The final onboarding step (after the seller profile, §4.3–4.5) captures the seller's **product /
+The first onboarding step after permissions captures the seller's **product /
 ICP / problem context**. The hero interaction is **paste your website link → we prefill**.
 
 **Flow:**
@@ -347,7 +238,7 @@ ICP / problem context**. The hero interaction is **paste your website link → w
 3. **Review + edit.** Every prefilled field is fully **editable**; the seller corrects/adds and
    can add **more than one product** (see _Multi-product_ below). Manual entry (no URL) is always
    available as a fallback.
-4. **Save → continue** to call setup (§4.7).
+4. **Save → continue** to call setup (§4.4).
 
 **What we capture — per product:**
 
@@ -379,13 +270,13 @@ itself does not gate on choosing a product** — that's resolved live (§5.3). _
 + "which product is unknown until the call." Tell me if you'd rather it be fully skippable with a
 generic-cue fallback.)_
 
-### 4.7 Transition into first call (buyer profiled live) — _partial; call setup added 2026-06-10_
+### 4.4 Transition into first call (buyer profiled live) — _partial; call setup added 2026-06-10_
 
 Most of this is still _TO FILL_, but one piece is now specified: **call setup captures the
 scheduled call duration**, which budgets the call-script skeleton (§5.8). v1 ships a **manual
 field, default 30 min** (calendar integration stays out of scope). The duration is set before
 Start call and is editable; it allocates the per-segment time boxes the planner paces against.
-The seller does **not** pick a product here — product is matched live (§4.6/§5.3).
+The seller does **not** pick a product here — product is matched live (§4.3/§5.3).
 
 _TO FILL: the rest of call setup + the hand-in to the first live prompt._
 
@@ -418,7 +309,7 @@ A single translucent NSPanel bar (PG-244 chrome), always-on-top and draggable, s
   - **Start call / End call** — the lifecycle toggle. Pre-call it reads **Start call**; live
     it becomes **End call** + a running timer.
   - **Detectable toggle** — screen-share visibility (§5.4).
-  - **Reveal pills** — _Transcript · Seller · Buyer · Technique_ (+ a flagged **Script** pill, §5.8) — collapsed by default;
+  - **Reveal pills** — _Transcript · Buyer · Technique_ (+ a flagged **Script** pill, §5.8) — collapsed by default;
     each opens its panel (§5.4). A pill carries a subtle dot when its data updates (e.g. the
     **Buyer** pill pulses when a discovery answer sharpens the profile).
 - **Hero (the prompt)** — when live, the dominant element. Each cue renders in **two tiers**:
@@ -477,7 +368,7 @@ The only difference is where the chain comes from. This is the unifying model: P
 
 **The planner.** A model call builds and rebuilds the Phase-2 chain from: **buyer profile +
 matched technique (and its confidence tier) + pipeline stage + recent conversation + the
-seller's product / ICP / problem context (§4.6, incl. the live-matched active product).** It runs
+seller's product / ICP / problem context (§4.3, incl. the live-matched active product).** It runs
 on a **latency budget (§7)** — re-planning is an LLM round-trip, so _when_ we pay it is a real
 constraint. The chain is the **just-in-time expansion of the current segment** of the call-script
 skeleton (§5.8): the skeleton is the coarse backbone, the chain is its live wording.
@@ -499,7 +390,7 @@ happens off-screen. The seller never watches the plan reshuffle — the current 
 quietly updates.
 
 **Product grounding + live product match (new, 2026-06-10).** Both phases are now grounded in
-the seller's **product / ICP / problem context** (§4.6). Because the active product is **not
+the seller's **product / ICP / problem context** (§4.3). Because the active product is **not
 chosen up front**, an extra job rides Phase 1: as the buyer's situation accumulates, the planner
 matches it against each product's `problem`/`icp` and surfaces a **likely product** the seller
 can confirm (a one-tap chip on the **Buyer**/**Technique** pill, or silent if confidence is
@@ -575,7 +466,6 @@ firms to **Recommended**.
 | Never surface mid-seller-speech            | gate on mic VAD; surface only at a turn boundary (**free**)       |
 | Steady-state floor                         | ≤ ~2–3 tasks/min, ~15–20s minimum gap                             |
 | Material-signal re-plans **bypass** the floor | surface at the next turn boundary immediately                  |
-| Seller profile sets density (§4.5)         | C/analytical → sparser, higher-signal · D/straight-talk → denser  |
 
 All numbers are starter values, tunable. The one rule that matters most — **don't talk over
 the seller** — is free because it reuses the same VAD driving the rest of the pipeline.
@@ -591,14 +481,13 @@ the coaching overlay does not appear in the buyer's view. Flipping to _Detectabl
 normal shareable window. Copy should frame this as **screen-share invisibility** — not
 concealment that coaching is in use, and unrelated to call recording/consent.
 
-**The reveal pills** (four always-on + a flagged fifth, _Script_, §5.8)**.** Each opens a panel over/beside the bar; all collapsed by default to
+**The reveal pills** (three always-on + a flagged fourth, _Script_, §5.8)**.** Each opens a panel over/beside the bar; all collapsed by default to
 protect the hero. **Mutually exclusive** (opening one closes the others) to keep the surface
 calm:
 
 | Pill           | Panel content                                                  | Source                          |
 | -------------- | ------------------------------------------------------------- | ------------------------------- |
 | **Transcript** | Live labeled transcript (seller/buyer separated, §7)          | live STT                        |
-| **Seller**     | Seller DISC/OCEAN + "how we coach you" (§4.4)                  | onboarding `UserPsychProfile`   |
 | **Buyer**      | Buyer DISC/OCEAN building live + readiness / stage            | live `LeadPsychProfile`         |
 | **Technique**  | Matched technique + confidence tier (Suggested/Recommended/Locked) | sales-technique-matching.md |
 | **Script** _(flagged)_ | The call-script arc (§5.8): segments done/open + each asked prompt & its answer digest. **Removable** — likely off for the client's clean-cockpit default. | skeleton + ledger (§5.3/§5.8) |
@@ -612,11 +501,11 @@ panel. _TO FILL: the map (§8 owns binding)._
 
 ### 5.5 Seeded context
 
-Pre-call and inside the reveal panels, supporting context (the seller profile, the seller's
-product / ICP / problem context per §4.6, any seeded company info) comes from `@pg/shared` + the
+Pre-call and inside the reveal panels, supporting context (the seller's
+product / ICP / problem context per §4.3, any seeded company info) comes from `@pg/shared` + the
 mock store (§6). The **Buyer** panel starts **empty** and fills live — that emptiness-then-fill
 is part of the demo's "watch it learn" payoff. Per the 2026-06-10 re-scope the overlay **is** now
-grounded in product context (§4.6/§5.3): the **Technique** (or **Buyer**) pill can surface the
+grounded in product context (§4.3/§5.3): the **Technique** (or **Buyer**) pill can surface the
 **live-matched active product** for one-tap confirmation.
 
 ### 5.6 Teaching the user (in-call coachmarks)
@@ -665,7 +554,7 @@ So "generate a full script" never means "emit the whole call verbatim up front."
 coarse once, expand fine just-in-time, remember compactly** (the ledger). Context and latency stay
 ~constant regardless of call length (§7).
 
-**Duration budget.** Call setup (§4.7) sets a scheduled duration — **v1: manual, default 30 min**.
+**Duration budget.** Call setup (§4.4) sets a scheduled duration — **v1: manual, default 30 min**.
 The skeleton allocates it across segments by ratio (a 30-min default split, tunable `[QA]`). The
 planner **paces against the clock**: a segment over its box with open objectives gets compressed to
 its highest-value open item, or the planner signals "time to advance." The §5.1 status line shows
@@ -699,13 +588,11 @@ mechanism, not two.
 
 ## 6. Data & contract
 
-Four tiers of data:
+Three tiers of data:
 
-- **Captured at onboarding — seller profile.** DISC/OCEAN (`UserPsychProfile`) scored from the
-  onboarding answers (§4.3). No technique is matched here — technique is buyer-driven (§4.5).
 - **Captured at onboarding — product / ICP / problem context.** The seller's products, each with
   its ICP and the problem it solves (`SellerProductContext`, §6.3), prefilled from the website
-  scrape (mocked) and editable (§4.6). Grounds the call script; stored in the shared mock store
+  scrape (mocked) and editable (§4.3). Grounds the call script; stored in the shared mock store
   (§11). _(Resolves the earlier "[FLAG] whether product info is needed at all" — it is, as of
   2026-06-10.)_
 - **Derived live (during the call)** — buyer utterances → **buyer DISC/OCEAN**
@@ -714,14 +601,14 @@ Four tiers of data:
 - **Seeded** (mock store) — any further supporting deal/company context needed for the demo, via
   `@pg/shared`.
 
-Coaching prompts are grounded by **both** profiles (seller style + buyer signals) + the
+Coaching prompts are grounded by the **buyer profile** (live buyer signals) + the
 matched technique (selection logic:
 [docs/sales-technique-matching.md](docs/sales-technique-matching.md)).
 
 ### 6.1 Psychological profile shapes — _reference, not gospel_
 
-Provided by product; open to revision for the MVP. All three are in use: the shared core,
-the seller specialization (built at onboarding), and the buyer specialization (built live).
+Provided by product; open to revision for the MVP. The buyer profile is built live from the
+shared core plus the buyer specialization.
 
 ```ts
 // Shared core
@@ -744,17 +631,9 @@ PsychProfile = {
   generated_at: string, // ISO timestamp
 };
 
-// Seller (built at onboarding) — USED
-UserPsychProfile = { ...PsychProfile, nepq_stage: string };
-
 // Buyer (built live during the call) — USED
 LeadPsychProfile = { ...PsychProfile, buyer_readiness: number /* 0–100 */ };
 ```
-
-**Seller onboarding questions** (scored into `UserPsychProfile`): "how would you describe
-your current approach to sales/deal-making?" (analytical / relationship-driven /
-instinctive) · "top strengths in closing deals?" (free text) · "how do you like to receive
-feedback?" (straight talk / data-driven / mindset-oriented).
 
 **Buyer-directed discovery cues** are in §6.2. **Still to write:** the DISC/OCEAN **scoring
 rules** (the technique-matching rules now live in
@@ -765,9 +644,8 @@ _TO FILL: exact field list once §4–5 settle._
 
 ### 6.2 Buyer discovery cues — _initial set, for prototyping_
 
-The seller profile is scored from the fixed onboarding questions (§6.1). The **buyer**
-profile is built **live** from how the buyer answers a few discovery questions the seller
-weaves into the call. Three to start.
+The **buyer** profile is built **live** from how the buyer answers a few discovery questions
+the seller weaves into the call. Three to start.
 
 **Glanceability is still the rule, but cues render in two tiers** (§5.1): the **trigger** is
 large and prominent — the thing the seller reads at a glance — and the full sentence appears
@@ -793,7 +671,7 @@ up as buyer speech accumulates (Suggested → Recommended → Locked).
 
 ### 6.3 Seller product / ICP context shape — _reference, mock; eventual DB swap_
 
-Captured at onboarding (§4.6), held in the shared mock store, editable in-app. Mirrors
+Captured at onboarding (§4.3), held in the shared mock store, editable in-app. Mirrors
 `@pg/shared`'s 1:N products-per-workspace model so it swaps to the real DB later without a
 re-spec.
 
@@ -806,11 +684,11 @@ SellerProduct = {
   icp: string,               // who it's for (ideal customer profile)
   problem: string,           // the problem it solves
   source_url: string | null, // the scraped site, if prefilled this way
-  is_primary: boolean,       // none primary at start; emerges over time (§4.6)
+  is_primary: boolean,       // none primary at start; emerges over time (§4.3)
 };
 
 SellerProductContext = {
-  products: SellerProduct[], // ≥1 to complete onboarding (§4.6 gating)
+  products: SellerProduct[], // ≥1 to complete onboarding (§4.3 gating)
   // No active product is chosen up front. The call's product is inferred + confirmed
   // live (§5.3) and is NOT stored here — it belongs to the call/lead state.
 };
@@ -829,7 +707,7 @@ speaker-bleed from polluting the mic. Full design in
 [docs/audio-capture-and-speaker-separation.md](docs/audio-capture-and-speaker-separation.md).
 
 Pipeline: mic + system tap → per-stream VAD → AEC on mic → streaming STT (labeled finals)
-→ coaching trigger (grounded by the seller profile + live buyer profile + matched technique) → haiku cue → stream tokens
+→ coaching trigger (grounded by the live buyer profile + matched technique) → haiku cue → stream tokens
 to overlay via Tauri events. **Recorded-audio fixture** runs the same path on a canned
 2-channel recording — dev fixture + on-stage kill-switch. (Profiled by `latency-tests`,
 PG-247..255.)
@@ -893,7 +771,7 @@ workbench, Buyers screen, Board view), pre-call enrichment screen, the full post
 real website-scrape chain), reframe flow.
 
 _Note (2026-06-10):_ the desktop app **does** now capture **lightweight multi-product / ICP /
-problem context** at onboarding (§4.6) — a mocked website-scrape prefill into the shared store.
+problem context** at onboarding (§4.3) — a mocked website-scrape prefill into the shared store.
 That is distinct from the full product management deferred above; it's the minimal grounding the
 call script needs, not a product CRUD surface.
 
@@ -1001,12 +879,10 @@ a time (§5.4) keeps the surface calm.
 - ~~**[QA · brand]** swap the iOS-blue accent for PG's brand accent~~ — **resolved
   (2026-06-08):** accent cyan `#30f5fa`, alert coral `#fc5e57`, base navy `#1a2e66` (§12). The
   remaining §12 values stay Glass-aligned starting tokens, still QA-able against the real app.
-- **[FLAG]** Coaching-style adaptation rules (§4.5) — which seller traits change which cue
-  properties; mock/illustrative for v1.
-- **Resolved (2026-06-10):** product / ICP / problem context is **in v1** (§4.6) — reverses the
+- **Resolved (2026-06-10):** product / ICP / problem context is **in v1** (§4.3) — reverses the
   2026-06-08 deferral. Multi-product, no up-front pick, website-scrape prefill (mocked), stored in
   the shared mock store; grounds the call script (§5.3).
-- **[FLAG · confirm]** §4.6 **gating** — onboarding completes once ≥1 product's context exists,
+- **[FLAG · confirm]** §4.3 **gating** — onboarding completes once ≥1 product's context exists,
   but the call doesn't gate on picking a product (matched live). My read of the "Other" gate
   answer; confirm vs. fully-skippable-with-generic-fallback.
 - **[QA]** §5.3 **live product match** + the **discovery checklist** (answered/open tracking) are

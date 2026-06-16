@@ -51,7 +51,7 @@ The flagship insight is the Pipeline Reality Check. The product also ships a **L
 | Backend | Hono + tRPC | Lightweight, fast, type-safe end-to-end |
 | Auth | Better Auth (email + password) | Self-hosted, owns its tables in our Postgres |
 | Database | Postgres 16 (Docker locally) + Drizzle ORM | SQL-first, fast migrations, strong TS inference |
-| AI | Anthropic SDK directly (claude-opus-4-7 / sonnet-4-6 / haiku-4-5) | Native prompt caching, tool-use for structured JSON |
+| AI | Anthropic SDK directly (claude-opus-4-8 / sonnet-4-6 / haiku-4-5) | Native prompt caching, tool-use for structured JSON |
 | Validation | Zod (shared schemas in `@pg/shared`) | Single contract across DB, API, AI, UI |
 
 ## Repo layout
