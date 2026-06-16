@@ -1,3 +1,4 @@
+import { matchTechnique } from '@pg/shared';
 import type {
   DiscProfile,
   DiscType,
@@ -137,13 +138,6 @@ function deriveOcean(disc: DiscProfile, rng: () => number): OceanProfile {
 }
 
 // --- Technique matching ----------------------------------------------------
-
-const TECHNIQUE_BY_DISC: Record<DiscType, SalesTechnique> = {
-  D: 'challenger',
-  I: 'nepq',
-  S: 'nepq',
-  C: 'spin',
-};
 
 const TECHNIQUE_LABELS: Record<SalesTechnique, string> = {
   challenger: 'Challenger',
@@ -388,7 +382,9 @@ export function fakeGeneratePrecall(
   const rng = mulberry32(hashString(input.opportunity.id) + variation * 7919);
   const disc = deriveDisc(input.buyer, rng);
   const ocean = deriveOcean(disc, rng);
-  const technique = TECHNIQUE_BY_DISC[disc.primaryType];
+  // Use the canonical guide engine (PG-310), same as the real backend chain.
+  const match = matchTechnique(disc, ocean);
+  const technique = match.primary;
   const firstName = input.buyer?.firstName ?? 'This buyer';
 
   return {
@@ -400,6 +396,8 @@ export function fakeGeneratePrecall(
     matchedTechnique: {
       technique,
       reasoning: techniqueReasoning(disc, technique),
+      match,
+      recommendedNextStep: `Open ${match.recommendedOpeningStyle.toLowerCase()}; lead with a ${match.bestQuestionType}.`,
     },
     generatedScript: fakeGenerateScript(input, technique, variation),
   };

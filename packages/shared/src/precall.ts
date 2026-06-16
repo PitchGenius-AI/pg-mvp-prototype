@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { discTypeSchema, salesTechniqueSchema } from './enums';
+import { techniqueMatchSchema } from './technique-matching';
 
 // Pre-call intelligence (May-2026 re-scope). Produced from buyer enrichment so a
 // rep can prep before the conversation: a psychological profile, a matched sales
@@ -40,9 +41,18 @@ export const psychProfileSchema = z.object({
 export type PsychProfile = z.infer<typeof psychProfileSchema>;
 
 // The sales technique matched to the buyer (Challenger / SPIN / NEPQ) + why.
+//
+// `technique` (= the primary) and `reasoning` are the back-compat surface every
+// consumer already reads. `match` carries the full guide output (PG-310) —
+// deterministically computed by `matchTechnique` (§5 formula), not an LLM guess —
+// and `recommendedNextStep` is the AI-suggested next action. Both are OPTIONAL so
+// historical `precall_intelligence` rows (which only have technique + reasoning)
+// still pass `precallIntelligenceSchema.parse()` on read.
 export const matchedTechniqueSchema = z.object({
   technique: salesTechniqueSchema,
-  reasoning: z.string().describe('Why this technique fits this buyer'),
+  reasoning: z.string().describe('Why this technique fits this buyer (reasoning_summary)'),
+  match: techniqueMatchSchema.optional(),
+  recommendedNextStep: z.string().optional(),
 });
 export type MatchedTechnique = z.infer<typeof matchedTechniqueSchema>;
 

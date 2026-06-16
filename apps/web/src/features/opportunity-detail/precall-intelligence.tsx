@@ -335,14 +335,46 @@ function TraitRow({
 // --- Matched technique -----------------------------------------------------
 
 function TechniqueCard({ precall }: { precall: MockPrecallIntelligence }) {
-  const { technique, reasoning } = precall.matchedTechnique;
+  const { technique, reasoning, match, recommendedNextStep } = precall.matchedTechnique;
   return (
     <SectionCard icon={<IconTargetArrow size={18} />} title="Matched sales technique">
       <Stack gap="sm">
-        <Badge size="lg" variant="filled" color="violet">
-          {TECHNIQUE_LABELS[technique]}
-        </Badge>
+        <Group gap="xs" wrap="wrap">
+          <Badge size="lg" variant="filled" color="violet">
+            {TECHNIQUE_LABELS[technique]}
+          </Badge>
+          {match && (
+            <>
+              <Badge size="sm" variant="light" color="violet">
+                backup: {TECHNIQUE_LABELS[match.secondary]}
+              </Badge>
+              <Badge size="sm" variant="light" color="gray">
+                {match.buyerArchetype}
+              </Badge>
+              <Badge
+                size="sm"
+                variant="light"
+                color={match.confidenceBand === 'high' ? 'teal' : match.confidenceBand === 'medium' ? 'yellow' : 'orange'}
+              >
+                {match.confidenceBand} confidence
+              </Badge>
+              {match.isHybrid && match.hybridStyle && (
+                <Badge size="sm" variant="outline" color="violet">
+                  hybrid: {match.hybridStyle}
+                </Badge>
+              )}
+            </>
+          )}
+        </Group>
         <Text size="sm">{reasoning}</Text>
+        {recommendedNextStep && (
+          <Text size="sm" c="dimmed">
+            <Text span fw={600}>
+              Next step:{' '}
+            </Text>
+            {recommendedNextStep}
+          </Text>
+        )}
       </Stack>
     </SectionCard>
   );
