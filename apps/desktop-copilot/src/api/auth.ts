@@ -110,12 +110,15 @@ export interface CopilotAuth {
   status: AuthStatus;
   /** Opportunity id from a `session/{id}` deeplink, for the picker/binding (PG-291/292). */
   pendingOpportunityId: string | null;
+  /** Last launch/connect failure, surfaced on the sign-in screen. Cleared on a new attempt. */
+  error: string | null;
   signOut: () => Promise<void>;
   /**
    * Apply a launch input — a full `pitchgenius://…` URL or a bare one-time token.
    * The OS deeplink path calls this internally; in dev it's also exposed to a manual
    * paste affordance, because macOS `tauri dev` can't register the URL scheme (no
-   * bundle), so there's no OS routing during development.
+   * bundle), so there's no OS routing during development. Rejects with a
+   * user-facing message when the token can't be exchanged.
    */
   connect: (input: string) => Promise<void>;
 }
@@ -125,18 +128,38 @@ export interface CopilotAuth {
 export function useCopilotAuth(): CopilotAuth {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [pendingOpportunityId, setPendingOpportunityId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const handledTokens = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
   useEffect(() => () => void (mountedRef.current = false), []);
 
   const applyLaunch = useCallback(async (parsed: ParsedLaunch): Promise<void> => {
     if (parsed.opportunityId && mountedRef.current) setPendingOpportunityId(parsed.opportunityId);
-    if (!parsed.token || handledTokens.current.has(parsed.token)) return;
+    if (!parsed.token) return;
+    // Dedup concurrent/duplicate deliveries of the SAME token (the startup deeplink
+    // and the live `onOpenUrl` listener can both fire it), but RELEASE a token that
+    // fails to exchange so it can be retried. A one-time token is single-use, so
+    // marking it handled before the exchange — and never releasing it — is what made
+    // the Connect button go dead after the first failed attempt.
+    if (handledTokens.current.has(parsed.token)) return;
     handledTokens.current.add(parsed.token);
-    const bearer = await exchangeOneTimeToken(parsed.token);
-    if (bearer) {
-      await persistSession(bearer);
-      if (mountedRef.current) setStatus('authenticated');
+    let bearer: string | null;
+    try {
+      bearer = await exchangeOneTimeToken(parsed.token);
+    } catch {
+      handledTokens.current.delete(parsed.token);
+      throw new Error('Could not reach Pitch Genius. Check your connection and try again.');
+    }
+    if (!bearer) {
+      handledTokens.current.delete(parsed.token);
+      throw new Error(
+        'That sign-in link could not be verified — it may have expired or already been used. Open the web app and click “Start PG.AI PILOT” again for a fresh one.',
+      );
+    }
+    await persistSession(bearer);
+    if (mountedRef.current) {
+      setError(null);
+      setStatus('authenticated');
     }
   }, []);
 
@@ -147,7 +170,18 @@ export function useCopilotAuth(): CopilotAuth {
       const parsed: ParsedLaunch | null = trimmed.startsWith('pitchgenius://')
         ? parseDeepLink(trimmed)
         : { token: trimmed || null, opportunityId: null };
-      if (parsed) await applyLaunch(parsed);
+      if (!parsed || !parsed.token) {
+        const message = 'That doesn’t look like a Pitch Genius launch link or token.';
+        if (mountedRef.current) setError(message);
+        throw new Error(message);
+      }
+      if (mountedRef.current) setError(null);
+      try {
+        await applyLaunch(parsed);
+      } catch (e) {
+        if (mountedRef.current) setError(e instanceof Error ? e.message : 'Connection failed.');
+        throw e;
+      }
     },
     [applyLaunch],
   );
@@ -171,7 +205,13 @@ export function useCopilotAuth(): CopilotAuth {
         const initial = await getCurrentDeepLinks();
         for (const url of initial ?? []) {
           const parsed = parseDeepLink(url);
-          if (parsed) await applyLaunch(parsed);
+          if (!parsed) continue;
+          // Per-url so one failed token doesn't abort the rest or block the listener.
+          try {
+            await applyLaunch(parsed);
+          } catch (e) {
+            if (!cancelled) setError(e instanceof Error ? e.message : 'Connection failed.');
+          }
         }
       } catch {
         // deep-link plugin unavailable (e.g. browser demo) — ignore.
@@ -182,7 +222,10 @@ export function useCopilotAuth(): CopilotAuth {
         unlisten = await onOpenUrl((urls) => {
           for (const url of urls) {
             const parsed = parseDeepLink(url);
-            if (parsed) void applyLaunch(parsed);
+            if (parsed)
+              void applyLaunch(parsed).catch((e) => {
+                if (!cancelled) setError(e instanceof Error ? e.message : 'Connection failed.');
+              });
           }
         });
       } catch {
@@ -203,9 +246,11 @@ export function useCopilotAuth(): CopilotAuth {
   return {
     status,
     pendingOpportunityId,
+    error,
     connect,
     signOut: async () => {
       await clearStoredSession();
+      setError(null);
       setStatus('unauthenticated');
     },
   };

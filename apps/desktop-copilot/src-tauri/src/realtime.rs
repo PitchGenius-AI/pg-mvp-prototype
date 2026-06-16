@@ -5,7 +5,7 @@
 //! engine or the recorded-audio fixture. Keep them in lockstep with realtime.ts
 //! (same discipline as the db-enum mirroring in packages/db).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
 /// The single Tauri event channel the engine emits on (`REALTIME_EVENT_CHANNEL`
@@ -67,7 +67,9 @@ pub struct EngineStateEvent {
 /// A DISC profile — each axis 0–100, plus the dominant quadrant. Mirrors
 /// `discProfileSchema` (precall.ts). `primary_type` is data-derived ("D" | "I" |
 /// "S" | "C"), so it's an owned String, not a `&'static str` like the constants above.
-#[derive(Serialize, Clone)]
+/// Also `Deserialize`: the bound-call pre-grounding payload (PG-292) carries a
+/// prepped buyer read in exactly this shape, seeded straight into the planner.
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscProfile {
     pub d: u32,
@@ -78,7 +80,8 @@ pub struct DiscProfile {
 }
 
 /// An OCEAN / Big-Five profile — each trait 0–100. Mirrors `oceanProfileSchema`.
-#[derive(Serialize, Clone)]
+/// Also `Deserialize` for the same reason as [`DiscProfile`] (PG-292 pre-grounding).
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OceanProfile {
     pub o: u32,

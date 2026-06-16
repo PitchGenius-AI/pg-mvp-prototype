@@ -12,6 +12,7 @@ import type {
 } from '@pg/shared';
 import { useFixturePlayer } from '../mock/useFixturePlayer';
 import { useRealtimeEngine } from '../realtime/useRealtimeEngine';
+import { useBoundCallContext } from '../api/useBoundCallContext';
 import { buyerProfile, sellerProfile, type DemoProfile } from '../mock/profiles';
 import { formatClock, type CallSummary, type CallView } from '../session';
 
@@ -534,7 +535,10 @@ export function OverlayView({
 }
 
 // Real Tauri app: the live audio engine (mic → VAD → Deepgram STT → events).
-export function LiveOverlay() {
+// `opportunityId` (PG-292) binds the call to a deal: the pre-grounding payload is
+// pre-fetched on bind and handed to `start`, so the planner skips discovery and
+// drives from the prepared script. Null is a cold start (live discovery).
+export function LiveOverlay({ opportunityId }: { opportunityId: string | null }) {
   const {
     transcript,
     cue,
@@ -550,6 +554,7 @@ export function LiveOverlay() {
     skip,
     error,
   } = useRealtimeEngine();
+  const { context } = useBoundCallContext(opportunityId);
   return (
     <OverlayView
       transcript={transcript}
@@ -563,8 +568,9 @@ export function LiveOverlay() {
       summary={summary}
       error={error}
       // In-call → End; precall/summary → Start a fresh call (§5.7: a new call is a
-      // distinct action from Resume, which is the next sub-increment).
-      onStartStop={view === 'live' ? stop : start}
+      // distinct action from Resume, which is the next sub-increment). When bound,
+      // Start carries the pre-grounding context (null until ready → cold start).
+      onStartStop={view === 'live' ? stop : () => start(context)}
       onSkip={skip}
       fitWindow
     />

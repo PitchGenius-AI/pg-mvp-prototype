@@ -20,10 +20,13 @@
 //! progression so the no-API-key dev run and the browser fixture still work.
 //! The fully-generated Phase-2 chain + material-signal re-plan (§5.3) is next.
 
+// The bound-call pre-grounding payload (PG-292): product + prepped read +
+// technique + script, threaded in via start_call when launched from a deal.
+pub mod grounding;
 mod llm;
-// The seller product / ICP / problem context (PG-282). Lands the data-layer
-// seam; the planner does not read it yet — first readers are PG-284 (skeleton
-// grounding) and PG-286 (live product match), which thread it in via start_call.
+// The seller product / ICP / problem context (PG-282). The bound-call path
+// (PG-292) seeds it via `grounding::StartCallContext`; the live product match
+// (PG-286) is the remaining reader.
 #[allow(dead_code)]
 pub mod product;
 mod technique;
@@ -383,6 +386,37 @@ pub fn discovery_cues() -> Vec<PlannedCue> {
     ]
 }
 
+/// Map a bound call's prepared pre-call script (PG-292) into the initial live cue
+/// chain. Each section becomes a **live**-phase cue — heading→trigger, body→example
+/// — under the matched technique at the given tier (the read is already prepped, so
+/// the bound path opens locked rather than creeping up from Suggested). The off-
+/// screen `intent` keeps the haiku scorer working on these cues too. Used only on
+/// the grounded path; cold start still leads with [`discovery_cues`].
+pub fn script_cues(
+    sections: &[grounding::ScriptSection],
+    technique: &'static str,
+    tier: &'static str,
+) -> Vec<PlannedCue> {
+    sections
+        .iter()
+        .enumerate()
+        .map(|(n, s)| PlannedCue {
+            id: format!("script-{}", n + 1),
+            phase: "live",
+            trigger: s.heading.clone(),
+            example: s.body.clone(),
+            technique: Some(technique),
+            intent: format!(
+                "Cover the prepared point \"{}\". Read whether the buyer engages, \
+                 deflects, or pushes back.",
+                s.heading
+            ),
+            takeaway: format!("covered · {}", s.heading.to_lowercase()),
+            engine_on_prompt: live_engine(tier),
+        })
+        .collect()
+}
+
 /// The scripted planner: walks [`discovery_cues`] and returns a **canned** scoring
 /// progression so the no-API-key dev run and the browser fixture still "watch it
 /// learn". Each scored answer firms the profile a step toward the consensus/S read
@@ -399,6 +433,27 @@ impl ScriptedPlanner {
             queue: discovery_cues().into_iter().collect(),
             scored: 0,
             live_generated: false,
+        }
+    }
+
+    /// The no-API-key bound path (PG-292): drive the prepared pre-call script
+    /// directly, skipping discovery. With no script to lead with (precall
+    /// unavailable) it degrades to canned discovery so the dev run still coaches.
+    /// `live_generated` starts true so an exhausted script doesn't append the canned
+    /// technique cue — the scripted planner can't generate past the prepared script.
+    pub fn grounded(ctx: &grounding::StartCallContext) -> Self {
+        if ctx.script_sections.is_empty() {
+            return ScriptedPlanner::discovery();
+        }
+        let technique = ctx
+            .technique
+            .as_ref()
+            .map(|t| grounding::technique_static(&t.technique))
+            .unwrap_or("spin");
+        ScriptedPlanner {
+            queue: script_cues(&ctx.script_sections, technique, "locked").into_iter().collect(),
+            scored: 0,
+            live_generated: true,
         }
     }
 }
@@ -704,6 +759,54 @@ mod tests {
         assert_eq!(MaterialSignal::from_wire("garbage"), MaterialSignal::None);
         assert_eq!(MaterialSignal::None.as_wire(), None);
         assert!(MaterialSignal::None.replan_hint().is_empty());
+    }
+
+    #[test]
+    fn script_cues_map_prepared_sections_to_locked_live_cues() {
+        // A bound call's prepared script (PG-292) becomes the initial live chain:
+        // each section → a live-phase cue, heading→trigger, body→example, under the
+        // matched technique at the prepped (locked) tier. Discovery is skipped.
+        let sections = vec![
+            grounding::ScriptSection {
+                heading: "Open warm".into(),
+                body: "Reconnect on where we left off last call.".into(),
+            },
+            grounding::ScriptSection {
+                heading: "Anchor on value".into(),
+                body: "Tie the rollout back to their Q3 goal.".into(),
+            },
+        ];
+        let cues = script_cues(&sections, "challenger", "locked");
+        assert_eq!(cues.len(), 2);
+        assert_eq!(cues[0].id, "script-1");
+        assert_eq!(cues[1].id, "script-2");
+        for cue in &cues {
+            assert_eq!(cue.phase, "live");
+            assert_eq!(cue.technique, Some("challenger"));
+            assert_eq!(cue.engine_on_prompt.phase, "live");
+            assert_eq!(cue.engine_on_prompt.technique_confidence, Some("locked"));
+            assert!(cue.engine_on_prompt.discovery_progress.is_none());
+        }
+        assert_eq!(cues[0].trigger, "Open warm");
+        assert_eq!(cues[0].example, "Reconnect on where we left off last call.");
+    }
+
+    #[test]
+    fn grounding_technique_static_and_read_guard() {
+        assert_eq!(grounding::technique_static("nepq"), "nepq");
+        assert_eq!(grounding::technique_static("challenger"), "challenger");
+        assert_eq!(grounding::technique_static("spin"), "spin");
+        // Unknown / absent → the neutral default the live generator also uses.
+        assert_eq!(grounding::technique_static("garbage"), "spin");
+
+        // No prep → fall back to discovery; a script (or a read) → skip it.
+        let mut ctx = grounding::StartCallContext::default();
+        assert!(!ctx.has_read_or_script());
+        ctx.script_sections.push(grounding::ScriptSection {
+            heading: "h".into(),
+            body: "b".into(),
+        });
+        assert!(ctx.has_read_or_script());
     }
 
     #[test]

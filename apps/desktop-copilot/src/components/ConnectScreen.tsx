@@ -15,10 +15,12 @@ interface ConnectScreenProps {
   inTauri: boolean;
   variant: 'loading' | 'signin';
   /** Apply a pasted launch link / token — dev only (see DevConnect below). */
-  onConnect?: (input: string) => void;
+  onConnect?: (input: string) => Promise<void>;
+  /** Last launch failure, surfaced so the rep isn't left guessing. */
+  error?: string | null;
 }
 
-export function ConnectScreen({ inTauri, variant, onConnect }: ConnectScreenProps) {
+export function ConnectScreen({ inTauri, variant, onConnect, error }: ConnectScreenProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   useFitWindowToContent(shellRef, inTauri);
 
@@ -44,6 +46,11 @@ export function ConnectScreen({ inTauri, variant, onConnect }: ConnectScreenProp
               Open the Pitch Genius web app, then click <strong>Start PG.AI PILOT</strong> on a deal
               (or the Co-pilot screen) to hand this app your session.
             </p>
+            {error && (
+              <p className="ob-error" role="alert">
+                {error}
+              </p>
+            )}
             {import.meta.env.DEV && onConnect && <DevConnect onConnect={onConnect} />}
           </>
         )}
@@ -56,8 +63,20 @@ export function ConnectScreen({ inTauri, variant, onConnect }: ConnectScreenProp
 // can't route `pitchgenius://` to it (the scheme lives in the bundle's Info.plist).
 // Paste the launch link or one-time token (minted from the web app) to drive the
 // exact same exchange → bind flow under `tauri dev` + HMR, no OS routing needed.
-function DevConnect({ onConnect }: { onConnect: (input: string) => void }) {
+function DevConnect({ onConnect }: { onConnect: (input: string) => Promise<void> }) {
   const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Await the exchange so the button reflects real progress and a failed token
+  // doesn't silently no-op. `onConnect` surfaces its own error on the screen; we
+  // just swallow the rejection here so it isn't an unhandled promise rejection.
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    void onConnect(trimmed).finally(() => setBusy(false));
+  };
+
   return (
     <div className="ob-field" style={{ marginTop: 6 }}>
       <span className="ob-field-label">Dev · paste launch link or token</span>
@@ -65,19 +84,20 @@ function DevConnect({ onConnect }: { onConnect: (input: string) => void }) {
         className="ob-input"
         placeholder="pitchgenius://… or a one-time token"
         value={value}
+        disabled={busy}
         onChange={(e) => setValue(e.currentTarget.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && value.trim()) onConnect(value.trim());
+          if (e.key === 'Enter') submit();
         }}
       />
       <button
         type="button"
         className="ob-cta ob-cta--inline"
         style={{ marginTop: 8, alignSelf: 'flex-start' }}
-        disabled={!value.trim()}
-        onClick={() => onConnect(value.trim())}
+        disabled={!value.trim() || busy}
+        onClick={submit}
       >
-        Connect
+        {busy ? 'Connecting…' : 'Connect'}
       </button>
     </div>
   );

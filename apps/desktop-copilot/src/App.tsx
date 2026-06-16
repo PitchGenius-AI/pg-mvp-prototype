@@ -52,7 +52,14 @@ function TauriApp() {
   if (auth.status === 'loading') {
     content = <ConnectScreen inTauri={inTauri} variant="loading" />;
   } else if (auth.status === 'unauthenticated') {
-    content = <ConnectScreen inTauri={inTauri} variant="signin" onConnect={auth.connect} />;
+    content = (
+      <ConnectScreen
+        inTauri={inTauri}
+        variant="signin"
+        onConnect={auth.connect}
+        error={auth.error}
+      />
+    );
   } else if (!onboarded) {
     content = <OnboardingFlow />;
   } else if (!launch.decided) {
@@ -64,9 +71,9 @@ function TauriApp() {
       />
     );
   } else {
-    // PG-292 will thread `launch.opportunityId` into start_call for pre-grounding;
-    // today the overlay still starts cold regardless of the binding.
-    content = <LiveOverlay />;
+    // PG-292: the bound opportunity id flows into the overlay, which pre-fetches the
+    // pre-grounding payload and hands it to start_call (a cold start passes null).
+    content = <LiveOverlay opportunityId={launch.opportunityId} />;
   }
 
   return <div className="tauri-root">{content}</div>;

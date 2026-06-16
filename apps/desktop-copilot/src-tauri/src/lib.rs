@@ -14,7 +14,8 @@ use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
 };
 
-use realtime::{emit, RealtimeEvent};
+use planner::grounding::StartCallContext;
+use realtime::{emit, EngineStateEvent, ProfileUpdateEvent, RealtimeEvent, TechniqueUpdateEvent};
 
 // — M22 real-time engine command surface —
 //
@@ -42,12 +43,27 @@ struct EngineState(Mutex<Option<CallHandles>>);
 /// second call while one is live is a no-op. The seller stream is required (a
 /// missing mic / key errors out); the buyer stream is best-effort — if the
 /// system tap is unavailable (permission, OS), we degrade to mic-only.
+//
+// `context` (PG-292) is present when the call is bound to an opportunity: it
+// carries the deal's product, the prepped DISC/OCEAN read, the matched technique,
+// and the generated pre-call script. When present (and it has a read or script)
+// the planner SKIPS discovery and drives from the prepared script, and we pre-fill
+// the Buyer/Technique panels up front. Absent (cold start) the path is unchanged:
+// live discovery from zero.
 #[tauri::command]
-fn start_call(app: AppHandle, state: State<'_, EngineState>) -> Result<(), String> {
+fn start_call(
+    app: AppHandle,
+    state: State<'_, EngineState>,
+    context: Option<StartCallContext>,
+) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|_| "engine state poisoned".to_string())?;
     if guard.is_some() {
         return Ok(());
     }
+    // Bound + actually has a prepped read/script → we'll open in the live phase and
+    // skip discovery; otherwise (cold start, or a bound deal whose precall was
+    // unavailable) we discover as before.
+    let grounded_live = context.as_ref().map(|c| c.has_read_or_script()).unwrap_or(false);
     let api_key = std::env::var("DEEPGRAM_API_KEY")
         .map_err(|_| "DEEPGRAM_API_KEY is not set (add it to the repo .env)".to_string())?;
 
@@ -84,7 +100,43 @@ fn start_call(app: AppHandle, state: State<'_, EngineState>) -> Result<(), Strin
         }));
     }
 
-    emit(&app, RealtimeEvent::engine("listening", "discovery"));
+    // Initial status line: a bound call opens Live (technique locked from the prep);
+    // a cold start opens in Discovery. The first surfaced cue re-asserts this.
+    if grounded_live {
+        emit(
+            &app,
+            RealtimeEvent::EngineState(EngineStateEvent::new("listening", "live", None, Some("locked"))),
+        );
+    } else {
+        emit(&app, RealtimeEvent::engine("listening", "discovery"));
+    }
+
+    // Pre-fill the Buyer + Technique panels from the bound deal's prep (PG-292) so
+    // they read "we already know this buyer" the moment the call starts, before any
+    // live turn. The live planner keeps re-scoring from here as the call proceeds.
+    if let Some(ctx) = &context {
+        if let Some(bp) = &ctx.buyer_profile {
+            emit(
+                &app,
+                RealtimeEvent::ProfileUpdate(ProfileUpdateEvent {
+                    subject: "buyer",
+                    disc: bp.disc.clone(),
+                    ocean: bp.ocean.clone(),
+                    summary: bp.summary.clone(),
+                }),
+            );
+        }
+        if let Some(t) = &ctx.technique {
+            emit(
+                &app,
+                RealtimeEvent::TechniqueUpdate(TechniqueUpdateEvent {
+                    technique: planner::grounding::technique_static(&t.technique),
+                    tier: "locked",
+                    rationale: t.reasoning.clone(),
+                }),
+            );
+        }
+    }
 
     // Buyer (system-audio tap) — best-effort; mic-only degrade on failure.
     #[cfg(target_os = "macos")]
@@ -115,13 +167,25 @@ fn start_call(app: AppHandle, state: State<'_, EngineState>) -> Result<(), Strin
     drop(finals_tx);
     {
         let app = app.clone();
-        let planner: Box<dyn planner::Planner> = match std::env::var("ANTHROPIC_API_KEY") {
-            Ok(key) if !key.is_empty() => {
-                eprintln!("[planner] live haiku planner (ANTHROPIC_API_KEY set)");
+        // With a key, the live haiku planner; without one, the scripted fallback. A
+        // bound `context` selects the `grounded` variant (skip discovery, drive from
+        // the prepared script); a cold start keeps `discovery` (live, from zero).
+        let key = std::env::var("ANTHROPIC_API_KEY").ok().filter(|k| !k.is_empty());
+        let planner: Box<dyn planner::Planner> = match (&context, key) {
+            (Some(ctx), Some(key)) => {
+                eprintln!("[planner] live haiku planner — bound to {} (grounded)", ctx.opportunity_id);
+                Box::new(planner::LlmPlanner::grounded(key, ctx))
+            }
+            (Some(ctx), None) => {
+                eprintln!("[planner] scripted planner — bound to {} (grounded)", ctx.opportunity_id);
+                Box::new(planner::ScriptedPlanner::grounded(ctx))
+            }
+            (None, Some(key)) => {
+                eprintln!("[planner] live haiku planner (cold start)");
                 Box::new(planner::LlmPlanner::discovery(key))
             }
-            _ => {
-                eprintln!("[planner] no ANTHROPIC_API_KEY — scripted planner (canned scores)");
+            (None, None) => {
+                eprintln!("[planner] no ANTHROPIC_API_KEY — scripted planner (cold start, canned scores)");
                 Box::new(planner::ScriptedPlanner::discovery())
             }
         };

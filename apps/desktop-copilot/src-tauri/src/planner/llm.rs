@@ -27,10 +27,11 @@ use tokio::sync::Notify;
 
 use crate::realtime::{DiscProfile, OceanProfile};
 
+use super::product::SellerProduct;
 use super::technique::match_technique;
 use super::{
-    discovery_cues, live_engine, signal_fallback_cue, MaterialSignal, PlannedCue, Planner,
-    ScoreResult, ScoredAnswer,
+    discovery_cues, grounding, live_engine, script_cues, signal_fallback_cue, MaterialSignal,
+    PlannedCue, Planner, ScoreResult, ScoredAnswer,
 };
 
 /// A buyer-profile snapshot (DISC, OCEAN, narrative) moved into the spawned
@@ -270,6 +271,8 @@ async fn generate_chain(
     technique: &str,
     tier: &str,
     signal: MaterialSignal,
+    product: Option<&SellerProduct>,
+    notes: Option<&str>,
 ) -> Result<Vec<GenCue>, String> {
     let (disc, ocean, summary) = profile;
     // A material re-plan prepends the §5.3 "re-plans toward" direction so the fresh
@@ -279,8 +282,22 @@ async fn generate_chain(
         Some(_) => format!("MATERIAL SIGNAL JUST DETECTED: {}\n\n", signal.replan_hint()),
         None => String::new(),
     };
+    // A bound call (PG-292) grounds the cues in what's being sold + the deal context,
+    // so the live chain is product- and deal-aware; a cold start passes neither.
+    let product_block = match product {
+        Some(p) => format!(
+            "WHAT THE SELLER SELLS\nProduct: {}\nWhat it is: {}\nIdeal customer: {}\n\
+             Problem it solves: {}\n\n",
+            p.name, p.description, p.icp, p.problem
+        ),
+        None => String::new(),
+    };
+    let notes_block = match notes {
+        Some(n) if !n.is_empty() => format!("DEAL CONTEXT\n{n}\n\n"),
+        _ => String::new(),
+    };
     let user = format!(
-        "{signal_block}BUYER PROFILE\n\
+        "{signal_block}{product_block}{notes_block}BUYER PROFILE\n\
          DISC: D{} I{} S{} C{} (primary {})\n\
          OCEAN: O{} C{} E{} A{} N{}\n\
          Read: {summary}\n\n\
@@ -344,6 +361,13 @@ pub struct LlmPlanner {
     /// signal-shaped chain. This is what makes "clear the queue + force-start" safe
     /// against the prefetch already running — no double-extend, no lost wake-up.
     gen_epoch: Arc<AtomicUsize>,
+    /// The bound deal's product (PG-292), folded into the live-cue generation prompt
+    /// so generated cues are grounded in what's being sold. `None` on a cold start.
+    /// Seeding it short-circuits the (future) live product match for a bound call.
+    product: Option<SellerProduct>,
+    /// Free-text deal grounding (known pain/objection + diagnosis blocker) folded
+    /// into the generation prompt on a bound call; `None` on a cold start.
+    grounding_notes: Option<String>,
 }
 
 impl LlmPlanner {
@@ -358,6 +382,46 @@ impl LlmPlanner {
             generating: Arc::new(AtomicBool::new(false)),
             notify: Arc::new(Notify::new()),
             gen_epoch: Arc::new(AtomicUsize::new(0)),
+            product: None,
+            grounding_notes: None,
+        }
+    }
+
+    /// The bound-call planner (PG-292): skip discovery and lead with the prepared
+    /// pre-call script as the live queue, seed the prepped buyer read so technique +
+    /// generation start warm, and hold the product + grounding notes for the live
+    /// cue generator. With a prepped read but no script the queue starts empty and
+    /// the first `next_cue` generates straight into live (still skipping discovery);
+    /// with neither (precall unavailable) it keeps discovery so the read still builds.
+    pub fn grounded(api_key: String, ctx: &grounding::StartCallContext) -> Self {
+        let technique = ctx
+            .technique
+            .as_ref()
+            .map(|t| grounding::technique_static(&t.technique))
+            .unwrap_or("spin");
+        let queue: VecDeque<PlannedCue> = if !ctx.script_sections.is_empty() {
+            script_cues(&ctx.script_sections, technique, "locked").into_iter().collect()
+        } else if ctx.buyer_profile.is_some() {
+            VecDeque::new()
+        } else {
+            discovery_cues().into_iter().collect()
+        };
+        let last = ctx
+            .buyer_profile
+            .as_ref()
+            .map(|p| (p.disc.clone(), p.ocean.clone(), p.summary.clone()));
+        LlmPlanner {
+            http: reqwest::Client::new(),
+            api_key,
+            queue: Arc::new(Mutex::new(queue)),
+            answers: Vec::new(),
+            last,
+            live_seq: Arc::new(AtomicUsize::new(0)),
+            generating: Arc::new(AtomicBool::new(false)),
+            notify: Arc::new(Notify::new()),
+            gen_epoch: Arc::new(AtomicUsize::new(0)),
+            product: ctx.product.clone(),
+            grounding_notes: ctx.grounding_notes.clone(),
         }
     }
 
@@ -429,12 +493,24 @@ impl LlmPlanner {
         let generating = self.generating.clone();
         let notify = self.notify.clone();
         let gen_epoch = self.gen_epoch.clone();
+        let product = self.product.clone();
+        let notes = self.grounding_notes.clone();
         let tag = signal.as_wire().unwrap_or("steady");
 
         tokio::spawn(async move {
             let started = Instant::now();
-            let result =
-                generate_chain(&http, &api_key, &profile, &recent, technique, tier, signal).await;
+            let result = generate_chain(
+                &http,
+                &api_key,
+                &profile,
+                &recent,
+                technique,
+                tier,
+                signal,
+                product.as_ref(),
+                notes.as_deref(),
+            )
+            .await;
             let ms = started.elapsed().as_millis();
             let cues = match result {
                 Ok(cues) if !cues.is_empty() => {

@@ -767,6 +767,12 @@ body {
   line-height: 1.5;
   color: var(--text-2);
 }
+.ob-error {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #ff8a8a;
+}
 .ob-input {
   appearance: none;
   font: inherit;

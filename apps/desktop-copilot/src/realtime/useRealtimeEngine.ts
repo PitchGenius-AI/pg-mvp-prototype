@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { REALTIME_EVENT_CHANNEL, type RealtimeEvent } from '@pg/shared';
+import type { StartCallContext } from '../api/copilot-data';
 import type { PlayerState } from '../mock/useFixturePlayer';
 import {
   buildCallSummary,
@@ -30,8 +31,10 @@ export interface RealtimeEngine extends PlayerState {
   summary: CallSummary | null;
   /** Derived from engine state: a call is live once the engine leaves `idle`. */
   live: boolean;
-  /** Invoke the Rust start_call command (begins capture → STT). */
-  start: () => void;
+  /** Invoke the Rust start_call command (begins capture → STT). When `context` is
+   *  supplied (a bound call, PG-292), the planner pre-grounds from it and skips
+   *  discovery; omitted/undefined is a cold start (live discovery, unchanged). */
+  start: (context?: StartCallContext | null) => void;
   /** Invoke stop_call (releases the mic, ends the STT task) → show the summary. */
   stop: () => void;
   /** Invoke skip_cue (§5.2/§5.4): advance the planner to the next PROMPT without a
@@ -118,7 +121,7 @@ export function useRealtimeEngine(): RealtimeEngine {
     return () => window.clearInterval(id);
   }, [view]);
 
-  const start = useCallback(() => {
+  const start = useCallback((context?: StartCallContext | null) => {
     setState(EMPTY); // clear the prior call's record before a fresh one
     setSummary(null);
     setError(null);
@@ -126,7 +129,11 @@ export function useRealtimeEngine(): RealtimeEngine {
     startedAtRef.current = Date.now();
     setElapsedMs(0);
     setView('live');
-    void invoke('start_call').catch((err) => setError(String(err)));
+    // Pass `context` only when bound — a cold start invokes with no args so the
+    // Rust command's `Option<StartCallContext>` resolves to None (unchanged path).
+    void invoke('start_call', context ? { context } : undefined).catch((err) =>
+      setError(String(err)),
+    );
   }, []);
 
   const stop = useCallback(() => {
