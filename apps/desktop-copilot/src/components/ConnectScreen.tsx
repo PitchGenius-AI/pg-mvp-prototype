@@ -1,5 +1,4 @@
-import { useRef, useState } from 'react';
-import { useFitWindowToContent } from './Overlay';
+import { useState } from 'react';
 
 // Pre-auth states for the desktop overlay (M33/PG-289). Shown before a session
 // exists: a brief connecting splash while the auth boot runs, and a sign-in prompt
@@ -12,7 +11,6 @@ import { useFitWindowToContent } from './Overlay';
 // than a transparent, undraggable card.
 
 interface ConnectScreenProps {
-  inTauri: boolean;
   variant: 'loading' | 'signin';
   /** Apply a pasted launch link / token — dev only (see DevConnect below). */
   onConnect?: (input: string) => Promise<void>;
@@ -20,12 +18,9 @@ interface ConnectScreenProps {
   error?: string | null;
 }
 
-export function ConnectScreen({ inTauri, variant, onConnect, error }: ConnectScreenProps) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  useFitWindowToContent(shellRef, inTauri);
-
+export function ConnectScreen({ variant, onConnect, error }: ConnectScreenProps) {
   return (
-    <div className="overlay-shell" data-tauri-drag-region ref={shellRef}>
+    <div className="overlay-shell" data-tauri-drag-region>
       <div className="rail" data-tauri-drag-region>
         <span className="rail-brand" data-tauri-drag-region>
           <span className="rail-dot" data-tauri-drag-region />

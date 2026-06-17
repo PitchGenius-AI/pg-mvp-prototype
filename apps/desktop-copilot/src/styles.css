@@ -9,18 +9,19 @@
   --pg-coral: #fc5e57; /* alert — end call / recording / no-audio */
   --pg-amber: #ffc861; /* material-signal beat — "the engine reacted" (§5.3) */
 
-  --glass-fill: rgba(26, 46, 102, 0.6); /* navy smoked glass */
+  /* Navy brand tint laid OVER the native NSVisualEffectView frost (applied in
+     Rust via window-vibrancy). Keep the alpha low — this only tints the frost to
+     brand navy; the actual blur/opacity comes from the native effect view. Too
+     high and it hides the frost. Tune alongside the Rust material if needed. */
+  --glass-fill: rgba(13, 24, 66, 0.1);
   --glass-rim: linear-gradient(
     169deg,
     rgba(255, 255, 255, 0.17) 0%,
     rgba(255, 255, 255, 0.08) 50%,
     rgba(255, 255, 255, 0.17) 100%
   );
-  /* Floating-panel elevation. Reworked from the §12 Glass starting value
-     (0 8px 32px) — that 32px blur overran the gutter and clipped. A two-layer
-     shadow with a bit more vertical offset reads as lifted off the desktop
-     without the wide haze; kept within the gutter so it never clips. */
-  --elevation: 0 7px 20px rgba(0, 0, 0, 0.46), 0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Floating-panel elevation is now the native macOS window shadow (`shadow:
+     true` in tauri.conf.json), not a CSS box-shadow — so no --elevation token. */
 
   --text-1: rgba(255, 255, 255, 0.9);
   --text-2: rgba(255, 255, 255, 0.6);
@@ -32,6 +33,11 @@ body,
 #root {
   margin: 0;
   height: 100%;
+  /* Lock the document: the app shell must NEVER scroll or elastic-bounce. Without
+     this, any overflow lets the whole blue card scroll/rubber-band against the
+     transparent window, revealing the bare native frost (gray) behind it. Only the
+     inner panels scroll (see .panel / .ob-body). */
+  overflow: hidden;
 }
 
 /* Transparent so the real app's NSVisualEffectView vibrancy shows through.
@@ -63,25 +69,67 @@ body {
   color: var(--text-3);
 }
 
-/* — Real Tauri panel: the glass card floats inside a transparent gutter — */
+/* — Real Tauri panel: the card fills the window edge-to-edge — */
 .tauri-root {
   height: 100%;
   box-sizing: border-box;
-  /* Don't fill the window edge-to-edge. Floating the card inside a transparent
-     margin keeps the window's square corners well away from the card's rounded
-     corners (kills the faint hard-corner artifact) and gives the CSS box-shadow
-     room to render. This mirrors how Pluely structures its overlay (read for
-     approach, written fresh — Pluely is GPL-3). The gutter also bounds how far
-     the drop shadow can spread before it clips at the window edge. */
-  padding: 28px;
+  /* No gutter. The frost is now the native NSVisualEffectView (rounded in Rust),
+     and the float/elevation is the native window shadow (`shadow: true` in
+     tauri.conf.json) — neither needs CSS margin to render, unlike the old
+     CSS-backdrop-filter + CSS-box-shadow card that floated inside a transparent
+     margin. The card fills the window and its rounded corners line up with the
+     native effect view's radius. */
+  padding: 0;
 }
-/* Content-height (not height:100%): the card sizes to its content and the Rust
-   window is resized to match (useFitWindowToContent), so opening/collapsing a panel
-   grows/shrinks the glass instead of leaving empty fill or a dead click-zone. */
+/* Fixed-size window: the shell fills it edge-to-edge so the native NSVisualEffect
+   frost is ALWAYS fully covered by the navy card — no bare-frost "gray" gap. The
+   window never resizes (it used to chase content height via useFitWindowToContent,
+   which left the native layer peeking out mid-resize); instead exactly one region
+   per screen scrolls and everything else stays put. */
 .tauri-root .overlay-shell,
 .tauri-root .overlay-shell::before {
   width: 100%;
   border-radius: 16px;
+}
+.tauri-root .overlay-shell {
+  height: 100%;
+}
+/* Every direct child is stationary EXCEPT the one scroll region per screen — the
+   live overlay's per-pill .panel-area, the end-of-call .summary-card, or the aux
+   screens' .ob-body. */
+.tauri-root .overlay-shell > *:not(.panel-area):not(.ob-body):not(.summary-card) {
+  flex: none;
+}
+.tauri-root .panel-area,
+.tauri-root .summary-card,
+.tauri-root .ob-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.tauri-root .summary-card {
+  overflow-y: auto;
+}
+/* The per-pill panel fills the leftover height and is the only thing that scrolls
+   (browser demo keeps its content-sized max-height). */
+.tauri-root .panel {
+  max-height: none;
+  min-height: 0;
+}
+/* Aux screens (picker / connect / onboarding) scroll their body. */
+.tauri-root .ob-body {
+  overflow-y: auto;
+  width: 100%;
+  max-width: 460px;
+  margin-inline: auto;
+}
+/* Keep every inner scroll contained — its scroll/bounce must never chain out to
+   the (locked) document and expose the native frost. */
+.tauri-root .panel,
+.tauri-root .summary-card,
+.tauri-root .ob-body,
+.tauri-root .pick-list,
+.tauri-root .transcript-body {
+  overscroll-behavior: contain;
 }
 
 /* The native drag region (Tauri intercepts mousedown on these). Interactive
@@ -99,14 +147,12 @@ body {
   flex-direction: column;
   gap: 12px;
   border-radius: 18px;
+  /* Brand-navy tint only — the frost (blur) and the elevation (shadow) are now
+     rendered natively (NSVisualEffectView + native window shadow), not in CSS,
+     because CSS backdrop-filter flickers out on the non-activating panel. */
   background: var(--glass-fill);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
-  box-shadow: var(--elevation);
   position: relative;
-  /* Clip the backdrop-filter to the rounded shape — WebKit otherwise renders
-     the blur to the square bounding box, leaking faint hard corners past the
-     radius. overflow:hidden does not clip box-shadow (it's outside the box). */
+  /* Clip the rounded-corner content to the card shape. */
   overflow: hidden;
 }
 /* Glass rim — a beveled light edge. */

@@ -150,24 +150,39 @@ export const copilotData: CopilotDataSource = {
   },
 };
 
+// The web `Product` fields the desktop's lighter `SellerProduct` needs. Both the
+// workspace product list (`workspace.getCurrent`, PG-293) and a bound opportunity's
+// resolved product (`product.get`, PG-292) are the same wire `Product`, so this one
+// structural mapper serves both.
+type WireProductFields = Pick<
+  CopilotProduct,
+  'id' | 'name' | 'description' | 'targetBuyer' | 'problemSolved' | 'isPrimary'
+>;
+
+// Map the web `Product` (targetBuyer/problemSolved) onto the planner's lighter
+// `SellerProduct` (icp/problem). `sourceUrl` is null — it's a desktop-scrape-only
+// field the backend product doesn't carry.
+export function toSellerProduct(p: WireProductFields): SellerProduct {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    icp: p.targetBuyer,
+    problem: p.problemSolved,
+    sourceUrl: null,
+    isPrimary: p.isPrimary,
+  };
+}
+
 // Pure mapper: opportunity context → the Rust `start_call` payload. Maps the web
-// `Product` (targetBuyer/problemSolved) onto the planner's SellerProduct
-// (icp/problem), carries the precall DISC/OCEAN + matched technique + script
-// sections verbatim, and folds known pain/objection + the latest diagnosis blocker
-// into a single grounding note.
+// `Product` onto the planner's SellerProduct, carries the precall DISC/OCEAN +
+// matched technique + script sections verbatim, and folds known pain/objection +
+// the latest diagnosis blocker into a single grounding note.
 export function toStartCallContext(ctx: CopilotOpportunityContext): StartCallContext {
   const { opportunity, product, diagnosis, precall } = ctx;
   return {
     opportunityId: opportunity.id,
-    product: {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      icp: product.targetBuyer,
-      problem: product.problemSolved,
-      sourceUrl: null,
-      isPrimary: product.isPrimary,
-    },
+    product: toSellerProduct(product),
     buyerProfile: precall?.psychProfile ?? null,
     technique: precall?.matchedTechnique ?? null,
     scriptSections: precall?.generatedScript.sections ?? [],

@@ -55,6 +55,15 @@ dotenvy = "0.15"
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 
+# Native AppKit frosted glass (NSVisualEffectView). CSS backdrop-filter cannot be
+# used for the overlay frost: the window is a *non-activating* NSPanel (see
+# promote_to_overlay_panel), so it's almost never the key window, and WebKit stops
+# compositing a CSS backdrop-filter on an inactive window — the blur flickers out
+# and the overlay becomes unreadable over the desktop. NSVisualEffectView renders
+# the frost natively and, forced to NSVisualEffectState::Active, stays solid
+# regardless of key/active state. Already in the lock tree (raw-window-handle 0.6).
+window-vibrancy = "0.6"
+
 # OS keychain for the exchanged session token (M33/PG-289): the bearer token is
 # stored in the macOS Keychain via the Security framework (apple-native, no Obj-C
 # build step), so the rep stays signed in across launches. The `secret_*` Tauri

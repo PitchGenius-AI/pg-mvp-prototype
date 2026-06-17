@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SellerProduct } from '@pg/shared';
-import { useFitWindowToContent } from '../components/Overlay';
 import { useProducts, productActions } from '../mock/store';
 import { FAKE_SCRAPE_STEPS, blankProduct, fakeScrapeWebsite } from '../mock/fake-scrape';
 
@@ -86,9 +85,6 @@ export function OnboardingFlow() {
   const [url, setUrl] = useState('');
   const [stepIdx, setStepIdx] = useState(0);
   const [scrapeNote, setScrapeNote] = useState<string | null>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
-  const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-  useFitWindowToContent(shellRef, inTauri);
 
   // Cycle the "reading your site…" messages while the mocked scrape runs.
   useEffect(() => {
@@ -123,7 +119,7 @@ export function OnboardingFlow() {
   const finish = () => productActions.completeOnboarding();
 
   return (
-    <div className="overlay-shell ob-shell" data-tauri-drag-region ref={shellRef}>
+    <div className="overlay-shell ob-shell" data-tauri-drag-region>
       <div className="rail" data-tauri-drag-region>
         <span className="rail-brand" data-tauri-drag-region>
           <span className="rail-dot" data-tauri-drag-region />

@@ -51,6 +51,12 @@ interface ProductActions {
   // Replace the whole product list from a (mocked) website scrape — PG-281.
   // Every scraped product starts non-primary and carries the source URL.
   prefillFromScrape: (products: SellerProduct[]) => void;
+  // Hydrate the product context from the user's real account (PG-293). When the
+  // signed-in account already has products (captured in web onboarding), the
+  // desktop adopts them as source of truth and treats first-run onboarding as
+  // already done — the seller skips capture and lands straight in the app. The
+  // backend's primary (if any) is preserved as-is.
+  hydrateFromBackend: (products: SellerProduct[]) => void;
   // Mark first-run onboarding finished or skipped.
   completeOnboarding: () => void;
   // Wipe everything (dev / "start over").
@@ -102,6 +108,11 @@ export const useProductStore = create<ProductState & ProductActions>()(
           products: products.map((p) => ({ ...p, isPrimary: false })),
         })),
 
+      hydrateFromBackend: (products) =>
+        // Account context wins: adopt the backend products verbatim (primary and
+        // all) and mark onboarding done so the gate skips first-run capture.
+        set(() => ({ products, onboardingComplete: true })),
+
       completeOnboarding: () => set(() => ({ onboardingComplete: true })),
 
       reset: () => set(() => ({ products: [], onboardingComplete: false })),
@@ -128,6 +139,8 @@ export const productActions = {
   setPrimary: (id: string) => useProductStore.getState().setPrimary(id),
   prefillFromScrape: (products: SellerProduct[]) =>
     useProductStore.getState().prefillFromScrape(products),
+  hydrateFromBackend: (products: SellerProduct[]) =>
+    useProductStore.getState().hydrateFromBackend(products),
   completeOnboarding: () => useProductStore.getState().completeOnboarding(),
   reset: () => useProductStore.getState().reset(),
   // Snapshot the current context for a non-React caller (the start_call payload).

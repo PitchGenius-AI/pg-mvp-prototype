@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogicalSize, getCurrentWindow } from '@tauri-apps/api/window';
 import type {
   CueEvent,
   DiscProfile,
@@ -421,34 +420,9 @@ function TechniquePanel({
 // come off live audio (LiveOverlay) or a scripted fixture (DemoOverlay): both
 // feed it the same reduced PlayerState. `onStartStop` drives the Start/End call
 // control; when omitted (browser demo) the control is inert.
-// Live app only: keep the floating glass card sized to its content. The overlay
-// window is created at a nominal size; as panels open/collapse or fill, we resize
-// the NSPanel to the card's measured height (width is fixed by CSS) so a short or
-// collapsed view doesn't leave empty glass — or a transparent dead click-zone —
-// below the card. No-op in the browser demo, where the card just flows in the page.
-const WINDOW_WIDTH = 392; // matches tauri.conf.json window width
-const TAURI_GUTTER = 56; // .tauri-root padding (28px) top + bottom
-
-export function useFitWindowToContent(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!enabled || !el) return;
-    let raf = 0;
-    const fit = () => {
-      const height = Math.ceil(el.getBoundingClientRect().height) + TAURI_GUTTER;
-      void getCurrentWindow().setSize(new LogicalSize(WINDOW_WIDTH, height)).catch(() => {});
-    };
-    const ro = new ResizeObserver(() => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(fit);
-    });
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, [ref, enabled]);
-}
+// The window is a fixed size (see tauri.conf.json + the .tauri-root CSS); it no
+// longer resizes to fit content, so there is no window-fit hook — only the per-pill
+// .panel-area scrolls, everything else stays put.
 
 interface OverlayViewProps {
   transcript: TranscriptEvent[];
@@ -475,8 +449,6 @@ interface OverlayViewProps {
   // Human-readable note about what the prep is doing (loading vs generating), shown
   // while `preparing` so the wait isn't a silent spinner (PG-313).
   prepStatus?: string | null;
-  // True in the live Tauri app: keep the window sized to the card's content.
-  fitWindow?: boolean;
 }
 
 export function OverlayView({
@@ -494,15 +466,12 @@ export function OverlayView({
   error,
   preparing = false,
   prepStatus,
-  fitWindow = false,
 }: OverlayViewProps) {
   // null = the panel section is minimized (no panel open). Clicking the active
   // pill again collapses it, so the pill doubles as the minimize control — no
   // separate minimize button.
   const [open, setOpen] = useState<PillKey | null>('transcript');
   const [detectable, setDetectable] = useState(false);
-  const shellRef = useRef<HTMLDivElement>(null);
-  useFitWindowToContent(shellRef, fitWindow);
 
   // Drive the rail control off the view, not the raw engine state: in the summary
   // view the engine briefly still reads `listening` until its idle echo lands, but
@@ -515,7 +484,7 @@ export function OverlayView({
   const togglePill = (k: PillKey) => setOpen((cur) => (cur === k ? null : k));
 
   return (
-    <div className="overlay-shell" data-tauri-drag-region ref={shellRef}>
+    <div className="overlay-shell" data-tauri-drag-region>
       <div className="rail" data-tauri-drag-region>
         <span className="rail-brand" data-tauri-drag-region>
           <span className="rail-dot" data-tauri-drag-region />
@@ -657,7 +626,6 @@ export function LiveOverlay({ opportunityId }: { opportunityId: string | null })
       // context; the button is disabled while `preparing` so it's never null-on-click.
       onStartStop={view === 'live' ? stop : () => start(context)}
       onSkip={skip}
-      fitWindow
     />
   );
 }

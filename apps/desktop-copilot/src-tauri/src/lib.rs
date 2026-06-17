@@ -13,6 +13,8 @@ use tauri::{
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
 };
+#[cfg(target_os = "macos")]
+use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
 
 use planner::grounding::StartCallContext;
 use realtime::{emit, EngineStateEvent, ProfileUpdateEvent, RealtimeEvent, TechniqueUpdateEvent};
@@ -318,6 +320,31 @@ tauri_panel! {
     })
 }
 
+/// Render the overlay's frosted-glass background natively (NSVisualEffectView)
+/// instead of via CSS `backdrop-filter`. The overlay is a non-activating NSPanel
+/// (see `promote_to_overlay_panel`), so it's almost never the key window — and
+/// WebKit stops compositing a CSS backdrop on an inactive window, which made the
+/// blur flicker out and the card unreadable over the desktop. `State::Active`
+/// pins the material to its active appearance regardless of key state, so the
+/// frost is constant. The radius rounds the effect view (and the native window
+/// shadow follows it) — keep it in sync with `.overlay-shell` border-radius.
+/// Applied BEFORE the panel conversion; `to_panel` swaps the window's class in
+/// place and preserves the content view's subviews, so the effect view persists.
+#[cfg(target_os = "macos")]
+fn apply_native_frost(window: &tauri::WebviewWindow) {
+    // HudWindow is the most translucent material (designed for HUD overlays), so the
+    // blurred desktop shows through; with the window forced to dark appearance
+    // (tauri.conf theme) it renders as a dark glass. The CSS navy tint
+    // (--glass-fill) drives the colour. Material is the only native knob on the
+    // frost's base opacity; the blue/alpha is tuned in CSS.
+    let _ = apply_vibrancy(
+        window,
+        NSVisualEffectMaterial::HudWindow,
+        Some(NSVisualEffectState::Active),
+        Some(16.0),
+    );
+}
+
 /// Promote the "main" window to a floating overlay panel that draws over other
 /// apps' fullscreen Spaces (PG-244 FR1/FR2) and appears on every Space (FR3).
 /// Mirrors tauri-nspanel's own `examples/fullscreen` recipe.
@@ -403,9 +430,12 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             // PG-244: convert to a floating NSPanel so it floats above
-            // fullscreen apps and joins all Spaces.
+            // fullscreen apps and joins all Spaces. Frost the background natively
+            // first (NSVisualEffectView) — CSS backdrop-filter flickers out on the
+            // non-activating panel once it's no longer the key window.
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
+                apply_native_frost(&window);
                 promote_to_overlay_panel(&window);
             }
 

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useFitWindowToContent } from './Overlay';
+import { useEffect, useMemo, useState } from 'react';
 import {
   copilotData,
   inPeriod,
@@ -23,17 +22,13 @@ const PERIODS: { key: WorkbenchPeriod; label: string }[] = [
 ];
 
 interface OpportunityPickerProps {
-  inTauri: boolean;
   /** Bind the call to an existing opportunity. */
   onBind: (opportunityId: string) => void;
   /** Start cold — no opportunity; a new lead is created on save. */
   onColdStart: () => void;
 }
 
-export function OpportunityPicker({ inTauri, onBind, onColdStart }: OpportunityPickerProps) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  useFitWindowToContent(shellRef, inTauri);
-
+export function OpportunityPicker({ onBind, onColdStart }: OpportunityPickerProps) {
   const [rows, setRows] = useState<CopilotWorkbenchRow[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
@@ -72,7 +67,7 @@ export function OpportunityPicker({ inTauri, onBind, onColdStart }: OpportunityP
   }, [rows, query, period]);
 
   return (
-    <div className="overlay-shell pick-shell" data-tauri-drag-region ref={shellRef}>
+    <div className="overlay-shell pick-shell" data-tauri-drag-region>
       <div className="rail" data-tauri-drag-region>
         <span className="rail-brand" data-tauri-drag-region>
           <span className="rail-dot" data-tauri-drag-region />

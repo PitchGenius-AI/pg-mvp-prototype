@@ -5,6 +5,7 @@ import { OpportunityPicker } from './components/OpportunityPicker';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { useOnboardingComplete } from './mock/store';
 import { useCopilotAuth } from './api/auth';
+import { useResolvedProductContext } from './api/useResolvedProductContext';
 
 // The same overlay view renders in two contexts from one codebase, differing
 // only in its event source:
@@ -34,10 +35,13 @@ function TauriApp() {
   // PG-289: gate the overlay on a real session. The web app hands off a one-time
   // token via the pitchgenius:// deeplink; until it's exchanged (or a stored
   // session is restored), show the connect/sign-in screen. Once authenticated, the
-  // first-run onboarding (§4.6) gate, then the opportunity picker (PG-291), apply
-  // before the live overlay.
+  // product-context gate (§4.6), then the opportunity picker (PG-291), apply before
+  // the live overlay.
   const auth = useCopilotAuth();
-  const onboarded = useOnboardingComplete();
+  // PG-293: once signed in, resolve product context from the account. A web-onboarded
+  // user is hydrated and skips capture ('done'); an empty account falls back to the
+  // desktop OnboardingFlow ('onboarding'); 'resolving' while the backend answers.
+  const productContext = useResolvedProductContext(auth.status === 'authenticated');
   const [launch, setLaunch] = useState<LaunchChoice>({ decided: false, opportunityId: null });
 
   // Launched FROM a deal (deeplink named an opportunity) → bind directly, skip the
@@ -50,22 +54,17 @@ function TauriApp() {
 
   let content;
   if (auth.status === 'loading') {
-    content = <ConnectScreen inTauri={inTauri} variant="loading" />;
+    content = <ConnectScreen variant="loading" />;
   } else if (auth.status === 'unauthenticated') {
-    content = (
-      <ConnectScreen
-        inTauri={inTauri}
-        variant="signin"
-        onConnect={auth.connect}
-        error={auth.error}
-      />
-    );
-  } else if (!onboarded) {
+    content = <ConnectScreen variant="signin" onConnect={auth.connect} error={auth.error} />;
+  } else if (productContext === 'resolving') {
+    // Authenticated, waiting on the backend to say whether account context exists.
+    content = <ConnectScreen variant="loading" />;
+  } else if (productContext === 'onboarding') {
     content = <OnboardingFlow />;
   } else if (!launch.decided) {
     content = (
       <OpportunityPicker
-        inTauri={inTauri}
         onBind={(opportunityId) => setLaunch({ decided: true, opportunityId })}
         onColdStart={() => setLaunch({ decided: true, opportunityId: null })}
       />
