@@ -328,19 +328,35 @@ function SellerPanel() {
   );
 }
 
-function BuyerPanel({ engine, profile }: { engine: EngineStateEvent | null; profile: DemoProfile | null }) {
+function BuyerPanel({
+  engine,
+  profile,
+  preparing = false,
+}: {
+  engine: EngineStateEvent | null;
+  profile: DemoProfile | null;
+  preparing?: boolean;
+}) {
   const phase = engine?.phase ?? 'discovery';
   const done = engine?.discoveryProgress?.done ?? 0;
   const total = engine?.discoveryProgress?.total ?? 3;
+  // A bound pre-call preview: a profile is supplied before the live engine exists —
+  // it's the deal's already-matched read, not something building live (PG-313).
+  const preview = !engine && !!profile;
   // Started once the buyer has been read at all — the first live profile arrives a
-  // beat before discovery progress ticks, so key off either.
-  const started = !!engine && (phase === 'live' || done > 0 || !!profile);
+  // beat before discovery progress ticks, so key off either — or whenever we have a
+  // pre-call read to show.
+  const started = preview || (!!engine && (phase === 'live' || done > 0 || !!profile));
 
   if (!started) {
     return (
       <div className="panel">
         <div className="panel-head">Buyer</div>
-        <p className="panel-note">Listening for the buyer… the profile builds as they answer.</p>
+        <p className="panel-note">
+          {preparing
+            ? 'Loading this deal’s buyer profile…'
+            : 'Listening for the buyer… the profile builds as they answer.'}
+        </p>
       </div>
     );
   }
@@ -352,24 +368,39 @@ function BuyerPanel({ engine, profile }: { engine: EngineStateEvent | null; prof
     <div className="panel">
       <div className="panel-head">
         Buyer
-        <span className={`badge ${locked ? 'badge--locked' : 'badge--building'}`}>
-          {locked ? 'locked' : `building ${done}/${total}`}
-        </span>
+        {preview ? (
+          <span className="badge badge--locked">from pre-call prep</span>
+        ) : (
+          <span className={`badge ${locked ? 'badge--locked' : 'badge--building'}`}>
+            {locked ? 'locked' : `building ${done}/${total}`}
+          </span>
+        )}
       </div>
       <ProfileBody profile={shown} />
     </div>
   );
 }
 
-// The matched technique + tier + rationale, all live off `technique_update` (§5.4).
-// Empty until the first buyer answer is scored — mirroring the Buyer panel's
-// empty-then-fill "watch it learn" beat.
-function TechniquePanel({ technique }: { technique: TechniqueUpdateEvent | null }) {
+// The matched technique + tier + rationale. Live off `technique_update` (§5.4)
+// during the call; pre-fillable from the deal's pre-call prep before it starts
+// (PG-313). Empty until the first buyer answer is scored (cold start) — mirroring
+// the Buyer panel's empty-then-fill "watch it learn" beat.
+function TechniquePanel({
+  technique,
+  preparing = false,
+}: {
+  technique: TechniqueUpdateEvent | null;
+  preparing?: boolean;
+}) {
   if (!technique) {
     return (
       <div className="panel">
         <div className="panel-head">Technique</div>
-        <p className="panel-note">Evaluating… matching a technique to how this buyer buys.</p>
+        <p className="panel-note">
+          {preparing
+            ? 'Loading this deal’s matched technique…'
+            : 'Evaluating… matching a technique to how this buyer buys.'}
+        </p>
       </div>
     );
   }
@@ -437,6 +468,13 @@ interface OverlayViewProps {
   // fast-forward), so the button works in both.
   onSkip?: () => void;
   error?: string | null;
+  // Bound call only: the pre-grounding payload (buyer read + technique + script) is
+  // still being fetched. Start is disabled until it resolves so a too-early click
+  // can't silently begin a cold call without the deal's prep (PG-313).
+  preparing?: boolean;
+  // Human-readable note about what the prep is doing (loading vs generating), shown
+  // while `preparing` so the wait isn't a silent spinner (PG-313).
+  prepStatus?: string | null;
   // True in the live Tauri app: keep the window sized to the card's content.
   fitWindow?: boolean;
 }
@@ -454,6 +492,8 @@ export function OverlayView({
   onStartStop,
   onSkip,
   error,
+  preparing = false,
+  prepStatus,
   fitWindow = false,
 }: OverlayViewProps) {
   // null = the panel section is minimized (no panel open). Clicking the active
@@ -499,14 +539,15 @@ export function OverlayView({
             type="button"
             className={`rail-call ${inCall ? 'rail-call--live' : ''}`}
             onClick={onStartStop}
-            disabled={!onStartStop}
+            disabled={!onStartStop || (!inCall && preparing)}
           >
-            {inCall ? '● End call' : 'Start call'}
+            {inCall ? '● End call' : preparing ? 'Preparing…' : 'Start call'}
           </button>
         </div>
       </div>
 
       {error && <div className="engine-error">{error}</div>}
+      {preparing && prepStatus && <p className="panel-note overlay-prep-note">{prepStatus}</p>}
 
       {inSummary ? (
         <SummaryCard summary={summary} />
@@ -524,8 +565,10 @@ export function OverlayView({
             <div className="panel-area">
               {open === 'transcript' && <TranscriptPanel transcript={transcript} />}
               {open === 'seller' && <SellerPanel />}
-              {open === 'buyer' && <BuyerPanel engine={engine} profile={liveBuyerProfile} />}
-              {open === 'technique' && <TechniquePanel technique={technique} />}
+              {open === 'buyer' && (
+                <BuyerPanel engine={engine} profile={liveBuyerProfile} preparing={preparing} />
+              )}
+              {open === 'technique' && <TechniquePanel technique={technique} preparing={preparing} />}
             </div>
           )}
         </>
@@ -554,22 +597,64 @@ export function LiveOverlay({ opportunityId }: { opportunityId: string | null })
     skip,
     error,
   } = useRealtimeEngine();
-  const { context } = useBoundCallContext(opportunityId);
+  const {
+    context,
+    preview,
+    loading: contextLoading,
+    status,
+    error: contextError,
+  } = useBoundCallContext(opportunityId);
+  // A bound launch whose prep is still in flight: hold Start until `context` is
+  // ready so an early click can't begin the call cold without the buyer read +
+  // technique (the bug this fixes, PG-313). Cold start (no opportunityId) is never
+  // "preparing". The watchdog in the hook clears `loading` so this can't hang forever.
+  const preparing = opportunityId !== null && contextLoading;
+
+  // Pre-call preview: show the deal's already-matched buyer read + technique in the
+  // panels before the call starts (from the fast preview, or the full context once
+  // it lands). During the live call the engine's own events take over.
+  const inLiveCall = view === 'live';
+  const previewProfile: DemoProfile | null = inLiveCall
+    ? null
+    : (preview?.buyerProfile ?? context?.buyerProfile ?? null);
+  const previewTech = inLiveCall ? null : (preview?.technique ?? context?.technique ?? null);
+  const previewTechnique: TechniqueUpdateEvent | null = previewTech
+    ? {
+        type: 'technique_update',
+        technique: previewTech.technique,
+        tier: 'locked',
+        rationale: previewTech.reasoning,
+      }
+    : null;
+
+  // What the wait is for, in words (PG-313): a plain load vs. a first-time LLM generation.
+  const prepStatus =
+    status === 'generating'
+      ? 'Generating pre-call intelligence for this deal (first time — this can take ~20s)…'
+      : status === 'loading'
+        ? 'Loading this deal’s buyer profile & technique…'
+        : null;
+
   return (
     <OverlayView
       transcript={transcript}
       cue={cue}
       engine={engine}
-      buyerProfile={buyerProfile}
-      technique={technique}
+      // Pre-call: the deal's matched read/technique; live: the engine's own events.
+      buyerProfile={previewProfile ?? buyerProfile}
+      technique={previewTechnique ?? technique}
       signal={signal}
       view={view}
       elapsedMs={elapsedMs}
       summary={summary}
-      error={error}
+      // Engine errors take priority; otherwise surface a prep failure so a bound
+      // call that degraded to cold start says so instead of looking empty.
+      error={error ?? contextError}
+      preparing={preparing}
+      prepStatus={prepStatus}
       // In-call → End; precall/summary → Start a fresh call (§5.7: a new call is a
-      // distinct action from Resume, which is the next sub-increment). When bound,
-      // Start carries the pre-grounding context (null until ready → cold start).
+      // distinct action from Resume). When bound, Start carries the pre-grounding
+      // context; the button is disabled while `preparing` so it's never null-on-click.
       onStartStop={view === 'live' ? stop : () => start(context)}
       onSkip={skip}
       fitWindow

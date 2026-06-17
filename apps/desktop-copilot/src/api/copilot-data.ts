@@ -69,6 +69,16 @@ export interface CopilotDataSource {
    * so the call can still skip discovery and drive from a prepared script.
    */
   getStartCallContext(opportunityId: string): Promise<StartCallContext>;
+  /**
+   * The already-matched buyer read + technique for the picker→overlay preview — a
+   * single `precall.forOpportunity` call (no buyer/product/diagnosis round-trips),
+   * so the Buyer/Technique panels can fill the instant the deal is picked. Returns
+   * null when the deal has no precall yet (the full `getStartCallContext` will then
+   * generate it).
+   */
+  getPrecallPreview(
+    opportunityId: string,
+  ): Promise<{ buyerProfile: PsychProfile; technique: MatchedTechnique } | null>;
 }
 
 // Lower bound (epoch ms) for a recency period; <= 0 means "no bound" (all).
@@ -131,6 +141,12 @@ export const copilotData: CopilotDataSource = {
       }
     }
     return toStartCallContext({ ...ctx, precall });
+  },
+
+  async getPrecallPreview(opportunityId) {
+    const precall = await trpc.precall.forOpportunity.query({ opportunityId });
+    if (!precall) return null;
+    return { buyerProfile: precall.psychProfile, technique: precall.matchedTechnique };
   },
 };
 

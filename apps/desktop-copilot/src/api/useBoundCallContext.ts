@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { MatchedTechnique, PsychProfile } from '@pg/shared';
 import { copilotData, type StartCallContext } from './copilot-data';
 
 // Pre-fetches the pre-grounding payload for a bound call (PG-292). When the rep
@@ -8,52 +9,123 @@ import { copilotData, type StartCallContext } from './copilot-data';
 // stall between click and audio). A cold start (`opportunityId === null`) leaves
 // `context` null and the call begins with live discovery, unchanged.
 //
-// Generation runs at most once per opportunity id (guarded), so re-renders don't
-// re-trigger the `precall.run` mutation.
+// Two parallel fetches (PG-313):
+//   - a fast `getPrecallPreview` (one query) → `preview`, so the Buyer/Technique
+//     panels show the already-matched read immediately instead of the cold
+//     "listening" placeholder while the rest loads;
+//   - the full `getStartCallContext` → `context`, the payload handed to `start`.
+// A watchdog stops gating Start after a stall so the rep is never stuck.
+
+/** What the prep is doing — drives the status text the overlay shows. */
+export type BoundCallStatus = 'idle' | 'loading' | 'generating' | 'ready' | 'error';
+
 export interface BoundCallContext {
   /** The ready payload to hand to `start(context)`; null while loading, on a cold start, or on failure. */
   context: StartCallContext | null;
-  /** True while the context (incl. any on-demand precall generation) is being prepared. */
+  /** The already-matched buyer read + technique, available a beat before the full context (for panel preview). */
+  preview: { buyerProfile: PsychProfile; technique: MatchedTechnique } | null;
+  /** True while the full context (incl. any on-demand precall generation) is being prepared. */
   loading: boolean;
+  /** Coarse phase of the prep, for a human-readable status line. */
+  status: BoundCallStatus;
+  /** Set when prep failed or stalled; the call can still start cold, but the UI should say so. */
+  error: string | null;
 }
 
+// How long to gate Start before giving up and letting the rep start anyway. The
+// happy path resolves in well under a second; a deal with no precall yet runs an
+// LLM generation (~10–20s), so the watchdog sits comfortably past that.
+const PREP_WATCHDOG_MS = 25_000;
+
+const EMPTY: BoundCallContext = {
+  context: null,
+  preview: null,
+  loading: false,
+  status: 'idle',
+  error: null,
+};
+
 export function useBoundCallContext(opportunityId: string | null): BoundCallContext {
-  const [context, setContext] = useState<StartCallContext | null>(null);
-  const [loading, setLoading] = useState(false);
-  // The opportunity id we last kicked a fetch for — guards against duplicate
-  // generation across re-renders while keeping a fresh fetch when the binding changes.
-  const fetchedFor = useRef<string | null>(null);
+  const [state, setState] = useState<BoundCallContext>(EMPTY);
 
   useEffect(() => {
     if (!opportunityId) {
-      setContext(null);
-      setLoading(false);
-      fetchedFor.current = null;
+      setState(EMPTY);
       return;
     }
-    if (fetchedFor.current === opportunityId) return;
-    fetchedFor.current = opportunityId;
 
+    // Correctness is owned by the per-run `cancelled` flag (set in cleanup), NOT a
+    // "have I fetched this id?" ref. A sticky ref breaks React StrictMode's dev
+    // double-mount: the first run gets cancelled in cleanup, and a ref guard then
+    // makes the second run early-return instead of re-fetching, so the resolved
+    // promises are all discarded and the panel hangs on "Loading" forever (PG-313).
+    // The effect only re-runs when `opportunityId` changes, so there are no spurious
+    // refetches to guard against here anyway.
     let cancelled = false;
-    setLoading(true);
-    setContext(null);
+    setState({ context: null, preview: null, loading: true, status: 'loading', error: null });
+
+    // Fast preview — fill the panels ASAP with what's already matched. If there's
+    // no precall yet, the full fetch below will generate it: flag that as 'generating'
+    // so the status line can explain the longer wait.
     void copilotData
-      .getStartCallContext(opportunityId)
-      .then((ctx) => {
-        if (!cancelled) setContext(ctx);
+      .getPrecallPreview(opportunityId)
+      .then((preview) => {
+        if (cancelled) return;
+        setState((s) =>
+          preview
+            ? { ...s, preview }
+            : s.status === 'loading'
+              ? { ...s, status: 'generating' }
+              : s,
+        );
       })
       .catch(() => {
-        // A failed prep degrades to a cold start rather than blocking the call.
-        if (!cancelled) setContext(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        // Preview is best-effort; the full fetch result (or its error) is authoritative.
       });
+
+    // Full pre-grounding payload — what `start(context)` needs.
+    void copilotData
+      .getStartCallContext(opportunityId)
+      .then((context) => {
+        if (!cancelled) setState((s) => ({ ...s, context, loading: false, status: 'ready' }));
+      })
+      .catch((err) => {
+        // A failed prep degrades to a cold start rather than blocking the call —
+        // but record the error so the UI can say the buyer read/technique are
+        // missing, instead of silently starting cold.
+        if (!cancelled)
+          setState((s) => ({
+            ...s,
+            context: null,
+            loading: false,
+            status: 'error',
+            error:
+              err instanceof Error ? err.message : "Couldn't load this deal's pre-call intelligence",
+          }));
+      });
+
+    // Watchdog: never gate Start forever. If prep is still running, stop blocking and
+    // tell the rep they can start now (the call will use whatever loaded).
+    const watchdog = setTimeout(() => {
+      if (cancelled) return;
+      setState((s) =>
+        s.loading
+          ? {
+              ...s,
+              loading: false,
+              error:
+                s.error ??
+                'Pre-call prep is taking longer than expected — you can start now (the call will use what loaded).',
+            }
+          : s,
+      );
+    }, PREP_WATCHDOG_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
     };
   }, [opportunityId]);
 
-  return { context, loading };
+  return state;
 }
