@@ -1,6 +1,6 @@
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@pg/api/router';
-import type { MatchedTechnique, PsychProfile, SellerProduct } from '@pg/shared';
+import type { MatchedTechnique, PsychProfile, SellerProduct, TranscriptEvent } from '@pg/shared';
 import { trpc } from './client';
 
 // The desktop's data seam over the real backend (M33/PG-290). Every shape is
@@ -33,6 +33,16 @@ export interface CopilotOpportunityContext {
   product: CopilotProduct;
   diagnosis: CopilotDiagnosis;
   precall: CopilotPrecall;
+}
+
+// Minimal buyer identity for the bound-call "who am I talking to?" header (PG-317).
+// Distinct from the DISC/OCEAN `buyerProfile` in StartCallContext — this is the raw
+// name/org for visual confirmation, deliberately NOT folded into the Rust planner
+// payload (which carries no buyer PII).
+export interface BuyerIdentity {
+  name: string;
+  company: string | null;
+  title: string | null;
 }
 
 // The pre-grounding payload threaded into the Rust `start_call` command when a
@@ -79,6 +89,24 @@ export interface CopilotDataSource {
   getPrecallPreview(
     opportunityId: string,
   ): Promise<{ buyerProfile: PsychProfile; technique: MatchedTechnique } | null>;
+  /**
+   * The bound opportunity's buyer name/company/title for the call-screen confirm
+   * header (PG-317) — a light opportunity+buyer resolve, independent of precall, so
+   * the identity shows even for a deal that has no precall generated yet.
+   */
+  getBuyerIdentity(opportunityId: string): Promise<BuyerIdentity | null>;
+  /**
+   * Write a finished BOUND call back to the account (PG-294): create a `call`
+   * activity from the live transcript on the bound opportunity, then enqueue a
+   * diagnosis so the buyer's readiness updates from the conversation. Returns the
+   * new activity id. (The cold-start "create a new lead" path is separate and not
+   * yet wired — the demo launches bound from opportunity detail.)
+   */
+  saveBoundCall(input: {
+    opportunityId: string;
+    transcript: TranscriptEvent[];
+    participants?: string[];
+  }): Promise<{ activityId: string }>;
 }
 
 // Lower bound (epoch ms) for a recency period; <= 0 means "no bound" (all).
@@ -148,7 +176,43 @@ export const copilotData: CopilotDataSource = {
     if (!precall) return null;
     return { buyerProfile: precall.psychProfile, technique: precall.matchedTechnique };
   },
+
+  async getBuyerIdentity(opportunityId) {
+    const opportunity = await trpc.opportunity.get.query({ id: opportunityId });
+    const buyer = await trpc.buyer.get.query({ id: opportunity.buyerId });
+    const name = `${buyer.firstName} ${buyer.lastName ?? ''}`.trim();
+    return {
+      // Fall back to the opportunity name if the buyer somehow has no first name.
+      name: name || opportunity.opportunityName,
+      company: buyer.company ?? null,
+      title: buyer.title ?? null,
+    };
+  },
+
+  async saveBoundCall(input) {
+    // 1) Persist the call as a `call` activity on the bound opportunity. The live
+    //    transcript becomes `transcriptOrNotes` — the evidence the diagnosis reads.
+    const activity = await trpc.activity.create.mutate({
+      opportunityId: input.opportunityId,
+      activityType: 'call',
+      activityDate: new Date().toISOString(),
+      participants: input.participants,
+      transcriptOrNotes: formatCallTranscript(input.transcript),
+    });
+    // 2) Enqueue the diagnosis (background job, like the web UI) so the opportunity's
+    //    readiness updates from this call without blocking the End-call flow.
+    await trpc.diagnosis.enqueue.mutate({ activityId: activity.id });
+    return { activityId: activity.id };
+  },
 };
+
+// Render the speaker-labeled live transcript into the `transcriptOrNotes` blob the
+// diagnosis chain reads (PG-294): one line per chunk — "Seller: …" / "Buyer: …".
+function formatCallTranscript(transcript: TranscriptEvent[]): string {
+  return transcript
+    .map((t) => `${t.speaker === 'seller' ? 'Seller' : 'Buyer'}: ${t.text}`)
+    .join('\n');
+}
 
 // The web `Product` fields the desktop's lighter `SellerProduct` needs. Both the
 // workspace product list (`workspace.getCurrent`, PG-293) and a bound opportunity's

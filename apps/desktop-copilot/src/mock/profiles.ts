@@ -1,22 +1,16 @@
 import type { DiscProfile, OceanProfile } from '@pg/shared';
 
-// Seeded profiles for the overlay demo. In the real product the seller profile
-// is scored at onboarding (§4.3) and the buyer profile is built live from the
-// buyer's speech (§6.2); here they're canned so the reveal panels (§5.4) have
-// something to show. Reuses the @pg/shared DISC/OCEAN shapes for consistency.
+// Seeded buyer profile for the overlay demo. In the real product the buyer
+// profile is built live from the buyer's speech (§6.2); here it's canned so the
+// reveal panels (§5.4) have something to show. Reuses the @pg/shared DISC/OCEAN
+// shapes for consistency. (Seller profiling was cut — Russell, 2026-06-15 —
+// product intelligence is buyer-only.)
 
 export interface DemoProfile {
   disc: DiscProfile;
   ocean: OceanProfile;
   summary: string;
 }
-
-// Seller — the analytical/C read the §4.3 onboarding answers would produce.
-export const sellerProfile: DemoProfile = {
-  disc: { d: 35, i: 30, s: 45, c: 80, primaryType: 'C' },
-  ocean: { o: 45, c: 78, e: 40, a: 55, n: 38 },
-  summary: 'You sell like a C — analytical and evidence-led. Cues come concise and data-first.',
-};
 
 // Buyer — the read the discovery cues converge on (consensus-driven, risk-aware).
 // The panel reveals it progressively as discovery completes ("watch it learn").

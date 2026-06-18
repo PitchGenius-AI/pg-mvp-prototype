@@ -235,6 +235,51 @@ body {
   padding: 6px 10px;
 }
 
+/* — Bound-call confirm bar: back-to-picker (PG-316) + buyer identity (PG-317) — */
+.bound-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bound-back {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--pg-cyan);
+  cursor: pointer;
+}
+.bound-back:hover {
+  opacity: 0.8;
+}
+.bound-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+  text-align: right;
+  min-width: 0;
+}
+.bound-id-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.bound-id-org {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* — Status line (§5.1) — */
 .status-line {
   display: flex;
@@ -599,6 +644,13 @@ body {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-2);
+}
+/* Post-call save-back note (PG-294): success reads cyan, failure coral. */
+.call-save-note--saved {
+  color: var(--pg-cyan);
+}
+.call-save-note--error {
+  color: var(--pg-coral);
 }
 .panel-summary {
   margin: 0;

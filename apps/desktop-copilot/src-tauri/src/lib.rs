@@ -278,6 +278,24 @@ fn skip_cue(state: State<'_, EngineState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Detectable toggle (§5.4 / §8): screen-share invisibility. When the rep sets the
+/// overlay to "Hidden" (the default), exclude it from screen capture/sharing so it
+/// doesn't appear in a Zoom/Meet share or a recording; "Detectable" makes it
+/// capturable again. On macOS this flips the window's NSWindowSharingType
+/// (none ⇄ readOnly) via Tauri's content-protection API. The overlay keeps
+/// rendering and stays interactive on-screen either way — this only changes what a
+/// screen recorder/sharer sees.
+#[tauri::command]
+fn set_detectable(app: AppHandle, detectable: bool) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        // Hidden ⇒ content-protected (excluded from capture); Detectable ⇒ not.
+        window
+            .set_content_protected(!detectable)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Stop all capture + STT and return to idle. Safe to call when nothing runs.
 #[tauri::command]
 fn stop_call(app: AppHandle, state: State<'_, EngineState>) -> Result<(), String> {
@@ -410,6 +428,7 @@ pub fn run() {
             start_call,
             stop_call,
             skip_cue,
+            set_detectable,
             secret_set,
             secret_get,
             secret_delete
@@ -437,6 +456,10 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 apply_native_frost(&window);
                 promote_to_overlay_panel(&window);
+                // Default is "Hidden" (§5.4): start excluded from screen capture so
+                // the overlay never leaks into a share before the rep touches the
+                // toggle. Mirrors the overlay's initial `detectable = false`.
+                let _ = window.set_content_protected(true);
             }
 
             // PG-245 (FR7/FR8/FR9): persistent menu-bar status item with a menu

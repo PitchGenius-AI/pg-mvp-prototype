@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MatchedTechnique, PsychProfile } from '@pg/shared';
-import { copilotData, type StartCallContext } from './copilot-data';
+import { copilotData, type BuyerIdentity, type StartCallContext } from './copilot-data';
 
 // Pre-fetches the pre-grounding payload for a bound call (PG-292). When the rep
 // launches from a deal (or picks one), we resolve the opportunity context — and,
@@ -24,6 +24,8 @@ export interface BoundCallContext {
   context: StartCallContext | null;
   /** The already-matched buyer read + technique, available a beat before the full context (for panel preview). */
   preview: { buyerProfile: PsychProfile; technique: MatchedTechnique } | null;
+  /** The bound buyer's name/company/title for the call-screen confirm header (PG-317); null on a cold start or before it loads. */
+  identity: BuyerIdentity | null;
   /** True while the full context (incl. any on-demand precall generation) is being prepared. */
   loading: boolean;
   /** Coarse phase of the prep, for a human-readable status line. */
@@ -40,6 +42,7 @@ const PREP_WATCHDOG_MS = 25_000;
 const EMPTY: BoundCallContext = {
   context: null,
   preview: null,
+  identity: null,
   loading: false,
   status: 'idle',
   error: null,
@@ -62,7 +65,26 @@ export function useBoundCallContext(opportunityId: string | null): BoundCallCont
     // The effect only re-runs when `opportunityId` changes, so there are no spurious
     // refetches to guard against here anyway.
     let cancelled = false;
-    setState({ context: null, preview: null, loading: true, status: 'loading', error: null });
+    setState({
+      context: null,
+      preview: null,
+      identity: null,
+      loading: true,
+      status: 'loading',
+      error: null,
+    });
+
+    // Buyer identity for the confirm header (PG-317) — independent of precall, so it
+    // resolves even for a deal with no precall yet. Best-effort: a failure just omits
+    // the header rather than blocking the call.
+    void copilotData
+      .getBuyerIdentity(opportunityId)
+      .then((identity) => {
+        if (!cancelled) setState((s) => ({ ...s, identity }));
+      })
+      .catch(() => {
+        // Identity is decorative confirmation; the call proceeds without it.
+      });
 
     // Fast preview — fill the panels ASAP with what's already matched. If there's
     // no precall yet, the full fetch below will generate it: flag that as 'generating'

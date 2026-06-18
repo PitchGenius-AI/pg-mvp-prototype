@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { SellerProduct } from '@pg/shared';
 import { useProducts, productActions } from '../mock/store';
-import { FAKE_SCRAPE_STEPS, blankProduct, fakeScrapeWebsite } from '../mock/fake-scrape';
+import { FAKE_SCRAPE_STEPS, blankProduct, fakeScrapeWebsite, newId } from '../mock/fake-scrape';
+import { trpc } from '../api/client';
+
+// Real backend scrape only runs in the Tauri app (it's authenticated against the
+// account); the no-backend browser demo keeps the canned mock so QA still works.
+const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 // First-run onboarding — product / ICP / problem context capture (§4.6, PG-281).
 //
@@ -96,17 +101,57 @@ export function OnboardingFlow() {
     return () => clearInterval(id);
   }, [phase]);
 
+  // Manual-entry fallback: explain why, then drop into edit with one blank product
+  // so the seller can type their context by hand (the mandatory §4.6 fallback).
+  const fallbackToManual = (reason: string) => {
+    setScrapeNote(reason);
+    if (products.length === 0) productActions.addProduct(blankProduct());
+  };
+
   const runScrape = async () => {
-    if (!url.trim()) return;
+    const site = url.trim();
+    if (!site) return;
     setScrapeNote(null);
     setPhase('scraping');
-    const result = await fakeScrapeWebsite(url.trim());
+
+    if (inTauri) {
+      // Real scrape (PG-293): fetch + extract on the backend (parser.scrapeWebsite,
+      // PG-308). The account-level ICP/problem apply to every scraped product —
+      // the desktop SellerProduct model carries them per-product.
+      try {
+        const extraction = await trpc.parser.scrapeWebsite.mutate({ url: site });
+        const scraped: SellerProduct[] = extraction.products
+          .filter((p) => p.name.trim().length > 0)
+          .map((p) => ({
+            id: newId('sprod'),
+            name: p.name,
+            description: p.description,
+            icp: extraction.targetCustomer,
+            problem: extraction.coreProblem,
+            sourceUrl: site,
+            isPrimary: false,
+          }));
+        if (scraped.length > 0) {
+          productActions.prefillFromScrape(scraped);
+        } else {
+          // Thin site / login wall / not a company site — the chain returns empty
+          // rather than fabricating, so we route to manual entry.
+          fallbackToManual("We couldn't read enough from your site — add your products below.");
+        }
+      } catch {
+        // Backend unreachable / scrape failed — never block onboarding on it.
+        fallbackToManual("We couldn't reach the site reader — add your products below.");
+      }
+      setPhase('edit');
+      return;
+    }
+
+    // Browser demo (no backend): canned scrape.
+    const result = await fakeScrapeWebsite(site);
     if (result.ok) {
       productActions.prefillFromScrape(result.products);
     } else {
-      // Manual-entry fallback: explain, then drop into edit with one blank product.
-      setScrapeNote(result.reason);
-      if (products.length === 0) productActions.addProduct(blankProduct());
+      fallbackToManual(result.reason);
     }
     setPhase('edit');
   };

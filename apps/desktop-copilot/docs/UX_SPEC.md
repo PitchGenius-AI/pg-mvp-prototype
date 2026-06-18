@@ -77,7 +77,22 @@ _TO FILL: beat-by-beat walkthrough._
 
 ## 3. User journey overview
 
-The cold-start arc:
+**Entry scenarios, by priority (re-prioritized 2026-06-17):**
+
+1. **Set-up, signed-in user — no onboarding (the demo spine).** The account already has
+   product context (a real account → **hydrated** from it via `workspace.getCurrent`; the
+   demo → seeded) and opportunities. Open → pick a deal (or be launched into one) → live
+   overlay. No welcome, no permissions re-prompt, no product capture. **This is the most
+   important path; the demo runs on it.**
+2. **Desktop-first onboarding — a new customer who starts on the desktop.** Sign up / sign in
+   and capture product / ICP context _on the desktop_ (§4.3), then into the overlay. **This is
+   the real first-run path to build** — auth approach is an open decision (see PG-315). Needed,
+   but not necessarily the next thing.
+3. **(Edge) Web-onboarded, then routed through desktop onboarding.** Shouldn't occur — a
+   web-onboarded account already has context, so the desktop **hydrates** (scenario 1) and
+   skips capture. Kept only as a defensive fallback; **not a path we design around.**
+
+The cold-start arc (scenario 2):
 
 ```
 First run (no account / no data)
@@ -101,6 +116,15 @@ First run (no account / no data)
 ## 4. First-run onboarding _(starting here — walking step by step)_
 
 ### 4.1 Cold start / welcome
+
+> **Re-prioritization note (2026-06-17):** desktop-first onboarding (journey §3, scenario 2)
+> is now a first-class path, which puts the "the desktop never collects credentials, the web
+> app owns auth" stance below under **active reconsideration — see PG-315**. The web→desktop
+> handoff described here stays valid for the web-first user; the open decision is whether the
+> desktop also offers a native **"create account"** path, and if so via browser-delegated auth
+> (preferred — preserves the no-credentials-in-desktop posture) vs. in-app credential fields.
+> The web-onboarded→desktop-onboarding sequence is an **edge case** (§3, scenario 3), not a
+> designed path. Resolve PG-315 before treating this section's mechanism as locked.
 
 The Co-pilot opens at true cold-start: no account, no data, no permissions granted. Two
 things happen before onboarding proper (§4.3): a one-line **welcome** that frames what's

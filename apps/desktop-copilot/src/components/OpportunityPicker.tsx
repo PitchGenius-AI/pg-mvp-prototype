@@ -127,7 +127,7 @@ export function OpportunityPicker({ onBind, onColdStart }: OpportunityPickerProp
           disabled={!selectedId}
           onClick={() => selectedId && onBind(selectedId)}
         >
-          Start call
+          Select opportunity
         </button>
 
         <div className="ob-secondary-row">

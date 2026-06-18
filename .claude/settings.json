@@ -39,7 +39,25 @@
       "mcp__chrome-devtools__upload_file",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "mcp__linear-server__list_teams"
+      "mcp__linear-server__list_teams",
+      "Read(//tmp/cluely_thumbs/**)",
+      "Read(//private/tmp/cluely_thumbs/**)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api *)",
+      "Bash(grep -iE 'ui/|\\\\.css$|style|Header|Listen|Ask')",
+      "Bash(pnpm --filter @pg/shared typecheck)",
+      "mcp__linear-server__list_comments",
+      "WebFetch(domain:github.com)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -o glass___TRACKED_VAR__ -w '%{http_code} %{size_download}\\\\n' https://raw.githubusercontent.com/pickle-com/glass/main/src/ui/listen/audioCore/__TRACKED_VAR__)",
+      "Bash(curl -s -o glass_sttService.js -w \"%{http_code} %{size_download}\\\\n\" \"https://raw.githubusercontent.com/pickle-com/glass/main/src/features/listen/stt/sttService.js\")",
+      "Read(//tmp/**)",
+      "Bash(python3 -c \"print\\(open\\('/Users/cassandrawilcox/.claude/projects/-Users-cassandrawilcox-Development-pg-mvp-2/b1508426-06ff-415a-99f2-3829c2a3522a/tool-results/mcp-linear-server-list_issues-1781107466226.txt'\\).read\\(\\)[0:80000]\\)\")",
+      "Bash(pnpm install *)",
+      "Bash(docker exec *)",
+      "mcp__claude_ai_Fathom_AE_Studio__get_summary",
+      "mcp__claude_ai_Fathom_AE_Studio__get_transcript",
+      "Bash(grep -iE '\\(^|/\\)\\\\.env\\($|\\\\.\\)|settings\\\\.json|secret|\\\\.pem$|\\\\.key$')"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DemoOverlay, LiveOverlay } from './components/Overlay';
 import { ConnectScreen } from './components/ConnectScreen';
 import { OpportunityPicker } from './components/OpportunityPicker';
@@ -45,9 +45,14 @@ function TauriApp() {
   const [launch, setLaunch] = useState<LaunchChoice>({ decided: false, opportunityId: null });
 
   // Launched FROM a deal (deeplink named an opportunity) → bind directly, skip the
-  // picker (PG-291 entry routing).
+  // picker (PG-291 entry routing). Consume the deeplink ONCE: after the rep goes
+  // back to the picker (PG-316) we reset `launch.decided`, and without this guard
+  // the still-set `pendingOpportunityId` would immediately re-bind and bounce them
+  // straight back into the overlay.
+  const deeplinkConsumed = useRef(false);
   useEffect(() => {
-    if (auth.pendingOpportunityId && !launch.decided) {
+    if (auth.pendingOpportunityId && !launch.decided && !deeplinkConsumed.current) {
+      deeplinkConsumed.current = true;
       setLaunch({ decided: true, opportunityId: auth.pendingOpportunityId });
     }
   }, [auth.pendingOpportunityId, launch.decided]);
@@ -72,7 +77,14 @@ function TauriApp() {
   } else {
     // PG-292: the bound opportunity id flows into the overlay, which pre-fetches the
     // pre-grounding payload and hands it to start_call (a cold start passes null).
-    content = <LiveOverlay opportunityId={launch.opportunityId} />;
+    // PG-316: `onChangeDeal` returns the rep to the picker before the call starts to
+    // pick a different opportunity (or switch to/from a cold start).
+    content = (
+      <LiveOverlay
+        opportunityId={launch.opportunityId}
+        onChangeDeal={() => setLaunch({ decided: false, opportunityId: null })}
+      />
+    );
   }
 
   return <div className="tauri-root">{content}</div>;

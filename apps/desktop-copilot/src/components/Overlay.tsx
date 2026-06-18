@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type {
   CueEvent,
   DiscProfile,
@@ -12,7 +13,8 @@ import type {
 import { useFixturePlayer } from '../mock/useFixturePlayer';
 import { useRealtimeEngine } from '../realtime/useRealtimeEngine';
 import { useBoundCallContext } from '../api/useBoundCallContext';
-import { buyerProfile, sellerProfile, type DemoProfile } from '../mock/profiles';
+import { copilotData, type BuyerIdentity } from '../api/copilot-data';
+import { buyerProfile, type DemoProfile } from '../mock/profiles';
 import { formatClock, type CallSummary, type CallView } from '../session';
 
 const TECHNIQUE_LABEL: Record<SalesTechnique, string> = {
@@ -21,7 +23,8 @@ const TECHNIQUE_LABEL: Record<SalesTechnique, string> = {
   nepq: 'NEPQ',
 };
 
-type PillKey = 'transcript' | 'seller' | 'buyer' | 'technique';
+// Seller pill CUT (Russell, 2026-06-15) — product intelligence is buyer-only.
+type PillKey = 'transcript' | 'buyer' | 'technique';
 
 // — Status line (§5.1): engine state · phase · Discovery n/total · confidence creep.
 // Carries the manual-skip control (§5.2/§5.4): a small, unobtrusive "Skip ›" — the
@@ -30,17 +33,40 @@ type PillKey = 'transcript' | 'seller' | 'buyer' | 'technique';
 // hotkey is the primary control and lands next increment.)
 function StatusLine({
   engine,
+  prepTechnique,
   onSkip,
   canSkip,
 }: {
   engine: EngineStateEvent | null;
+  prepTechnique?: TechniqueUpdateEvent | null;
   onSkip?: () => void;
   canSkip?: boolean;
 }) {
-  const state = engine?.state ?? 'idle';
-  const phase = engine?.phase ?? 'discovery';
-  const progress = engine?.discoveryProgress ?? null;
-  const conf = engine?.techniqueConfidence ?? null;
+  // Pre-call (no live engine yet): the planner hasn't chosen a phase, so don't assert
+  // "Discovery" — it misleads on a bound/prepped call, which skips discovery entirely
+  // once it starts (the read + technique came from pre-call prep; see PG-276). Show
+  // "Ready" + the prepped technique (when bound) so the prep reads clearly before Start.
+  if (!engine) {
+    return (
+      <div className="status-line" data-tauri-drag-region>
+        <span className="status-dot status-dot--idle" />
+        <span className="status-state">Ready</span>
+        {prepTechnique && (
+          <>
+            <span className="status-sep">·</span>
+            <span className="status-phase">{TECHNIQUE_LABEL[prepTechnique.technique]}</span>
+            <span className="status-sep">·</span>
+            <span className="status-conf status-conf--locked">{prepTechnique.tier}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const state = engine.state;
+  const phase = engine.phase;
+  const progress = engine.discoveryProgress ?? null;
+  const conf = engine.techniqueConfidence ?? null;
 
   const stateLabel =
     state === 'no_audio'
@@ -156,6 +182,18 @@ function SummaryRow({
   );
 }
 
+// Post-call save-back confirmation (PG-294) — shown under the summary card after a
+// bound call writes its activity + enqueues the readiness diagnosis.
+function CallSaveNote({ status }: { status: CallSaveStatus }) {
+  const text =
+    status === 'saving'
+      ? 'Saving this call to your pipeline…'
+      : status === 'saved'
+        ? 'Saved — buyer readiness is updating from this call.'
+        : "Couldn't save this call automatically — it can still be added from the web app.";
+  return <p className={`panel-note call-save-note call-save-note--${status}`}>{text}</p>;
+}
+
 function SummaryCard({ summary }: { summary: CallSummary }) {
   // The deeplink handoff is mocked in the prototype — clicking shows inline
   // confirmation rather than launching the (not-yet-built) embedded web app (§11).
@@ -228,7 +266,6 @@ function RevealPills({
 }) {
   const pills: Array<{ key: PillKey; label: string }> = [
     { key: 'transcript', label: 'Transcript' },
-    { key: 'seller', label: 'Seller' },
     { key: 'buyer', label: 'Buyer' },
     { key: 'technique', label: 'Technique' },
   ];
@@ -314,15 +351,6 @@ function TranscriptPanel({ transcript }: { transcript: TranscriptEvent[] }) {
         ))}
         <div ref={endRef} />
       </div>
-    </div>
-  );
-}
-
-function SellerPanel() {
-  return (
-    <div className="panel">
-      <div className="panel-head">Seller · how we coach you</div>
-      <ProfileBody profile={sellerProfile} />
     </div>
   );
 }
@@ -449,7 +477,19 @@ interface OverlayViewProps {
   // Human-readable note about what the prep is doing (loading vs generating), shown
   // while `preparing` so the wait isn't a silent spinner (PG-313).
   prepStatus?: string | null;
+  // Post-call save-back state (PG-294): a bound call writes an activity + enqueues a
+  // diagnosis on End; this surfaces "saving / saved / failed" on the summary card.
+  saveStatus?: CallSaveStatus | null;
+  // Bound-call confirm header (PG-317): the buyer's name/company/title, so the rep
+  // can verify they launched into the right person's call. Null on a cold start.
+  buyerIdentity?: BuyerIdentity | null;
+  // Pre-call back affordance (PG-316): return to the opportunity picker to pick a
+  // different deal (or switch to/from a cold start). Omitted in the browser demo.
+  onChangeDeal?: () => void;
 }
+
+// Post-call save-back lifecycle (PG-294).
+export type CallSaveStatus = 'saving' | 'saved' | 'error';
 
 export function OverlayView({
   transcript,
@@ -466,12 +506,24 @@ export function OverlayView({
   error,
   preparing = false,
   prepStatus,
+  saveStatus,
+  buyerIdentity,
+  onChangeDeal,
 }: OverlayViewProps) {
   // null = the panel section is minimized (no panel open). Clicking the active
   // pill again collapses it, so the pill doubles as the minimize control — no
   // separate minimize button.
   const [open, setOpen] = useState<PillKey | null>('transcript');
+  // Default Hidden (§5.4): the overlay is excluded from screen capture until the rep
+  // opts into Detectable. Rust applies the same default at startup; this effect keeps
+  // the native NSWindow sharing type in sync with the toggle. No-op in the browser
+  // demo (no Tauri bridge), so the control is inert there.
   const [detectable, setDetectable] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+      void invoke('set_detectable', { detectable }).catch(() => {});
+    }
+  }, [detectable]);
 
   // Drive the rail control off the view, not the raw engine state: in the summary
   // view the engine briefly still reads `listening` until its idle echo lands, but
@@ -515,14 +567,46 @@ export function OverlayView({
         </div>
       </div>
 
+      {/* Bound-call confirm bar (PG-316 back / PG-317 identity). The back link only
+          shows pre-call (before a live call); the identity stays visible throughout
+          so the rep can keep confirming who they're on with. Hidden entirely on a
+          cold start with no picker (browser demo). */}
+      {(buyerIdentity || (onChangeDeal && !inCall && !inSummary)) && (
+        <div className="bound-bar" data-tauri-drag-region>
+          {onChangeDeal && !inCall && !inSummary && (
+            <button type="button" className="bound-back" onClick={onChangeDeal}>
+              ‹ Back to deals
+            </button>
+          )}
+          {buyerIdentity && (
+            <span className="bound-id">
+              <span className="bound-id-name">{buyerIdentity.name}</span>
+              {(buyerIdentity.company || buyerIdentity.title) && (
+                <span className="bound-id-org">
+                  {[buyerIdentity.company, buyerIdentity.title].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+
       {error && <div className="engine-error">{error}</div>}
       {preparing && prepStatus && <p className="panel-note overlay-prep-note">{prepStatus}</p>}
 
       {inSummary ? (
-        <SummaryCard summary={summary} />
+        <>
+          <SummaryCard summary={summary} />
+          {saveStatus && <CallSaveNote status={saveStatus} />}
+        </>
       ) : (
         <>
-          <StatusLine engine={engine} onSkip={onSkip} canSkip={view === 'live' && !!cue} />
+          <StatusLine
+            engine={engine}
+            prepTechnique={technique}
+            onSkip={onSkip}
+            canSkip={view === 'live' && !!cue}
+          />
           <SignalBeat signal={signal} />
           <CueHero cue={cue} />
 
@@ -533,7 +617,6 @@ export function OverlayView({
           {open && (
             <div className="panel-area">
               {open === 'transcript' && <TranscriptPanel transcript={transcript} />}
-              {open === 'seller' && <SellerPanel />}
               {open === 'buyer' && (
                 <BuyerPanel engine={engine} profile={liveBuyerProfile} preparing={preparing} />
               )}
@@ -550,7 +633,14 @@ export function OverlayView({
 // `opportunityId` (PG-292) binds the call to a deal: the pre-grounding payload is
 // pre-fetched on bind and handed to `start`, so the planner skips discovery and
 // drives from the prepared script. Null is a cold start (live discovery).
-export function LiveOverlay({ opportunityId }: { opportunityId: string | null }) {
+export function LiveOverlay({
+  opportunityId,
+  onChangeDeal,
+}: {
+  opportunityId: string | null;
+  // PG-316: return to the opportunity picker before the call starts.
+  onChangeDeal?: () => void;
+}) {
   const {
     transcript,
     cue,
@@ -569,6 +659,7 @@ export function LiveOverlay({ opportunityId }: { opportunityId: string | null })
   const {
     context,
     preview,
+    identity,
     loading: contextLoading,
     status,
     error: contextError,
@@ -578,6 +669,23 @@ export function LiveOverlay({ opportunityId }: { opportunityId: string | null })
   // technique (the bug this fixes, PG-313). Cold start (no opportunityId) is never
   // "preparing". The watchdog in the hook clears `loading` so this can't hang forever.
   const preparing = opportunityId !== null && contextLoading;
+
+  // Post-call save-back (PG-294). On End of a BOUND call, write the call as an
+  // activity + enqueue a readiness diagnosis so the deal updates from the
+  // conversation. Read `transcript` at click time (it holds the accumulated chunks).
+  // Cold-start calls (no opportunityId) aren't saved here — the create-new-lead path
+  // is separate. An empty transcript is skipped so we don't diagnose on nothing.
+  const [saveStatus, setSaveStatus] = useState<CallSaveStatus | null>(null);
+  const endAndSave = () => {
+    stop();
+    if (opportunityId && transcript.length > 0) {
+      setSaveStatus('saving');
+      copilotData
+        .saveBoundCall({ opportunityId, transcript })
+        .then(() => setSaveStatus('saved'))
+        .catch(() => setSaveStatus('error'));
+    }
+  };
 
   // Pre-call preview: show the deal's already-matched buyer read + technique in the
   // panels before the call starts (from the fast preview, or the full context once
@@ -621,10 +729,21 @@ export function LiveOverlay({ opportunityId }: { opportunityId: string | null })
       error={error ?? contextError}
       preparing={preparing}
       prepStatus={prepStatus}
-      // In-call → End; precall/summary → Start a fresh call (§5.7: a new call is a
-      // distinct action from Resume). When bound, Start carries the pre-grounding
-      // context; the button is disabled while `preparing` so it's never null-on-click.
-      onStartStop={view === 'live' ? stop : () => start(context)}
+      saveStatus={saveStatus}
+      buyerIdentity={identity}
+      onChangeDeal={onChangeDeal}
+      // In-call → End (which also saves the call back, PG-294); precall/summary →
+      // Start a fresh call (§5.7: a new call is a distinct action from Resume). When
+      // bound, Start carries the pre-grounding context; the button is disabled while
+      // `preparing` so it's never null-on-click. Starting fresh clears the save note.
+      onStartStop={
+        view === 'live'
+          ? endAndSave
+          : () => {
+              setSaveStatus(null);
+              start(context);
+            }
+      }
       onSkip={skip}
     />
   );

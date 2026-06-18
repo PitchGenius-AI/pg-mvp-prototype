@@ -6,7 +6,7 @@ import type { SellerProduct } from '@pg/shared';
 // network). Mirrors apps/web/src/mock/fake-scrape.ts in spirit; kept desktop-local
 // since the two apps don't share a package yet.
 
-const newId = (prefix: string) =>
+export const newId = (prefix: string) =>
   `${prefix}_${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(
     /-/g,
     '',
